@@ -3,7 +3,7 @@
     "name": "Vesta Property Checklist",
     "version": "1.0",
     "description": "Evaluate property listings with ease using automated checklists.",
-    "permissions": ["activeTab", "scripting", "sidePanel"],
+    "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
     "host_permissions": [
       "https://www.rightmove.co.uk/*",
       "https://www.idealista.com/*"
@@ -21,6 +21,12 @@
       },
       "default_title": "Open Vesta Property Checklist"
     },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["contentScript.js"]
+      }
+    ],
     "background": {
       "service_worker": "background.js",
       "type": "module"

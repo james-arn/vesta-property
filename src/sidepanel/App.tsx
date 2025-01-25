@@ -1,10 +1,38 @@
-import React, { useState } from "react";
-import { propertyChecklist } from '../constants/propertyChecklist';
+import React, { useEffect, useState } from 'react';
+import { ActionEvents } from '../constants/actionEvents';
+import { generatePropertyChecklist } from '../constants/propertyChecklist';
+import { retrieveDataForTab } from '../storage';
 import { DataStatus } from '../types/property';
 import { getStatusColor, getStatusIcon } from './helpers';
 
 const App: React.FC = () => {
-    const initialOpenGroups = propertyChecklist.reduce((acc, item) => {
+    const [propertyData, setPropertyData] = useState({
+        price: null,
+        location: null,
+        bedrooms: null,
+        bathrooms: null,
+        images: null,
+    });
+    const [warningMessage, setWarningMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        retrieveDataForTab((data) => {
+            if (data) {
+                console.log('Data retrieved from chrome.storage', data);
+                if (data.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+                    setPropertyData(data.propertyData);
+                }
+                if (data.action === ActionEvents.SHOW_WARNING) {
+                    setWarningMessage(data.message);
+                }
+            }
+        });
+    }, []);
+
+
+    const updatedChecklist = generatePropertyChecklist(propertyData);
+
+    const initialOpenGroups = updatedChecklist.reduce((acc, item) => {
         acc[item.group] = true;
         return acc;
     }, {} as { [key: string]: boolean });
@@ -20,10 +48,14 @@ const App: React.FC = () => {
 
     let lastGroup = "";
 
+    if (warningMessage) {
+        return <div>{warningMessage}</div>;
+    }
+
     return (
         <div style={{ padding: "0px 15px", fontFamily: "Arial, sans-serif" }}>
             <ul style={{ listStyle: "none", padding: 0 }}>
-                {propertyChecklist.map((item) => {
+                {updatedChecklist.map((item) => {
                     const showGroupHeading = item.group !== lastGroup;
                     lastGroup = item.group;
 
@@ -50,7 +82,7 @@ const App: React.FC = () => {
                                 style={{
                                     maxHeight: openGroups[item.group] ? "1000px" : "0",
                                     overflow: "hidden",
-                                    transition: "max-height 0.5s ease, opacity 0.3s ease",
+                                    transition: "max-height 0.3s ease, opacity 0.3s ease",
                                     opacity: openGroups[item.group] ? 1 : 0
                                 }}
                             >
