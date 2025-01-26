@@ -15,12 +15,13 @@ const App: React.FC = () => {
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        const handleMessage = (message: { action: string, data?: any, message?: string }) => {
-            console.log("handle message", message);
+        // **1. Add Message Listener First**
+        const handleMessage = (message: { action: string; data?: any; message?: string }) => {
+            console.log('[Side Panel] Received message:', message);
             if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
                 setPropertyData(message.data);
                 setWarningMessage(null);
-                console.log("Side Panel: Property data updated:", message.data);
+                console.log('[Side Panel] Property data updated:', message.data);
             } else if (message.action === ActionEvents.SHOW_WARNING) {
                 setWarningMessage(message.message || null);
                 setPropertyData({
@@ -30,11 +31,22 @@ const App: React.FC = () => {
                     bathrooms: null,
                     images: null,
                 });
-                console.log("Side Panel: Warning message set:", message.message);
+                console.log('[Side Panel] Warning message set:', message.message);
             }
         };
 
         chrome.runtime.onMessage.addListener(handleMessage);
+
+        // **2. Send 'SIDE_PANEL_OPENED' Message After Listener is Set Up**
+        console.log('[Side Panel] Component mounted. Sending SIDE_PANEL_OPENED message.');
+        chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('[Side Panel] Error sending SIDE_PANEL_OPENED message:', chrome.runtime.lastError);
+            } else {
+                console.log('[Side Panel] Background response:', response);
+            }
+        });
+
         return () => {
             chrome.runtime.onMessage.removeListener(handleMessage);
         };
