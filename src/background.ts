@@ -1,4 +1,6 @@
 import { ActionEvents } from './constants/actionEvents';
+import { StorageKeys } from './constants/storage';
+import { storeDataToStorage } from './storageHelpers';
 
 console.log("Background script loaded2");
 // Background.ts is the central hub
@@ -11,7 +13,7 @@ function handleInitialLoadOrTabChange() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length > 0 && tabs[0].url) {
             const currentUrl = tabs[0].url;
-            chrome.storage.local.set({ lastUrl: currentUrl }, () => {
+            storeDataToStorage(StorageKeys.LAST_URL, currentUrl, () => {
                 console.log('Updated last URL:', currentUrl);
                 chrome.runtime.sendMessage({
                     action: ActionEvents.TAB_CHANGED,
