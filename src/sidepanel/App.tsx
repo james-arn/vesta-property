@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../constants/propertyChecklist';
-import { retrieveDataForTab } from '../storage';
 import { DataStatus } from '../types/property';
 import { getStatusColor, getStatusIcon } from './helpers';
 
@@ -15,27 +14,40 @@ const App: React.FC = () => {
     });
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
     const [currentUrl, setCurrentUrl] = useState("");
-
+    console.log('currentUrl2', currentUrl)
     useEffect(() => {
+        // Retrieve the initial URL from storage
+        chrome.storage.local.get('lastUrl', (result) => {
+            if (result.lastUrl) {
+                console.log('Retrieved lastUrl URL:', result.lastUrl);
+                setCurrentUrl(result.lastUrl);
+            }
+        });
         // Listen for messages from the background script
         const handleMessage = (message: { action: string, url: string }) => {
+            console.log("handle message")
             if (message.action === ActionEvents.TAB_CHANGED) {
-                setCurrentUrl(message.url || "");
+                chrome.storage.local.get('lastUrl', (result) => {
+                    if (result.lastUrl) {
+                        console.log('Retrieved lastUrl URL:', result.lastUrl);
+                        setCurrentUrl(result.lastUrl);
+                    }
+                });
             }
         };
         chrome.runtime.onMessage.addListener(handleMessage);
 
-        retrieveDataForTab((data) => {
-            if (data) {
-                console.log('Data retrieved from chrome.storage', data);
-                if (data.action === ActionEvents.UPDATE_PROPERTY_DATA) {
-                    setPropertyData(data.propertyData);
-                }
-                if (data.action === ActionEvents.SHOW_WARNING) {
-                    setWarningMessage(data.message);
-                }
-            }
-        });
+        // retrieveDataForTab((data) => {
+        //     if (data) {
+        //         console.log('Data retrieved from chrome.storage', data);
+        //         if (data.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+        //             setPropertyData(data.propertyData);
+        //         }
+        //         if (data.action === ActionEvents.SHOW_WARNING) {
+        //             setWarningMessage(data.message);
+        //         }
+        //     }
+        // });
         return () => {
             chrome.runtime.onMessage.removeListener(handleMessage);
         };

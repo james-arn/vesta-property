@@ -1,4 +1,3 @@
-import { ActionEvents } from './constants/actionEvents';
 
 //contentScript.ts is injected into the web page and interacts with the DOM to scrape data.
 function extractPropertyData() {
@@ -18,15 +17,15 @@ function extractPropertyData() {
 
 console.log('contentScript.js', window.location.href);
 
-// Check if the current page URL matches the desired pattern
-if (window.location.href.includes('idealista.pt') && window.location.href.includes('imovel')) {
-  // Extract data and send it to the background script
-  const propertyData = extractPropertyData();
-  chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
-} else {
-  // Send a message to the background script to display a warning
-  chrome.runtime.sendMessage({
-    action: ActionEvents.SHOW_WARNING,
-    message: 'Please open a property page on idealista.pt/en/imovel.',
-  });
-}
+// // Check if the current page URL matches the desired pattern
+// if (window.location.href.includes('idealista.pt') && window.location.href.includes('imovel')) {
+//   // Extract data and send it to the background script
+//   const propertyData = extractPropertyData();
+//   chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
+// } else {
+//   // Send a message to the background script to display a warning
+//   chrome.runtime.sendMessage({
+//     action: ActionEvents.SHOW_WARNING,
+//     message: 'Please open a property page on idealista.pt/en/imovel.',
+//   });
+// }
