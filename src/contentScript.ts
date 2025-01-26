@@ -1,5 +1,6 @@
 import { ActionEvents } from './constants/actionEvents';
 
+//contentScript.ts is injected into the web page and interacts with the DOM to scrape data.
 function extractPropertyData() {
   const priceElement = Array.from(document.querySelectorAll('strong')).find(el => el.textContent?.includes('€'));
   const locationElement = Array.from(document.querySelectorAll('h1')).find(el => el.textContent?.includes('flat for sale'));
@@ -24,5 +25,8 @@ if (window.location.href.includes('idealista.pt') && window.location.href.includ
   chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
 } else {
   // Send a message to the background script to display a warning
-  chrome.runtime.sendMessage({ action: ActionEvents.SHOW_WARNING, message: 'Please open a property page on idealista.pt/imovel.' });
+  chrome.runtime.sendMessage({
+    action: ActionEvents.SHOW_WARNING,
+    message: 'Please open a property page on idealista.pt/en/imovel.',
+  });
 }

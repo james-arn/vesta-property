@@ -14,8 +14,17 @@ const App: React.FC = () => {
         images: null,
     });
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
+    const [currentUrl, setCurrentUrl] = useState("");
 
     useEffect(() => {
+        // Listen for messages from the background script
+        const handleMessage = (message: { action: string, url: string }) => {
+            if (message.action === ActionEvents.TAB_CHANGED) {
+                setCurrentUrl(message.url || "");
+            }
+        };
+        chrome.runtime.onMessage.addListener(handleMessage);
+
         retrieveDataForTab((data) => {
             if (data) {
                 console.log('Data retrieved from chrome.storage', data);
@@ -27,6 +36,9 @@ const App: React.FC = () => {
                 }
             }
         });
+        return () => {
+            chrome.runtime.onMessage.removeListener(handleMessage);
+        };
     }, []);
 
 
@@ -48,8 +60,8 @@ const App: React.FC = () => {
 
     let lastGroup = "";
 
-    if (warningMessage) {
-        return <div>{warningMessage}</div>;
+    if (currentUrl) {
+        return <div>{currentUrl}</div>;
     }
 
     return (
