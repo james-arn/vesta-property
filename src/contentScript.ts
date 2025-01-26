@@ -1,3 +1,4 @@
+import { ActionEvents } from "./constants/actionEvents";
 
 //contentScript.ts is injected into the web page and interacts with the DOM to scrape data.
 function extractPropertyData() {
@@ -15,17 +16,24 @@ function extractPropertyData() {
   };
 };
 
-console.log('contentScript.js', window.location.href);
+console.log("contentScript.ts loaded");
 
 // // Check if the current page URL matches the desired pattern
-// if (window.location.href.includes('idealista.pt') && window.location.href.includes('imovel')) {
-//   // Extract data and send it to the background script
-//   const propertyData = extractPropertyData();
-//   chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
-// } else {
-//   // Send a message to the background script to display a warning
-//   chrome.runtime.sendMessage({
-//     action: ActionEvents.SHOW_WARNING,
-//     message: 'Please open a property page on idealista.pt/en/imovel.',
-//   });
-// }
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log("Content Script: Received message:", request);
+  if (request.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+    const currentUrl = request.url;
+    console.log("Content Script: Current URL:", currentUrl);
+    if (currentUrl.includes('idealista.pt') && currentUrl.includes('imovel')) {
+      const propertyData = extractPropertyData();
+      console.log("Content Script: Extracted property data:", propertyData);
+      chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
+    } else {
+      console.log("Content Script: URL does not match the desired pattern. Sending warning message.");
+      chrome.runtime.sendMessage({
+        action: ActionEvents.SHOW_WARNING,
+        message: 'Please open a property page on idealista.pt/en/imovel.',
+      });
+    }
+  }
+});

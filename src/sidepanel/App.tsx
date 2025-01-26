@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../constants/propertyChecklist';
-import { StorageKeys } from '../constants/storage';
-import { retrieveDataFromStorage } from '../storageHelpers';
 import { DataStatus } from '../types/property';
 import { getStatusColor, getStatusIcon } from './helpers';
 
@@ -15,28 +13,24 @@ const App: React.FC = () => {
         images: null,
     });
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
-    const [currentUrl, setCurrentUrl] = useState("");
 
-    const updateUrlFromStorage = () => {
-        retrieveDataFromStorage(StorageKeys.LAST_URL)
-            .then((data: string) => {
-                if (data) {
-                    console.log('Retrieved lastUrl URL:', data);
-                    setCurrentUrl(data);
-                }
-            });
-    };
-
-    console.log('currentUrl2', currentUrl)
     useEffect(() => {
-        // Retrieve the initial URL from storage
-        updateUrlFromStorage();
-
-        // Listen for messages from the background script
-        const handleMessage = (message: { action: string, url: string }) => {
-            console.log("handle message");
-            if (message.action === ActionEvents.TAB_CHANGED) {
-                updateUrlFromStorage();
+        const handleMessage = (message: { action: string, data?: any, message?: string }) => {
+            console.log("handle message", message);
+            if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+                setPropertyData(message.data);
+                setWarningMessage(null);
+                console.log("Side Panel: Property data updated:", message.data);
+            } else if (message.action === ActionEvents.SHOW_WARNING) {
+                setWarningMessage(message.message || null);
+                setPropertyData({
+                    price: null,
+                    location: null,
+                    bedrooms: null,
+                    bathrooms: null,
+                    images: null,
+                });
+                console.log("Side Panel: Warning message set:", message.message);
             }
         };
 
@@ -45,7 +39,6 @@ const App: React.FC = () => {
             chrome.runtime.onMessage.removeListener(handleMessage);
         };
     }, []);
-
 
     const updatedChecklist = generatePropertyChecklist(propertyData);
 
@@ -65,8 +58,8 @@ const App: React.FC = () => {
 
     let lastGroup = "";
 
-    if (currentUrl) {
-        return <div>{currentUrl}</div>;
+    if (warningMessage) {
+        return <div>{warningMessage}</div>;
     }
 
     return (
