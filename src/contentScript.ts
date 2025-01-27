@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
     const currentUrl = request.url;
     console.log("Content Script: Current URL:", currentUrl);
-    if (currentUrl.includes('idealista.pt') && currentUrl.includes('imovel')) {
+    if (currentUrl.includes('rightmove.co.uk/properties/')) {
       const propertyData = extractPropertyData();
       console.log("Content Script: Extracted property data:", propertyData);
       chrome.runtime.sendMessage({ action: ActionEvents.UPDATE_PROPERTY_DATA, data: propertyData });
@@ -32,7 +32,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       console.log("Content Script: URL does not match the desired pattern. Sending warning message.");
       chrome.runtime.sendMessage({
         action: ActionEvents.SHOW_WARNING,
-        message: 'Please open a property page on idealista.pt/en/imovel.',
+        message: 'Please open a property page on rightmove.co.uk.',
       });
     }
   }
