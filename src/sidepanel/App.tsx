@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../constants/propertyChecklist';
-import { DataStatus } from '../types/property';
+import { DataStatus, ExtractedPropertyData } from '../types/property';
 import { getStatusColor, getStatusIcon } from './helpers';
 
+const emptyPropertyData: ExtractedPropertyData = {
+    price: null,
+    location: null,
+    bedrooms: null,
+    bathrooms: null,
+    councilTax: null,
+    size: null,
+    propertyType: null,
+    tenure: null,
+    parking: null,
+    heating: null,
+    floorPlan: null,
+    garden: null,
+    epc: null,
+};
+
 const App: React.FC = () => {
-    const [propertyData, setPropertyData] = useState({
-        price: null,
-        location: null,
-        bedrooms: null,
-        bathrooms: null,
-        images: null,
-    });
+    const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -24,13 +34,7 @@ const App: React.FC = () => {
                 console.log('[Side Panel] Property data updated:', message.data);
             } else if (message.action === ActionEvents.SHOW_WARNING) {
                 setWarningMessage(message.message || null);
-                setPropertyData({
-                    price: null,
-                    location: null,
-                    bedrooms: null,
-                    bathrooms: null,
-                    images: null,
-                });
+                setPropertyData(emptyPropertyData);
                 console.log('[Side Panel] Warning message set:', message.message);
             }
         };
@@ -69,6 +73,10 @@ const App: React.FC = () => {
     };
 
     let lastGroup = "";
+
+    const handleEpcClick = (url: string) => {
+        chrome.tabs.create({ url });
+    };
 
     if (warningMessage) {
         return <div>{warningMessage}</div>;
@@ -128,7 +136,13 @@ const App: React.FC = () => {
                                         color: "#333",
                                         fontWeight: item.status === DataStatus.MISSING ? "normal" : "bold"
                                     }}>
-                                        {item.value || "Not found"}
+                                        {item.key === 'epc' && item.value !== 'Ask agent' ? (
+                                            <span onClick={() => handleEpcClick(item.value ?? '')} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
+                                                Yes
+                                            </span>
+                                        ) : (
+                                            <span>{item.value || "Not found"}</span>
+                                        )}
                                     </div>
                                 </li>
                             </div>

@@ -19,6 +19,7 @@ export interface TabChangedOrExtensionOpenedMessage {
     url: string;
 }
 
+
 export interface ResponseType {
     status: string;
 }

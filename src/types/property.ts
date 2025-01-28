@@ -1,16 +1,33 @@
 export enum DataStatus {
-    FOUND = "FOUND",
-    MISSING = "MISSING",
-    PARTIAL = "PARTIAL"
+    FOUND_POSITIVE = "FOUND_POSITIVE",
+    FOUND_NEGATIVE = "FOUND_NEGATIVE",
+    MISSING = "MISSING"
 }
 
-export interface PropertyData {
+export interface PropertyDataList {
     label: string;
     status: DataStatus;
-    value: string | number | null;
+    value: string | null;
     key: string;
     group: string;
 }
+
+export interface ExtractedPropertyData {
+    price: string | null;
+    location: string | null;
+    propertyType: string | null;
+    tenure: string | null;
+    bedrooms: string | null;
+    bathrooms: string | null;
+    councilTax: string | null;
+    size: string | null;
+    parking: string | null;
+    heating: string | null;
+    floorPlan: string | null;
+    garden: string | null;
+    epc: string | null;
+}
+
 
 export const PropertyGroups = {
     GENERAL: "General",
