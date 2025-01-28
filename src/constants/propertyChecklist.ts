@@ -18,6 +18,7 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         { group: PropertyGroups.GENERAL, label: "Location", key: "location", status: extractedData.location ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.location },
         { group: PropertyGroups.GENERAL, label: "Property Type", key: "propertyType", status: extractedData.propertyType ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.propertyType },
         { group: PropertyGroups.GENERAL, label: "Tenure", key: "tenure", status: extractedData.tenure ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.tenure },
+        { group: PropertyGroups.GENERAL, label: "Lising history", key: "listingHistory", status: extractedData.listingHistory ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.listingHistory },
 
         // Interior Details
         { group: PropertyGroups.INTERIOR, label: "Bedrooms", key: "bedrooms", status: extractedData.bedrooms ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.bedrooms },
@@ -29,7 +30,7 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         // Exterior Details 
         { group: PropertyGroups.EXTERIOR, label: "Parking", key: "parking", status: getYesNoOrMissingStatus(extractedData.parking), value: extractedData.parking },
         { group: PropertyGroups.EXTERIOR, label: "Garden", key: "garden", status: getYesNoOrMissingStatus(extractedData.garden), value: extractedData.garden },
-        // { group: PropertyGroups.EXTERIOR, label: "Access", key: "access", status: DataStatus.MISSING, value: null },
+        { group: PropertyGroups.EXTERIOR, label: "Windows", key: "windows", status: typeof extractedData.windows === 'string' && extractedData.windows.toLowerCase() !== agentMissingInfo ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.windows },
 
         // Utilities and Services
         { group: PropertyGroups.UTILITIES, label: "EPC Certificate", key: "epc", status: extractedData.epc ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: DOMPurify.sanitize(extractedData.epc ?? '') },
@@ -49,5 +50,6 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         // Legal and Ownership
         { group: PropertyGroups.LEGAL, label: "Planning Permissions", key: "planningPermissions", status: DataStatus.MISSING, value: null },
         { group: PropertyGroups.LEGAL, label: "Ownership History", key: "ownershipHistory", status: DataStatus.MISSING, value: null },
+
     ];
 }

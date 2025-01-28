@@ -1,26 +1,43 @@
 import { RightmovePageModelType } from "../types/rightmovePageModel";
 import { capitaliseFirstLetter } from "./text";
 
-export function extractInfoFromText(text: string) {
+export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: RightmovePageModelType) {
+    const keyFeatures = pageModel.propertyData.keyFeatures || '';
+    const description = pageModel.propertyData.text.description || '';
+    const combinedText = `${keyFeatures} ${description}`.toLowerCase();
+
+    const windowTerms = [
+        "double glazing",
+        "double glazed",
+        "triple glazing",
+        "triple glazed",
+        "single glazing",
+        "single glazed",
+        "secondary glazing",
+        "secondary glazed",
+        "uPVC",
+        "timber frames",
+        "aluminium frames",
+        "sealed units",
+        "glazing replacement"
+    ];
     const heatingRegex = /\b(?:gas central heating|electric heating|electric central heating|underfloor heating|radiators|boiler)\b/gi;
     const gardenRegex = /\bgarden\b/gi;
     const parkingRegex = /\bparking\b/gi;
 
-    const heatingMatches = text.match(heatingRegex);
-    const gardenMatches = text.match(gardenRegex);
-    const parkingMatches = text.match(parkingRegex);
+    const heatingMatches = combinedText.match(heatingRegex);
+    const gardenMatches = combinedText.match(gardenRegex);
+    const parkingMatches = combinedText.match(parkingRegex);
+    const windowMatches = windowTerms.filter(term => combinedText.includes(term));
+
+    console.log("[property scrape helpers] Window matches found:", combinedText);
 
     return {
         heating: heatingMatches ? capitaliseFirstLetter([...new Set(heatingMatches)].join(', ')) : null,
         garden: gardenMatches ? [...new Set(gardenMatches)] : null,
         parking: parkingMatches ? [...new Set(parkingMatches)] : null,
+        windows: windowMatches ? capitaliseFirstLetter([...new Set(windowMatches)].join(', ')) : null,
     };
-}
-
-export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: RightmovePageModelType) {
-    const keyFeatures = pageModel.propertyData.keyFeatures || '';
-    const description = pageModel.propertyData.text.description || '';
-    return extractInfoFromText(`${keyFeatures} ${description}`);
 }
 
 export const isFloorPlanPresent = () => {

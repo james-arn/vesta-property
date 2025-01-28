@@ -27,6 +27,8 @@ export interface ExtractedPropertyData {
     garden: string | null;
     epc: string | null;
     broadband: string | null;
+    listingHistory: string | null;
+    windows: string | null;
 }
 
 
@@ -38,5 +40,6 @@ export const PropertyGroups = {
     NEIGHBOURHOOD: "Neighbourhood",
     LEGAL: "Legal",
     RENTING: "Renting",
+    RISKS: "Risks",
     MISC: "Miscellaneous"
 } as const;

@@ -8,7 +8,7 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
         return null;
     }
     try {
-        const { heating: heatingFromUnstructuredText } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
+        const { heating: heatingFromUnstructuredText, windows: windowsFromUnstructuredText } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
         const epc = (pageModel.propertyData?.epcGraphs?.length ?? 0) > 0 && pageModel.propertyData?.epcGraphs?.[0]?.url
             ? pageModel.propertyData?.epcGraphs?.[0]?.url
             : 'Ask agent';
@@ -30,6 +30,8 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             floorPlan: pageModel.propertyData.floorplans.length > 0 ? 'Yes' : 'Ask agent',
             epc: epc,
             broadband: pageModel.propertyData.features?.broadband?.[0]?.displayText || getBroadbandSpeedFromDOM() || 'Ask agent',
+            listingHistory: pageModel.propertyData?.listingHistory?.listingUpdateReason || 'Ask agent',
+            windows: windowsFromUnstructuredText || 'Ask agent'
         };
     } catch (error) {
         console.error("Error processing PAGE_MODEL:", error);
