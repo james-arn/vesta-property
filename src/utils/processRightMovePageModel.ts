@@ -1,6 +1,6 @@
 import { ExtractedPropertyData } from "../types/property";
 import { RightmovePageModelType } from "../types/rightmovePageModel";
-import { extractInfoFromPageModelKeyFeaturesAndDescription } from "./propertyScrapeHelpers";
+import { extractInfoFromPageModelKeyFeaturesAndDescription, getBroadbandSpeed as getBroadbandSpeedFromDOM } from "./propertyScrapeHelpers";
 
 export function processRightmovePageModel(pageModel: RightmovePageModelType | null): ExtractedPropertyData | null {
     if (!pageModel) {
@@ -29,6 +29,7 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             heating: pageModel.propertyData.features?.heating?.[0]?.displayText || heatingFromUnstructuredText || 'Ask agent',
             floorPlan: pageModel.propertyData.floorplans.length > 0 ? 'Yes' : 'Ask agent',
             epc: epc,
+            broadband: pageModel.propertyData.features?.broadband?.[0]?.displayText || getBroadbandSpeedFromDOM() || 'Ask agent',
         };
     } catch (error) {
         console.error("Error processing PAGE_MODEL:", error);

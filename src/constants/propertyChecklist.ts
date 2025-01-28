@@ -40,7 +40,7 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
             status: extractedData.councilTax && (extractedData.councilTax !== agentMissingInfo && extractedData.councilTax?.toLowerCase() !== 'tbc') ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING,
             value: extractedData.councilTax
         },
-        { group: PropertyGroups.UTILITIES, label: "Broadband", key: "broadband", status: DataStatus.MISSING, value: null },
+        { group: PropertyGroups.UTILITIES, label: "Broadband", key: "broadband", status: extractedData.broadband ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.broadband },
 
         // Neighbourhood and Environment
         { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.MISSING, value: null },

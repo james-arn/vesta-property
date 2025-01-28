@@ -75,12 +75,22 @@ export function clickBroadbandChecker() {
     }
 }
 
-export function getBroadbandSpeed(broadbandCheckerDiv: HTMLElement): string | null {
-    const speedElements = broadbandCheckerDiv.querySelectorAll('p');
+export function getBroadbandSpeed(): string | null {
+    const broadbandDiv = document.querySelector('div[data-gtm-name="broadband-checker"]');
+    if (!broadbandDiv) {
+        console.error("Broadband checker div not found.");
+        return null;
+    }
 
+    console.log("[property scrape helpers] Searching for broadband speed elements.");
+    const speedElements = broadbandDiv.querySelectorAll('p');
+
+    console.log("[property scrape helpers] Filtering speed elements to find the one ending with 'Mb'.");
     const speedElement = Array.from(speedElements).find(element =>
         (element.textContent || '').trim().endsWith('Mb')
     );
 
-    return speedElement ? speedElement.textContent?.trim() || null : null;
+    const result = speedElement ? speedElement.textContent?.trim() || null : null;
+    console.log(`[property scrape helpers] Broadband speed found: ${result}`);
+    return result;
 }

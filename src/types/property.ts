@@ -26,6 +26,7 @@ export interface ExtractedPropertyData {
     floorPlan: string | null;
     garden: string | null;
     epc: string | null;
+    broadband: string | null;
 }
 
 

@@ -18,6 +18,7 @@ const emptyPropertyData: ExtractedPropertyData = {
     floorPlan: null,
     garden: null,
     epc: null,
+    broadband: null,
 };
 
 const App: React.FC = () => {
