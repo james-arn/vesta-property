@@ -1,7 +1,7 @@
 export enum DataStatus {
     FOUND_POSITIVE = "FOUND_POSITIVE",
     FOUND_NEGATIVE = "FOUND_NEGATIVE",
-    MISSING = "MISSING"
+    ASK_AGENT = "ASK_AGENT"
 }
 
 export interface PropertyDataList {

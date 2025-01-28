@@ -6,7 +6,7 @@ export const getStatusIcon = (status: DataStatus): string => {
             return "✅";
         case DataStatus.FOUND_NEGATIVE:
             return "❌";
-        case DataStatus.MISSING:
+        case DataStatus.ASK_AGENT:
             return "⚠️";
     }
 };
@@ -17,7 +17,7 @@ export const getStatusColor = (status: DataStatus): string => {
             return "green";
         case DataStatus.FOUND_NEGATIVE:
             return "red";
-        case DataStatus.MISSING:
+        case DataStatus.ASK_AGENT:
             return "orange";
     }
 }; 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
-import { generatePropertyChecklist } from '../constants/propertyChecklist';
+import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
 import { DataStatus, ExtractedPropertyData } from '../types/property';
 import { getStatusColor, getStatusIcon } from './helpers';
 
@@ -137,7 +137,7 @@ const App: React.FC = () => {
                                     <div style={{
                                         marginLeft: "20px",
                                         color: "#333",
-                                        fontWeight: item.status === DataStatus.MISSING ? "normal" : "bold"
+                                        fontWeight: item.status === DataStatus.ASK_AGENT ? "normal" : "bold"
                                     }}>
                                         {(item.key === 'epc' || item.key === 'floorPlan') && item.value !== 'Ask agent' ? (
                                             <span onClick={() => handleEpcClick(item.value ?? '')} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
