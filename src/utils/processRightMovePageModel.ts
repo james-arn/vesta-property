@@ -13,6 +13,10 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             ? pageModel.propertyData?.epcGraphs?.[0]?.url
             : 'Ask agent';
 
+        const floorPlan = pageModel.propertyData?.floorplans?.length > 0 && pageModel.propertyData?.floorplans?.[0]?.url
+            ? pageModel.propertyData?.floorplans?.[0]?.url
+            : 'Ask agent';
+
         return {
             price: pageModel.propertyData.prices.primaryPrice || null,
             location: pageModel.propertyData.address.displayAddress || null,
@@ -27,7 +31,7 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
                 ? `${pageModel.propertyData.sizings[0].maximumSize} ${pageModel.propertyData.sizings[0].displayUnit} (${pageModel.propertyData.sizings[0].maximumSize * 10.764} sq ft)`
                 : 'Ask agent',
             heating: pageModel.propertyData.features?.heating?.[0]?.displayText || heatingFromUnstructuredText || 'Ask agent',
-            floorPlan: pageModel.propertyData.floorplans.length > 0 ? 'Yes' : 'Ask agent',
+            floorPlan: floorPlan,
             epc: epc,
             broadband: pageModel.propertyData.features?.broadband?.[0]?.displayText || getBroadbandSpeedFromDOM() || 'Ask agent',
             listingHistory: pageModel.propertyData?.listingHistory?.listingUpdateReason || 'Ask agent',

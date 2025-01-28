@@ -25,7 +25,7 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         { group: PropertyGroups.INTERIOR, label: "Bathrooms", key: "bathrooms", status: extractedData.bathrooms ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.bathrooms },
         { group: PropertyGroups.INTERIOR, label: "Heating Type", key: "heatingType", status: typeof extractedData.heating === 'string' && extractedData.heating.toLowerCase() !== agentMissingInfo ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.heating },
         { group: PropertyGroups.INTERIOR, label: "Size", key: "size", status: typeof extractedData.size === 'string' && extractedData.size.toLowerCase() !== agentMissingInfo ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.size },
-        { group: PropertyGroups.INTERIOR, label: "Floor Plan", key: "floorPlan", status: extractedData.floorPlan === 'Yes' ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: extractedData.floorPlan },
+        { group: PropertyGroups.INTERIOR, label: "Floor Plan", key: "floorPlan", status: extractedData.floorPlan ? DataStatus.FOUND_POSITIVE : DataStatus.MISSING, value: DOMPurify.sanitize(extractedData.floorPlan ?? '') },
 
         // Exterior Details 
         { group: PropertyGroups.EXTERIOR, label: "Parking", key: "parking", status: getYesNoOrMissingStatus(extractedData.parking), value: extractedData.parking },

@@ -139,7 +139,7 @@ const App: React.FC = () => {
                                         color: "#333",
                                         fontWeight: item.status === DataStatus.MISSING ? "normal" : "bold"
                                     }}>
-                                        {item.key === 'epc' && item.value !== 'Ask agent' ? (
+                                        {(item.key === 'epc' || item.key === 'floorPlan') && item.value !== 'Ask agent' ? (
                                             <span onClick={() => handleEpcClick(item.value ?? '')} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
                                                 Yes
                                             </span>
