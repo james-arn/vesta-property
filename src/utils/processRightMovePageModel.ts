@@ -44,6 +44,11 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             privateRightOfWayObligation: pageModel.propertyData.features.obligations.requiredAccess,
             listedProperty: pageModel.propertyData.features.obligations.listed,
             restrictions: pageModel.propertyData.features.obligations.restrictions,
+            floodDefences: pageModel.propertyData.features.risks.floodDefences,
+            floodSources: pageModel.propertyData.features.risks.floodSources,
+            floodedInLastFiveYears: pageModel.propertyData.features.risks.floodedInLastFiveYears,
+
+
 
         };
     } catch (error) {

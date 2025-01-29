@@ -21,8 +21,13 @@ export function getStatusFromBoolean(value: boolean | null, noIsPositive: boolea
     if (value === null) {
         return DataStatus.ASK_AGENT;
     }
-    return value && noIsPositive ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
+    if (value) {
+        return noIsPositive ? DataStatus.FOUND_NEGATIVE : DataStatus.FOUND_POSITIVE;
+    }
+    return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
 }
+
+
 
 export function calculateListingHistoryDetails(listingHistory: string | null): { status: DataStatus, value: string | null } {
     console.log('calculateListingHistoryDetails called with:', listingHistory);

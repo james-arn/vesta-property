@@ -220,10 +220,10 @@ export interface RightmovePageModelType {
             accessibility?: any[];
             parking?: FeatureType[];
             garden?: FeatureType[];
-            risks?: {
+            risks: {
                 floodedInLastFiveYears: boolean | null;
                 floodDefences: boolean | null;
-                floodSources: any[];
+                floodSources: string[];
             };
             obligations: {
                 listed: boolean | null;

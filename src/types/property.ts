@@ -33,6 +33,9 @@ export interface ExtractedPropertyData {
     privateRightOfWayObligation: boolean | null;
     listedProperty: boolean | null;
     restrictions: boolean | null;
+    floodDefences: boolean | null;
+    floodSources: string[] | null;
+    floodedInLastFiveYears: boolean | null;
 }
 
 

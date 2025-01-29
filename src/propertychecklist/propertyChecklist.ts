@@ -24,9 +24,11 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         { group: PropertyGroups.INTERIOR, label: "Floor Plan", key: "floorPlan", status: extractedData.floorPlan ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: DOMPurify.sanitize(extractedData.floorPlan ?? '') },
 
         // Exterior Details 
-        { group: PropertyGroups.EXTERIOR, label: "Parking", key: "parking", status: getYesNoOrMissingStatus(extractedData.parking), value: extractedData.parking },
-        { group: PropertyGroups.EXTERIOR, label: "Garden", key: "garden", status: getYesNoOrMissingStatus(extractedData.garden), value: extractedData.garden },
+        { group: PropertyGroups.EXTERIOR, label: "Parking", key: "parking", status: getYesNoOrMissingStatus(extractedData.parking), value: extractedData.parking ?? 'Ask agent' },
+        { group: PropertyGroups.EXTERIOR, label: "Garden", key: "garden", status: getYesNoOrMissingStatus(extractedData.garden), value: extractedData.garden ?? 'Ask agent' },
+
         { group: PropertyGroups.EXTERIOR, label: "Windows", key: "windows", status: typeof extractedData.windows === 'string' && extractedData.windows.toLowerCase() !== agentMissingInfo ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.windows },
+        // construction type of the property 
 
         // Utilities and Services
         { group: PropertyGroups.UTILITIES, label: "EPC Certificate", key: "epc", status: extractedData.epc ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: DOMPurify.sanitize(extractedData.epc ?? '') },
@@ -46,14 +48,26 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
 
         { group: PropertyGroups.RIGHTS_AND_RESTRICTIONS, label: "Restrictions", key: "restrictions", status: getStatusFromBoolean(extractedData.restrictions, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.restrictions) },
 
+        { group: PropertyGroups.RISKS, label: "Flood Defences", key: "floodDefences", status: getStatusFromBoolean(extractedData.floodDefences), value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodDefences) },
+        {
+            group: PropertyGroups.RISKS, label: "Flood Sources", key: "floodSources",
+            status: (extractedData.floodSources ?? []).length > 0 ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+            value: (extractedData.floodSources ?? []).length > 0 ? extractedData.floodSources?.join(', ') ?? 'Ask agent' : 'Ask agent'
+        },
 
-        // Neighbourhood and Environment
-        { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.ASK_AGENT, value: null },
-        { group: PropertyGroups.NEIGHBOURHOOD, label: "Local Amenities", key: "localAmenities", status: DataStatus.ASK_AGENT, value: null },
+        { group: PropertyGroups.RISKS, label: "Flooded in last 5 years", key: "floodedInLastFiveYears", status: getStatusFromBoolean(extractedData.floodedInLastFiveYears, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodedInLastFiveYears) },
+        // building safety
+        // coastal erosion
+        // impact of mining in the area
 
-        // Legal and Ownership
-        { group: PropertyGroups.LEGAL, label: "Planning Permissions", key: "planningPermissions", status: DataStatus.ASK_AGENT, value: null },
-        { group: PropertyGroups.LEGAL, label: "Ownership History", key: "ownershipHistory", status: DataStatus.ASK_AGENT, value: null },
+        // TODO: ON ROADMAP...
+        // // Neighbourhood and Environment
+        // { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.ASK_AGENT, value: null },
+        // { group: PropertyGroups.NEIGHBOURHOOD, label: "Local Amenities", key: "localAmenities", status: DataStatus.ASK_AGENT, value: null },
+
+        // // Legal and Ownership
+        // { group: PropertyGroups.LEGAL, label: "Planning Permissions", key: "planningPermissions", status: DataStatus.ASK_AGENT, value: null },
+        // { group: PropertyGroups.LEGAL, label: "Ownership History", key: "ownershipHistory", status: DataStatus.ASK_AGENT, value: null },
 
     ];
 }

@@ -25,10 +25,14 @@ const emptyPropertyData: ExtractedPropertyData = {
     privateRightOfWayObligation: null,
     listedProperty: null,
     restrictions: null,
+    floodDefences: null,
+    floodSources: null,
+    floodedInLastFiveYears: null,
 };
 
 const App: React.FC = () => {
     const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);
+
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
     useEffect(() => {
