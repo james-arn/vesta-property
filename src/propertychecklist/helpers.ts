@@ -6,7 +6,22 @@ export function getYesNoOrMissingStatus(value: string | null): DataStatus {
     if (!value || (typeof value === 'string' && value.toLowerCase() === agentMissingInfo)) {
         return DataStatus.ASK_AGENT;
     }
-    return typeof value === 'string' && value.toLowerCase() === 'yes' ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+    return typeof value === 'string' && value.toLowerCase() !== 'no' ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+}
+
+
+export function getYesNoOrAskAgentStringFromBoolean(value: boolean | null): string {
+    if (value === null) {
+        return 'Ask agent';
+    }
+    return value ? 'Yes' : 'No';
+}
+
+export function getStatusFromBoolean(value: boolean | null, noIsPositive: boolean = false): DataStatus {
+    if (value === null) {
+        return DataStatus.ASK_AGENT;
+    }
+    return value && noIsPositive ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 }
 
 export function calculateListingHistoryDetails(listingHistory: string | null): { status: DataStatus, value: string | null } {
@@ -15,6 +30,14 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
     if (!listingHistory) {
         console.log('No listing history provided, returning ASK_AGENT status.');
         return { status: DataStatus.ASK_AGENT, value: listingHistory };
+    }
+
+    if (listingHistory.toLowerCase() === 'added today') {
+        console.log('Listing added today, returning FOUND_POSITIVE status.');
+        return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
+    } else if (listingHistory.toLowerCase() === 'added yesterday') {
+        console.log('Listing added yesterday, returning FOUND_POSITIVE status.');
+        return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
     }
 
     const dateMatch = listingHistory.match(/Added on (\d{2})\/(\d{2})\/(\d{4})/);
@@ -46,4 +69,11 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
 
     console.log('Returning status and value:', { status, value });
     return { status, value }
+}
+
+export function getYesNoOrAskAgentFromBoolean(value: boolean | null): string {
+    if (value === null) {
+        return 'Ask agent';
+    }
+    return value ? 'Yes' : 'No';
 }

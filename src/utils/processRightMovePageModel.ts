@@ -8,7 +8,11 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
         return null;
     }
     try {
-        const { heating: heatingFromUnstructuredText, windows: windowsFromUnstructuredText } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
+        const {
+            heating: heatingFromUnstructuredText,
+            windows: windowsFromUnstructuredText,
+            garden: gardenFromUnstructuredText
+        } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
         const epc = (pageModel.propertyData?.epcGraphs?.length ?? 0) > 0 && pageModel.propertyData?.epcGraphs?.[0]?.url
             ? pageModel.propertyData?.epcGraphs?.[0]?.url
             : 'Ask agent';
@@ -25,7 +29,7 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             bedrooms: pageModel.propertyData.bedrooms.toString() || null,
             bathrooms: pageModel.propertyData.bathrooms.toString() || null,
             parking: pageModel.propertyData.features?.parking?.[0]?.displayText || null,
-            garden: pageModel.propertyData.features?.garden?.[0]?.displayText || null,
+            garden: pageModel.propertyData.features?.garden?.[0]?.displayText || gardenFromUnstructuredText || 'Ask agent',
             councilTax: pageModel.propertyData.livingCosts.councilTaxBand || null,
             size: pageModel.propertyData.sizings.length > 0
                 ? `${pageModel.propertyData.sizings[0].maximumSize} ${pageModel.propertyData.sizings[0].displayUnit} (${pageModel.propertyData.sizings[0].maximumSize * 10.764} sq ft)`
@@ -35,7 +39,12 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             epc: epc,
             broadband: pageModel.propertyData.features?.broadband?.[0]?.displayText || getBroadbandSpeedFromDOM() || 'Ask agent',
             listingHistory: pageModel.propertyData?.listingHistory?.listingUpdateReason || 'Ask agent',
-            windows: windowsFromUnstructuredText || 'Ask agent'
+            windows: windowsFromUnstructuredText || 'Ask agent',
+            publicRightOfWayObligation: pageModel.propertyData.features.obligations.rightsOfWay,
+            privateRightOfWayObligation: pageModel.propertyData.features.obligations.requiredAccess,
+            listedProperty: pageModel.propertyData.features.obligations.listed,
+            restrictions: pageModel.propertyData.features.obligations.restrictions,
+
         };
     } catch (error) {
         console.error("Error processing PAGE_MODEL:", error);

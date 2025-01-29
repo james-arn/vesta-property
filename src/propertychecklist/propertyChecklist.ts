@@ -1,9 +1,8 @@
 import DOMPurify from 'dompurify';
 import { DataStatus, ExtractedPropertyData, PropertyDataList, PropertyGroups } from '../types/property';
-import { calculateListingHistoryDetails, getYesNoOrMissingStatus } from './helpers';
+import { calculateListingHistoryDetails, getStatusFromBoolean, getYesNoOrAskAgentStringFromBoolean, getYesNoOrMissingStatus } from './helpers';
 
 export const agentMissingInfo = 'ask agent';
-
 
 export function generatePropertyChecklist(extractedData: ExtractedPropertyData): PropertyDataList[] {
     const { status: listingHistoryStatus, value: listingHistoryValue } = calculateListingHistoryDetails(extractedData.listingHistory);
@@ -39,6 +38,14 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
             value: extractedData.councilTax
         },
         { group: PropertyGroups.UTILITIES, label: "Broadband", key: "broadband", status: extractedData.broadband ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.broadband },
+
+        // Rights and Restrictions
+        { group: PropertyGroups.RIGHTS_AND_RESTRICTIONS, label: "Public right of way obligation", key: "publicRightOfWayObligation", status: getStatusFromBoolean(extractedData.publicRightOfWayObligation, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.publicRightOfWayObligation) },
+        { group: PropertyGroups.RIGHTS_AND_RESTRICTIONS, label: "Private right of way obligation", key: "privateRightOfWayObligation", status: getStatusFromBoolean(extractedData.privateRightOfWayObligation, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.privateRightOfWayObligation) },
+        { group: PropertyGroups.RIGHTS_AND_RESTRICTIONS, label: "Listed property", key: "listedProperty", status: getStatusFromBoolean(extractedData.listedProperty, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty) },
+
+        { group: PropertyGroups.RIGHTS_AND_RESTRICTIONS, label: "Restrictions", key: "restrictions", status: getStatusFromBoolean(extractedData.restrictions, true), value: getYesNoOrAskAgentStringFromBoolean(extractedData.restrictions) },
+
 
         // Neighbourhood and Environment
         { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.ASK_AGENT, value: null },

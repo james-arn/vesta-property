@@ -21,6 +21,10 @@ const emptyPropertyData: ExtractedPropertyData = {
     broadband: null,
     listingHistory: null,
     windows: null,
+    publicRightOfWayObligation: null,
+    privateRightOfWayObligation: null,
+    listedProperty: null,
+    restrictions: null,
 };
 
 const App: React.FC = () => {

@@ -22,19 +22,20 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: Rig
         "glazing replacement"
     ];
     const heatingRegex = /\b(?:gas central heating|electric heating|electric central heating|underfloor heating|radiators|boiler)\b/gi;
-    const gardenRegex = /\bgarden\b/gi;
+    const gardenRegex = /\bgarden\b(?!.*communal garden)/gi;
     const parkingRegex = /\bparking\b/gi;
 
     const heatingMatches = combinedText.match(heatingRegex);
     const gardenMatches = combinedText.match(gardenRegex);
     const parkingMatches = combinedText.match(parkingRegex);
     const windowMatches = windowTerms.filter(term => combinedText.includes(term));
+    const hasCommunalGarden = combinedText.includes('communal garden');
 
-    console.log("[property scrape helpers] Window matches found:", combinedText);
+    console.log("[property scrape helpers] garden matches found:", gardenMatches);
 
     return {
         heating: heatingMatches ? capitaliseFirstLetter([...new Set(heatingMatches)].join(', ')) : null,
-        garden: gardenMatches ? [...new Set(gardenMatches)] : null,
+        garden: hasCommunalGarden ? 'Communal garden' : (gardenMatches ? capitaliseFirstLetter([...new Set(gardenMatches)].join(', ')) : null),
         parking: parkingMatches ? [...new Set(parkingMatches)] : null,
         windows: windowMatches ? capitaliseFirstLetter([...new Set(windowMatches)].join(', ')) : null,
     };

@@ -218,20 +218,14 @@ export interface RightmovePageModelType {
                 displayText: string;
             }[];
             accessibility?: any[];
-            parking?: {
-                alias: string;
-                displayText: string;
-            }[];
-            garden?: {
-                alias: string;
-                displayText: string;
-            }[];
+            parking?: FeatureType[];
+            garden?: FeatureType[];
             risks?: {
                 floodedInLastFiveYears: boolean | null;
                 floodDefences: boolean | null;
                 floodSources: any[];
             };
-            obligations?: {
+            obligations: {
                 listed: boolean | null;
                 restrictions: boolean | null;
                 requiredAccess: boolean | null;
@@ -360,3 +354,8 @@ export interface RightmovePageModelType {
         };
     };
 }
+
+export type FeatureType = {
+    alias: string;
+    displayText: string;
+};

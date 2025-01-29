@@ -29,6 +29,10 @@ export interface ExtractedPropertyData {
     broadband: string | null;
     listingHistory: string | null;
     windows: string | null;
+    publicRightOfWayObligation: boolean | null;
+    privateRightOfWayObligation: boolean | null;
+    listedProperty: boolean | null;
+    restrictions: boolean | null;
 }
 
 
@@ -41,5 +45,6 @@ export const PropertyGroups = {
     LEGAL: "Legal",
     RENTING: "Renting",
     RISKS: "Risks",
-    MISC: "Miscellaneous"
+    MISC: "Miscellaneous",
+    RIGHTS_AND_RESTRICTIONS: "Rights and Restrictions"
 } as const;
