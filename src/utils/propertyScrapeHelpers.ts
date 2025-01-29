@@ -21,6 +21,14 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: Rig
         "sealed units",
         "glazing replacement"
     ];
+    const accessibilityTerms = [
+        "step-free access to property",
+        "wheelchair accessible parking",
+        "level access throughout property",
+        "wet room within property",
+        "step-free access into garden",
+        "disabled access",
+    ];
     const heatingRegex = /\b(?:gas central heating|electric heating|electric central heating|underfloor heating|radiators|boiler)\b/gi;
     const gardenRegex = /\bgarden\b(?!.*communal garden)/gi;
     const parkingRegex = /\bparking\b/gi;
@@ -29,7 +37,9 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: Rig
     const gardenMatches = combinedText.match(gardenRegex);
     const parkingMatches = combinedText.match(parkingRegex);
     const windowMatches = windowTerms.filter(term => combinedText.includes(term));
+    const accessibilityMatches = accessibilityTerms.filter(term => combinedText.includes(term));
     const hasCommunalGarden = combinedText.includes('communal garden');
+
 
     console.log("[property scrape helpers] garden matches found:", gardenMatches);
 
@@ -38,8 +48,10 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(pageModel: Rig
         garden: hasCommunalGarden ? 'Communal garden' : (gardenMatches ? capitaliseFirstLetter([...new Set(gardenMatches)].join(', ')) : null),
         parking: parkingMatches ? [...new Set(parkingMatches)] : null,
         windows: windowMatches ? capitaliseFirstLetter([...new Set(windowMatches)].join(', ')) : null,
+        accessibility: accessibilityMatches ? capitaliseFirstLetter([...new Set(accessibilityMatches)].join(', ')) : null,
     };
 }
+
 
 export const isFloorPlanPresent = () => {
     // Check for the "No floorplan" text

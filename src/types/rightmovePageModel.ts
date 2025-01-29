@@ -126,7 +126,7 @@ export interface RightmovePageModelType {
             url: string;
         }[];
         bedrooms: number;
-        bathrooms: number;
+        bathrooms?: number;
         transactionType: string;
         tags: string[];
         misInfo: {

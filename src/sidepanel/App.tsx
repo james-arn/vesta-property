@@ -28,7 +28,9 @@ const emptyPropertyData: ExtractedPropertyData = {
     floodDefences: null,
     floodSources: null,
     floodedInLastFiveYears: null,
+    accessibility: null,
 };
+
 
 const App: React.FC = () => {
     const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);

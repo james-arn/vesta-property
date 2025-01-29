@@ -8,6 +8,8 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
     const { status: listingHistoryStatus, value: listingHistoryValue } = calculateListingHistoryDetails(extractedData.listingHistory);
     console.log('listingHistoryStatus:', listingHistoryStatus);
     console.log('listingHistoryValue:', listingHistoryValue);
+
+    console.log('ext', extractedData.accessibility)
     return [
         // General Property Information
         { group: PropertyGroups.GENERAL, label: "Price", key: "price", status: extractedData.price ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.price },
@@ -15,6 +17,7 @@ export function generatePropertyChecklist(extractedData: ExtractedPropertyData):
         { group: PropertyGroups.GENERAL, label: "Property Type", key: "propertyType", status: extractedData.propertyType ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.propertyType },
         { group: PropertyGroups.GENERAL, label: "Tenure", key: "tenure", status: extractedData.tenure ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.tenure },
         { group: PropertyGroups.GENERAL, label: "Listing history", key: "listingHistory", status: listingHistoryStatus, value: listingHistoryValue },
+        { group: PropertyGroups.GENERAL, label: "Accessibility", key: "accessibility", status: extractedData.accessibility?.toLowerCase() !== agentMissingInfo ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.accessibility },
 
         // Interior Details
         { group: PropertyGroups.INTERIOR, label: "Bedrooms", key: "bedrooms", status: extractedData.bedrooms ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT, value: extractedData.bedrooms },

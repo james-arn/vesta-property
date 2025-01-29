@@ -11,10 +11,12 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
         const {
             heating: heatingFromUnstructuredText,
             windows: windowsFromUnstructuredText,
-            garden: gardenFromUnstructuredText
+            garden: gardenFromUnstructuredText,
+            accessibility: accessibilityFromUnstructuredText
         } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
         const epc = (pageModel.propertyData?.epcGraphs?.length ?? 0) > 0 && pageModel.propertyData?.epcGraphs?.[0]?.url
             ? pageModel.propertyData?.epcGraphs?.[0]?.url
+
             : 'Ask agent';
 
         const floorPlan = pageModel.propertyData?.floorplans?.length > 0 && pageModel.propertyData?.floorplans?.[0]?.url
@@ -27,12 +29,12 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             propertyType: pageModel.propertyData.propertySubType || null,
             tenure: pageModel.propertyData.tenure.tenureType || null,
             bedrooms: pageModel.propertyData.bedrooms.toString() || null,
-            bathrooms: pageModel.propertyData.bathrooms.toString() || null,
+            bathrooms: pageModel.propertyData?.bathrooms?.toString() || null,
             parking: pageModel.propertyData.features?.parking?.[0]?.displayText || null,
             garden: pageModel.propertyData.features?.garden?.[0]?.displayText || gardenFromUnstructuredText || 'Ask agent',
             councilTax: pageModel.propertyData.livingCosts.councilTaxBand || null,
             size: pageModel.propertyData.sizings.length > 0
-                ? `${pageModel.propertyData.sizings[0].maximumSize} ${pageModel.propertyData.sizings[0].displayUnit} (${pageModel.propertyData.sizings[0].maximumSize * 10.764} sq ft)`
+                ? `${Math.ceil(pageModel.propertyData.sizings[0].maximumSize).toLocaleString()} ${pageModel.propertyData.sizings[0].displayUnit} (${Math.ceil(pageModel.propertyData.sizings[0].maximumSize * 10.764).toLocaleString()} sq ft)`
                 : 'Ask agent',
             heating: pageModel.propertyData.features?.heating?.[0]?.displayText || heatingFromUnstructuredText || 'Ask agent',
             floorPlan: floorPlan,
@@ -47,12 +49,13 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             floodDefences: pageModel.propertyData.features.risks.floodDefences,
             floodSources: pageModel.propertyData.features.risks.floodSources,
             floodedInLastFiveYears: pageModel.propertyData.features.risks.floodedInLastFiveYears,
-
-
-
+            accessibility: pageModel.propertyData?.features?.accessibility && pageModel.propertyData.features.accessibility.length > 0
+                ? pageModel.propertyData.features.accessibility.map(item => item.displayText).join(', ') || accessibilityFromUnstructuredText || 'Ask agent'
+                : 'Ask agent',
         };
     } catch (error) {
         console.error("Error processing PAGE_MODEL:", error);
         return null;
     }
+
 }

@@ -36,6 +36,7 @@ export interface ExtractedPropertyData {
     floodDefences: boolean | null;
     floodSources: string[] | null;
     floodedInLastFiveYears: boolean | null;
+    accessibility: string | null;
 }
 
 
