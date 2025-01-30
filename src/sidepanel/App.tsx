@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
 import { DataStatus, ExtractedPropertyData } from '../types/property';
+import AccordionControls from './accordionControls';
 import { getStatusColor, getStatusIcon } from './helpers';
 
 const emptyPropertyData: ExtractedPropertyData = {
@@ -34,7 +35,6 @@ const emptyPropertyData: ExtractedPropertyData = {
 
 const App: React.FC = () => {
     const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);
-
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
     useEffect(() => {
@@ -75,8 +75,8 @@ const App: React.FC = () => {
         acc[item.group] = true;
         return acc;
     }, {} as { [key: string]: boolean });
-
     const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>(initialOpenGroups);
+
 
     const toggleGroup = (group: string) => {
         setOpenGroups((prev) => ({
@@ -91,12 +91,18 @@ const App: React.FC = () => {
         chrome.tabs.create({ url });
     };
 
+
     if (warningMessage) {
         return <div>{warningMessage}</div>;
     }
 
     return (
         <div style={{ padding: "0px 15px", fontFamily: "Arial, sans-serif" }}>
+            <AccordionControls
+                openGroups={openGroups}
+                setOpenGroups={setOpenGroups}
+                updatedChecklist={updatedChecklist}
+            />
             <ul style={{ listStyle: "none", padding: 0 }}>
                 {updatedChecklist.map((item) => {
                     const showGroupHeading = item.group !== lastGroup;
