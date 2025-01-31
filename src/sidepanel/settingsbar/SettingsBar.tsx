@@ -20,7 +20,7 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
     filters, toggleFilter, currentStep, handleNext
 }) => {
     return (
-        <div className="flex justify-between items-center space-x-4 h-12">
+        <div className="flex justify-between items-center p-2 bg-gray-100 rounded-md shadow-md space-x-4">
             <TextInstructions currentStep={currentStep} />
             <NextStepButton currentStep={currentStep} onNext={handleNext} />
             <div className="flex flex-col space-y-1">
