@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
-import { DataStatus, ExtractedPropertyData } from '../types/property';
-import AccordionControls from './accordionControls';
+import { DataStatus, ExtractedPropertyData, PropertyDataList } from '../types/property';
+import AccordionControls from './AccordionControls';
+import { FilterControls } from './FilterControls';
 import { getStatusColor, getStatusIcon } from './helpers';
 
 const emptyPropertyData: ExtractedPropertyData = {
@@ -30,12 +31,17 @@ const emptyPropertyData: ExtractedPropertyData = {
     floodSources: null,
     floodedInLastFiveYears: null,
     accessibility: null,
+    agent: null,
 };
 
 
 const App: React.FC = () => {
     const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
+    const [filters, setFilters] = useState({
+        showAskAgentOnly: false,
+        // Add more filters here
+    });
 
     useEffect(() => {
         // **1. Add Message Listener First**
@@ -69,9 +75,9 @@ const App: React.FC = () => {
         };
     }, []);
 
-    const updatedChecklist = generatePropertyChecklist(propertyData);
+    const propertyChecklistData = generatePropertyChecklist(propertyData);
 
-    const initialOpenGroups = updatedChecklist.reduce((acc, item) => {
+    const initialOpenGroups = propertyChecklistData.reduce((acc, item) => {
         acc[item.group] = true;
         return acc;
     }, {} as { [key: string]: boolean });
@@ -91,20 +97,39 @@ const App: React.FC = () => {
         chrome.tabs.create({ url });
     };
 
+    const toggleFilter = (filterName: keyof typeof filters) => {
+        setFilters((prev) => ({
+            ...prev,
+            [filterName]: !prev[filterName],
+        }));
+    };
+
+    const applyFilters = (checklist: PropertyDataList[]) => {
+        let filtered = checklist;
+        if (filters.showAskAgentOnly) {
+            filtered = filtered.filter((item: PropertyDataList) => item.status === DataStatus.ASK_AGENT);
+        }
+        // Apply more filters here
+        return filtered;
+    };
+
+    const filteredChecklist = applyFilters(propertyChecklistData);
 
     if (warningMessage) {
         return <div>{warningMessage}</div>;
     }
 
     return (
-        <div style={{ padding: "0px 15px", fontFamily: "Arial, sans-serif" }}>
+        <div style={{ padding: "0px 15px" }}>
             <AccordionControls
                 openGroups={openGroups}
                 setOpenGroups={setOpenGroups}
-                updatedChecklist={updatedChecklist}
+                propertyChecklistData={propertyChecklistData}
             />
+            <FilterControls filters={filters} toggleFilter={toggleFilter as (filterName: keyof typeof filters) => void} />
+
             <ul style={{ listStyle: "none", padding: 0 }}>
-                {updatedChecklist.map((item) => {
+                {filteredChecklist.map((item) => {
                     const showGroupHeading = item.group !== lastGroup;
                     lastGroup = item.group;
 

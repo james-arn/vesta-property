@@ -37,6 +37,10 @@ export interface ExtractedPropertyData {
     floodSources: string[] | null;
     floodedInLastFiveYears: boolean | null;
     accessibility: string | null;
+    agent: {
+        name: string;
+        contactUrl: string;
+    } | null;
 }
 
 

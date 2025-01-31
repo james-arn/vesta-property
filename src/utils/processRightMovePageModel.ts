@@ -24,6 +24,10 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             : 'Ask agent';
 
         return {
+            agent: {
+                name: pageModel.propertyData.customer.branchDisplayName,
+                contactUrl: pageModel.metadata.emailAgentUrl,
+            },
             price: pageModel.propertyData.prices.primaryPrice || null,
             location: pageModel.propertyData.address.displayAddress || null,
             propertyType: pageModel.propertyData.propertySubType || null,
