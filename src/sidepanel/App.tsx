@@ -1,10 +1,10 @@
+import { STEPS } from '@/constants/steps';
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
 import { DataStatus, ExtractedPropertyData, PropertyDataList } from '../types/property';
-import AccordionControls from './AccordionControls';
-import { FilterControls } from './FilterControls';
 import { getStatusColor, getStatusIcon } from './helpers';
+import SettingsBar from './settingsbar/SettingsBar';
 
 const emptyPropertyData: ExtractedPropertyData = {
     price: null,
@@ -34,7 +34,6 @@ const emptyPropertyData: ExtractedPropertyData = {
     agent: null,
 };
 
-
 const App: React.FC = () => {
     const [propertyData, setPropertyData] = useState<ExtractedPropertyData>(emptyPropertyData);
     const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -42,6 +41,7 @@ const App: React.FC = () => {
         showAskAgentOnly: false,
         // Add more filters here
     });
+    const [currentStep, setCurrentStep] = useState<keyof typeof STEPS>(STEPS.INITIAL_REVIEW);
 
     useEffect(() => {
         // **1. Add Message Listener First**
@@ -115,19 +115,36 @@ const App: React.FC = () => {
 
     const filteredChecklist = applyFilters(propertyChecklistData);
 
+    const handleNextStep = () => {
+        setCurrentStep((prevStep) => {
+            switch (prevStep) {
+                case STEPS.INITIAL_REVIEW:
+                    return STEPS.SELECT_ISSUES;
+                case STEPS.SELECT_ISSUES:
+                    return STEPS.REVIEW_MESSAGE;
+                case STEPS.REVIEW_MESSAGE:
+                    return STEPS.INITIAL_REVIEW;
+                default:
+                    return STEPS.INITIAL_REVIEW;
+            }
+        });
+    };
+
     if (warningMessage) {
         return <div>{warningMessage}</div>;
     }
 
     return (
-        <div style={{ padding: "0px 15px" }}>
-            <AccordionControls
+        <div className="p-4">
+            <SettingsBar
                 openGroups={openGroups}
                 setOpenGroups={setOpenGroups}
                 propertyChecklistData={propertyChecklistData}
+                filters={filters}
+                toggleFilter={toggleFilter}
+                currentStep={currentStep}
+                handleNext={handleNextStep}
             />
-            <FilterControls filters={filters} toggleFilter={toggleFilter as (filterName: keyof typeof filters) => void} />
-
             <ul style={{ listStyle: "none", padding: 0 }}>
                 {filteredChecklist.map((item) => {
                     const showGroupHeading = item.group !== lastGroup;
