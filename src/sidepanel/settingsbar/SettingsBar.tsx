@@ -25,6 +25,7 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
             <NextStepButton currentStep={currentStep} onNext={handleNext} />
             <div className="flex flex-col space-y-1">
                 <FilterControls
+                    currentStep={currentStep}
                     filters={filters}
                     toggleFilter={toggleFilter}
                 />

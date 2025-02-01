@@ -33,9 +33,9 @@ const AccordionControls: React.FC<AccordionControlsProps> = ({ openGroups, setOp
                 {allGroupsOpen ?
                     <Tooltip>
                         <TooltipTrigger>
-                            <button onClick={collapseAll} className="cursor-pointer bg-none border-none">
+                            <div onClick={collapseAll} className="cursor-pointer bg-none border-none">
                                 <VscCollapseAll size={20} />
-                            </button>
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Collapse All</p>
@@ -44,9 +44,9 @@ const AccordionControls: React.FC<AccordionControlsProps> = ({ openGroups, setOp
                     :
                     <Tooltip>
                         <TooltipTrigger>
-                            <button onClick={expandAll} className="cursor-pointer bg-none border-none">
+                            <div onClick={expandAll} className="cursor-pointer bg-none border-none">
                                 <VscExpandAll size={20} />
-                            </button>
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent>
                             <p>Expand All</p>

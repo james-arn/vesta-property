@@ -1,4 +1,4 @@
-import { DataStatus } from '../types/property';
+import { DataStatus, PropertyDataList } from '../types/property';
 
 export const getStatusIcon = (status: DataStatus): string => {
     switch (status) {
@@ -20,4 +20,8 @@ export const getStatusColor = (status: DataStatus): string => {
         case DataStatus.ASK_AGENT:
             return "orange";
     }
-}; 
+};
+
+export const filterChecklistToAllAskAgentOnlyItems = (checklist: PropertyDataList[]): PropertyDataList[] => {
+    return checklist.filter(item => item.status === DataStatus.ASK_AGENT);
+};

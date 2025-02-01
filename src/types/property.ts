@@ -10,6 +10,7 @@ export interface PropertyDataList {
     value: string | null;
     key: string;
     group: string;
+    selected?: boolean;
 }
 
 export interface ExtractedPropertyData {

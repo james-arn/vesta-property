@@ -4,16 +4,18 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { STEPS } from "@/constants/steps";
 import React from 'react';
 import { IoWarning, IoWarningOutline } from "react-icons/io5";
 
 
 interface FilterControlsProps {
+    currentStep: keyof typeof STEPS;
     filters: { showAskAgentOnly: boolean; };
     toggleFilter: (filterName: keyof FilterControlsProps['filters']) => void;
 }
 
-export const FilterControls = ({ filters, toggleFilter }: FilterControlsProps) => {
+export const FilterControls = ({ currentStep, filters, toggleFilter }: FilterControlsProps) => {
     const showAllTitle = "Show all items";
     const showAskAgentTitle = "Show ask agent items only";
 
@@ -24,11 +26,11 @@ export const FilterControls = ({ filters, toggleFilter }: FilterControlsProps) =
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger>
-                    <button
-                        onClick={() => toggleFilter('showAskAgentOnly')}
-                        className="cursor-pointer bg-none">
+                    <div
+                        onClick={() => currentStep !== STEPS.SELECT_ISSUES && toggleFilter('showAskAgentOnly')}
+                        className={`cursor-pointer bg-none ${currentStep === STEPS.SELECT_ISSUES ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         {CurrentIcon}
-                    </button>
+                    </div>
                 </TooltipTrigger>
                 <TooltipContent>
                     <p>{currentTitle}</p>

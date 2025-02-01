@@ -43,7 +43,16 @@ export function processRightmovePageModel(pageModel: RightmovePageModelType | nu
             heating: pageModel.propertyData.features?.heating?.[0]?.displayText || heatingFromUnstructuredText || 'Ask agent',
             floorPlan: floorPlan,
             epc: epc,
-            broadband: pageModel.propertyData.features?.broadband?.[0]?.displayText || getBroadbandSpeedFromDOM() || 'Ask agent',
+            broadband: (() => {
+                const broadbandFeature = pageModel.propertyData.features?.broadband?.[0]?.displayText;
+                const broadbandSpeed = getBroadbandSpeedFromDOM();
+                if (broadbandFeature && broadbandSpeed) {
+                    return `${broadbandFeature}, ${broadbandSpeed}`;
+                }
+                else if (broadbandFeature) return broadbandFeature;
+                else if (broadbandSpeed) return broadbandSpeed;
+                else return 'Ask agent';
+            })(),
             listingHistory: pageModel.propertyData?.listingHistory?.listingUpdateReason || 'Ask agent',
             windows: windowsFromUnstructuredText || 'Ask agent',
             publicRightOfWayObligation: pageModel.propertyData.features.obligations.rightsOfWay,

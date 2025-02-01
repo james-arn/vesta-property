@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
 import { DataStatus, ExtractedPropertyData, PropertyDataList } from '../types/property';
-import { getStatusColor, getStatusIcon } from './helpers';
+import { filterChecklistToAllAskAgentOnlyItems, getStatusColor, getStatusIcon } from './helpers';
 import SettingsBar from './settingsbar/SettingsBar';
 
 const emptyPropertyData: ExtractedPropertyData = {
@@ -42,6 +42,7 @@ const App: React.FC = () => {
         // Add more filters here
     });
     const [currentStep, setCurrentStep] = useState<keyof typeof STEPS>(STEPS.INITIAL_REVIEW);
+    const [selectedWarningItems, setSelectedWarningItems] = useState<PropertyDataList[]>([]);
 
     useEffect(() => {
         // **1. Add Message Listener First**
@@ -104,7 +105,7 @@ const App: React.FC = () => {
         }));
     };
 
-    const applyFilters = (checklist: PropertyDataList[]) => {
+    const applyFilters = (checklist: PropertyDataList[], filters: { showAskAgentOnly: boolean }) => {
         let filtered = checklist;
         if (filters.showAskAgentOnly) {
             filtered = filtered.filter((item: PropertyDataList) => item.status === DataStatus.ASK_AGENT);
@@ -113,14 +114,22 @@ const App: React.FC = () => {
         return filtered;
     };
 
-    const filteredChecklist = applyFilters(propertyChecklistData);
+    const filteredChecklist = applyFilters(propertyChecklistData, filters);
+    const askAgentItems = filterChecklistToAllAskAgentOnlyItems(filteredChecklist);
+
+    const checklistToRender = currentStep === STEPS.SELECT_ISSUES
+        ? askAgentItems
+        : filteredChecklist;
+
 
     const handleNextStep = () => {
         setCurrentStep((prevStep) => {
             switch (prevStep) {
                 case STEPS.INITIAL_REVIEW:
+                    setSelectedWarningItems(askAgentItems);
                     return STEPS.SELECT_ISSUES;
                 case STEPS.SELECT_ISSUES:
+                    console.log('Selected Issues:', selectedWarningItems);
                     return STEPS.REVIEW_MESSAGE;
                 case STEPS.REVIEW_MESSAGE:
                     return STEPS.INITIAL_REVIEW;
@@ -128,6 +137,74 @@ const App: React.FC = () => {
                     return STEPS.INITIAL_REVIEW;
             }
         });
+    };
+
+    const toggleSelection = (key: string) => {
+        setSelectedWarningItems((prev) => {
+            const isSelected = prev.some(item => item.key === key);
+            if (isSelected) return prev.filter(item => item.key !== key);
+            const selectedItem = askAgentItems.find(item => item.key === key);
+            return selectedItem ? [...prev, selectedItem] : prev;
+        });
+    };
+
+    const renderChecklistItem = (item: PropertyDataList) => {
+        const isSelected = selectedWarningItems.some(selectedItem => selectedItem.key === item.key);
+        return (
+            <li
+                key={item.key}
+                style={{
+                    color: getStatusColor(item.status),
+                    margin: "4px 0",
+                    padding: "8px",
+                    backgroundColor: "#f5f5f5",
+                    borderRadius: "4px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    opacity: currentStep === STEPS.SELECT_ISSUES && !isSelected ? 0.3 : 1,
+                    cursor: currentStep === STEPS.SELECT_ISSUES ? 'pointer' : 'default'
+                }}
+                onClick={() => currentStep === STEPS.SELECT_ISSUES && toggleSelection(item.key)}
+            >
+                <div>
+                    {getStatusIcon(item.status)} {item.label}
+                </div>
+                <div style={{
+                    marginLeft: "20px",
+                    color: "#333",
+                    fontWeight: item.status === DataStatus.ASK_AGENT ? "normal" : "bold"
+                }}>
+                    {(item.key === 'epc' || item.key === 'floorPlan') && item.value !== 'Ask agent' ? (
+                        <span onClick={() => handleEpcClick(item.value ?? '')} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
+                            Yes
+                        </span>
+                    ) : (
+                        <span>{item.value || "Not found"}</span>
+                    )}
+                </div>
+            </li>
+        );
+    };
+
+    const renderGroupHeading = (group: string) => {
+        return (
+            <li
+                style={{
+                    marginTop: "20px",
+                    fontWeight: "bold",
+                    fontSize: "1.2em",
+                    cursor: "pointer",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                }}
+                onClick={() => toggleGroup(group)}
+            >
+                <span>{group}</span>
+                <span>{openGroups[group] ? "▼" : "▲"}</span>
+            </li>
+        );
     };
 
     if (warningMessage) {
@@ -146,29 +223,13 @@ const App: React.FC = () => {
                 handleNext={handleNextStep}
             />
             <ul style={{ listStyle: "none", padding: 0 }}>
-                {filteredChecklist.map((item) => {
+                {checklistToRender.map((item) => {
                     const showGroupHeading = item.group !== lastGroup;
                     lastGroup = item.group;
 
                     return (
                         <React.Fragment key={item.key}>
-                            {showGroupHeading && (
-                                <li
-                                    style={{
-                                        marginTop: "20px",
-                                        fontWeight: "bold",
-                                        fontSize: "1.2em",
-                                        cursor: "pointer",
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center"
-                                    }}
-                                    onClick={() => toggleGroup(item.group)}
-                                >
-                                    <span>{item.group}</span>
-                                    <span>{openGroups[item.group] ? "▼" : "▲"}</span>
-                                </li>
-                            )}
+                            {showGroupHeading && renderGroupHeading(item.group)}
                             <div
                                 style={{
                                     maxHeight: openGroups[item.group] ? "1000px" : "0",
@@ -177,35 +238,7 @@ const App: React.FC = () => {
                                     opacity: openGroups[item.group] ? 1 : 0
                                 }}
                             >
-                                <li
-                                    style={{
-                                        color: getStatusColor(item.status),
-                                        margin: "4px 0",
-                                        padding: "8px",
-                                        backgroundColor: "#f5f5f5",
-                                        borderRadius: "4px",
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center"
-                                    }}
-                                >
-                                    <div>
-                                        {getStatusIcon(item.status)} {item.label}
-                                    </div>
-                                    <div style={{
-                                        marginLeft: "20px",
-                                        color: "#333",
-                                        fontWeight: item.status === DataStatus.ASK_AGENT ? "normal" : "bold"
-                                    }}>
-                                        {(item.key === 'epc' || item.key === 'floorPlan') && item.value !== 'Ask agent' ? (
-                                            <span onClick={() => handleEpcClick(item.value ?? '')} style={{ cursor: 'pointer', color: 'blue', textDecoration: 'underline' }}>
-                                                Yes
-                                            </span>
-                                        ) : (
-                                            <span>{item.value || "Not found"}</span>
-                                        )}
-                                    </div>
-                                </li>
+                                {renderChecklistItem(item)}
                             </div>
                         </React.Fragment>
                     );
