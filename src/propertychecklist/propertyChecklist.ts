@@ -33,6 +33,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.price,
+      askAgentMessage: "What's the price?",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -42,6 +43,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.location,
+      askAgentMessage: "Where's the property located?",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -51,6 +53,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.propertyType,
+      askAgentMessage: "What's the property type?",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -60,6 +63,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.tenure,
+      askAgentMessage: "What's the tenure?",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -67,6 +71,7 @@ export function generatePropertyChecklist(
       key: "listingHistory",
       status: listingHistoryStatus,
       value: listingHistoryValue,
+      askAgentMessage: "What's the listing history?",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -77,6 +82,7 @@ export function generatePropertyChecklist(
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: extractedData.accessibility,
+      askAgentMessage: "Is the property accessible-friendly?",
     },
 
     // Interior Details
@@ -88,6 +94,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.bedrooms,
+      askAgentMessage: "How many bedrooms?",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -97,6 +104,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.bathrooms,
+      askAgentMessage: "How many bathrooms?",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -108,6 +116,7 @@ export function generatePropertyChecklist(
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: extractedData.heating,
+      askAgentMessage: "What's the heating type?",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -119,6 +128,7 @@ export function generatePropertyChecklist(
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: extractedData.size,
+      askAgentMessage: "What's the size?",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -128,6 +138,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: DOMPurify.sanitize(extractedData.floorPlan ?? ""),
+      askAgentMessage: "Do you have a floor plan?",
     },
 
     // Exterior Details
@@ -137,6 +148,7 @@ export function generatePropertyChecklist(
       key: "parking",
       status: getYesNoOrMissingStatus(extractedData.parking),
       value: extractedData.parking ?? "Ask agent",
+      askAgentMessage: "Is there parking?",
     },
     {
       group: PropertyGroups.EXTERIOR,
@@ -144,6 +156,7 @@ export function generatePropertyChecklist(
       key: "garden",
       status: getYesNoOrMissingStatus(extractedData.garden),
       value: extractedData.garden ?? "Ask agent",
+      askAgentMessage: "Is there a garden?",
     },
 
     {
@@ -156,8 +169,8 @@ export function generatePropertyChecklist(
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: extractedData.windows,
+      askAgentMessage: "Windows - material & glazing?",
     },
-    // construction type of the property
 
     // Utilities and Services
     {
@@ -168,6 +181,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: DOMPurify.sanitize(extractedData.epc ?? ""),
+      askAgentMessage: "Do you have the EPC certificate?",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -180,6 +194,7 @@ export function generatePropertyChecklist(
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: extractedData.councilTax,
+      askAgentMessage: "What council tax band?",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -189,6 +204,7 @@ export function generatePropertyChecklist(
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
       value: extractedData.broadband,
+      askAgentMessage: "How's the broadband?",
     },
 
     // Rights and Restrictions
@@ -203,6 +219,7 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(
         extractedData.publicRightOfWayObligation
       ),
+      askAgentMessage: "Public right of way obligation?",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -215,6 +232,7 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(
         extractedData.privateRightOfWayObligation
       ),
+      askAgentMessage: "Private right of way obligation?",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -222,6 +240,7 @@ export function generatePropertyChecklist(
       key: "listedProperty",
       status: getStatusFromBoolean(extractedData.listedProperty, true),
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
+      askAgentMessage: "Is the property listed?",
     },
 
     {
@@ -230,6 +249,7 @@ export function generatePropertyChecklist(
       key: "restrictions",
       status: getStatusFromBoolean(extractedData.restrictions, true),
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.restrictions),
+      askAgentMessage: "Any restrictions?",
     },
 
     {
@@ -238,6 +258,7 @@ export function generatePropertyChecklist(
       key: "floodDefences",
       status: getStatusFromBoolean(extractedData.floodDefences),
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodDefences),
+      askAgentMessage: "Any flood defences?",
     },
     {
       group: PropertyGroups.RISKS,
@@ -251,6 +272,7 @@ export function generatePropertyChecklist(
         (extractedData.floodSources ?? []).length > 0
           ? (extractedData.floodSources?.join(", ") ?? "Ask agent")
           : "Ask agent",
+      askAgentMessage: "Any flood sources?",
     },
 
     {
@@ -261,12 +283,14 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(
         extractedData.floodedInLastFiveYears
       ),
+      askAgentMessage: "Flooded in last 5 years?",
     },
+
+    // TODO: ON ROADMAP...
     // building safety
     // coastal erosion
     // impact of mining in the area
-
-    // TODO: ON ROADMAP...
+    // construction type of the property
     // // Neighbourhood and Environment
     // { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.ASK_AGENT, value: null },
     // { group: PropertyGroups.NEIGHBOURHOOD, label: "Local Amenities", key: "localAmenities", status: DataStatus.ASK_AGENT, value: null },

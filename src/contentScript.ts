@@ -1,4 +1,5 @@
 import { ActionEvents } from "./constants/actionEvents";
+import { PropertyDataList } from "./types/property";
 import { RightmovePageModelType } from "./types/rightmovePageModel";
 import { processRightmovePageModel } from "./utils/processRightMovePageModel";
 import {
@@ -144,19 +145,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
   }
   if (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM) {
-    const { selectedWarningItems } = request.data;
+    const selectedWarningItems: PropertyDataList[] =
+      request.data.selectedWarningItems;
     console.log(
       "Content Script: Filling Rightmove contact form with:",
       selectedWarningItems
     );
-    console.log("contentScript.ts: DOMContenstLoaded");
+    console.log("contentScript.ts: DOMContentLoaded");
     const textArea = document.querySelector(
       "textarea#comments"
     ) as HTMLTextAreaElement;
     console.log("contentScript.ts: textArea:", textArea);
     if (textArea) {
-      // textArea.value = selectedWarningItems.join('\n');
-      textArea.value = "test";
+      const focusEvent = new Event("focus", { bubbles: true });
+      textArea.dispatchEvent(focusEvent);
+      textArea.value = "Hi, please clarify:";
+      textArea.value +=
+        "\n\n" +
+        selectedWarningItems
+          .map((item, index) =>
+            selectedWarningItems.length > 1
+              ? `${index + 1}. ${item.askAgentMessage}`
+              : item.askAgentMessage
+          )
+          .join("\n");
+
+      // Simulate input and blur so field doesn't reset
+      const inputEvent = new Event("input", { bubbles: true });
+      textArea.dispatchEvent(inputEvent);
+      const blurEvent = new Event("blur", { bubbles: true });
+      textArea.dispatchEvent(blurEvent);
 
       textArea.style.borderColor = "green";
       textArea.style.transition =

@@ -11,6 +11,7 @@ export interface PropertyDataList {
   key: string;
   group: string;
   selected?: boolean;
+  askAgentMessage: string;
 }
 
 export interface ExtractedPropertyData {
