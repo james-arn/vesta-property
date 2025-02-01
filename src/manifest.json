@@ -1,48 +1,47 @@
 {
-    "manifest_version": 3,
-    "name": "Vesta Property Checklist",
-    "version": "1.0",
-    "description": "Evaluate property listings with ease using automated checklists.",
-    "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
-    "host_permissions": [
-      "https://www.rightmove.co.uk/*",
-      "https://www.idealista.com/*"
-    ],
-    "icons": {
-        "16": "images/icon16.png",
-        "48": "images/icon48.png",
-        "128": "images/icon128.png"
-      },
-    "action": {
-      "default_icon": {
-        "16": "images/icon16.png",
-        "48": "images/icon48.png",
-        "128": "images/icon128.png"
-      },
-      "default_title": "Open Vesta Property Checklist"
+  "manifest_version": 3,
+  "name": "Vesta Property Checklist",
+  "version": "1.0",
+  "description": "Evaluate property listings with ease using automated checklists.",
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
+  "host_permissions": [
+    "https://www.rightmove.co.uk/*",
+    "https://www.idealista.com/*"
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
     },
-    "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["contentScript.js"],
-        "run_at": "document_end"
-      }
-    ],
-    "background": {
-      "service_worker": "background.js",
-      "type": "module"
-    },
-    "web_accessible_resources": [
-      {
-        "resources": ["injectScript.js"],
-        "matches": ["<all_urls>"]
-      }
-    ],
-    "side_panel": {
-      "default_path": "sidepanel.html"
-    },
-    "externally_connectable": {
-      "matches": ["*://*/*"]
+    "default_title": "Open Vesta Property Checklist"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_end"
     }
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injectScript.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "externally_connectable": {
+    "matches": ["*://*/*"]
+  }
 }
-  

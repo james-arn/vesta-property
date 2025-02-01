@@ -1,14 +1,14 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 
 module.exports = {
   mode: "development",
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
     background: "./src/background.ts",
-    contentScript: './src/contentScript.ts',
+    contentScript: "./src/contentScript.ts",
   },
   output: {
     path: path.resolve(__dirname, "dist"),
@@ -18,7 +18,7 @@ module.exports = {
     rules: [
       {
         test: /\.css$/,
-        use: ['style-loader', 'css-loader', 'postcss-loader'],
+        use: ["style-loader", "css-loader", "postcss-loader"],
       },
       {
         test: /\.(ts|tsx)$/,
@@ -30,7 +30,7 @@ module.exports = {
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      "@": path.resolve(__dirname, "src"),
     },
   },
   plugins: [
@@ -44,9 +44,9 @@ module.exports = {
       patterns: [
         { from: "src/manifest.json" },
         { from: "src/images", to: "images" },
-        { from: 'src/injectScript.js', to: 'injectScript.js' },
+        { from: "src/injectScript.js", to: "injectScript.js" },
       ],
     }),
   ],
-  devtool: 'source-map',
+  devtool: "source-map",
 };
