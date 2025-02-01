@@ -1,5 +1,5 @@
 import { ActionEvents } from './constants/actionEvents';
-import { ResponseType, ShowWarningMessage, TabChangedOrExtensionOpenedMessage, UpdatePropertyDataMessage } from './types/messages';
+import { FillRightmoveContactFormMessage, MessageRequest, ResponseType, ShowWarningMessage, TabChangedOrExtensionOpenedMessage, UpdatePropertyDataMessage } from './types/messages';
 
 console.log("[background.ts] Background script loaded");
 // Background.ts is the central hub
@@ -11,7 +11,7 @@ function sendWarningMessage(logMessage: string) {
     console.warn(logMessage);
     const warningMessage: ShowWarningMessage = {
         action: ActionEvents.SHOW_WARNING,
-        message: 'Please open a property page on rightmove.co.uk.'
+        data: 'Please open a property page on rightmove.co.uk.'
     };
     chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(warningMessage, (response) => {
         if (chrome.runtime.lastError) {
@@ -31,7 +31,6 @@ function handleInitialLoadOrTabChange() {
         }
 
         const currentUrl = tabs[0].url;
-        console.log('[background.ts] Updated last URL:', currentUrl);
         const tabId = tabs[0]?.id;
 
         if (typeof tabId !== 'number') {
@@ -46,7 +45,7 @@ function handleInitialLoadOrTabChange() {
 
         const message: TabChangedOrExtensionOpenedMessage = {
             action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
-            url: currentUrl
+            data: currentUrl
         };
         console.log('[background.ts] Sending message to tab:', tabId, message);
         chrome.tabs.sendMessage(tabId, message, (response) => {
@@ -85,8 +84,35 @@ chrome.tabs.onCreated.addListener((tab) => {
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error(error));
 
-// Listen for messages from the content script and store data.
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+function handleContentScriptMessage(request: FillRightmoveContactFormMessage) {
+    const { emailAgentUrl, selectedWarningItems } = request.data;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0 || !tabs[0].id) {
+            console.warn('background.ts: No active tab found.');
+            return;
+        }
+        const tabId = tabs[0].id;
+
+        const fullUrl = `https://www.rightmove.co.uk${emailAgentUrl}`;
+        const updatedUrl = new URL(fullUrl);
+
+        chrome.tabs.update(tabId, { url: updatedUrl.toString() }, () => {
+            chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
+                if (changeInfo.status === 'complete') {
+                    chrome.tabs.onUpdated.removeListener(listener);
+                    chrome.tabs.sendMessage(tabId, {
+                        action: ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM,
+                        data: { selectedWarningItems }
+                    });
+                }
+            });
+        });
+    });
+}
+
+
+function handleUIMessage(request: MessageRequest, sendResponse: (response: ResponseType) => void) {
     if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
         console.log('[background.ts] Side panel opened');
         handleInitialLoadOrTabChange();
@@ -95,8 +121,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === ActionEvents.UPDATE_PROPERTY_DATA) {
         console.log('[background.ts] Property Data:', request.data);
-        // Forward the message to the UI
-        chrome.runtime.sendMessage<UpdatePropertyDataMessage, ResponseType>(request, (response) => {
+        chrome.runtime.sendMessage<UpdatePropertyDataMessage, ResponseType>(request as UpdatePropertyDataMessage, (response) => {
             if (chrome.runtime.lastError) {
                 console.error('[background.ts] Error forwarding message:', chrome.runtime.lastError);
             } else {
@@ -105,16 +130,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }
         });
     }
+
     if (request.action === ActionEvents.SHOW_WARNING) {
-        console.log('[background.ts] Warning Message:', request.message);
-        // Forward the message to the UI
-        chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(request, (response) => {
+        console.log('[background.ts] Warning Message:', request.data);
+        chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(request as ShowWarningMessage, () => {
+
             if (chrome.runtime.lastError) {
                 console.error('[background.ts] Error forwarding message:', chrome.runtime.lastError);
             } else {
                 console.log('[background.ts] Message forwarded to UI:', request);
             }
         });
+    }
+}
+
+// Listen for messages from the content script and store data.
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Messages for the UI
+    if (request.action === ActionEvents.SIDE_PANEL_OPENED
+        || request.action === ActionEvents.UPDATE_PROPERTY_DATA
+        || request.action === ActionEvents.SHOW_WARNING) {
+        handleUIMessage(request, sendResponse);
+    }
+
+    // Messages for the Content Script
+    if (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM) {
+        handleContentScriptMessage(request);
     }
 });
 
@@ -125,7 +166,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
         if (tab.url) {
             // Send the URL to the sidebar
             chrome.runtime.sendMessage<TabChangedOrExtensionOpenedMessage, ResponseType>({
-                action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED, url: tab.url
+                action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED, data: tab.url
             });
         }
     });
@@ -135,7 +176,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "complete" && tab.active) {
         chrome.runtime.sendMessage<TabChangedOrExtensionOpenedMessage, ResponseType>({
-            action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED, url: tab.url ?? ''
+            action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED, data: tab.url ?? ''
         });
     }
 });

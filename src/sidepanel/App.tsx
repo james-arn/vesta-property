@@ -1,4 +1,5 @@
 import { STEPS } from '@/constants/steps';
+import { FillRightmoveContactFormMessage } from '@/types/messages';
 import React, { useEffect, useState } from 'react';
 import { ActionEvents } from '../constants/actionEvents';
 import { generatePropertyChecklist } from '../propertychecklist/propertyChecklist';
@@ -46,16 +47,16 @@ const App: React.FC = () => {
 
     useEffect(() => {
         // **1. Add Message Listener First**
-        const handleMessage = (message: { action: string; data?: any; message?: string }) => {
+        const handleMessage = (message: { action: string; data?: any }) => {
             console.log('[Side Panel] Received message:', message);
             if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
                 setPropertyData(message.data);
                 setWarningMessage(null);
                 console.log('[Side Panel] Property data updated:', message.data);
             } else if (message.action === ActionEvents.SHOW_WARNING) {
-                setWarningMessage(message.message || null);
+                setWarningMessage(message.data || null);
                 setPropertyData(emptyPropertyData);
-                console.log('[Side Panel] Warning message set:', message.message);
+                console.log('[Side Panel] Warning message set:', message.data);
             }
         };
 
@@ -130,6 +131,13 @@ const App: React.FC = () => {
                     return STEPS.SELECT_ISSUES;
                 case STEPS.SELECT_ISSUES:
                     console.log('Selected Issues:', selectedWarningItems);
+                    const emailAgentUrl = propertyData.agent?.contactUrl;
+                    if (emailAgentUrl) {
+                        chrome.runtime.sendMessage<FillRightmoveContactFormMessage, ResponseType>({
+                            action: ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM,
+                            data: { selectedWarningItems, emailAgentUrl }
+                        });
+                    }
                     return STEPS.REVIEW_MESSAGE;
                 case STEPS.REVIEW_MESSAGE:
                     return STEPS.INITIAL_REVIEW;
@@ -208,7 +216,11 @@ const App: React.FC = () => {
     };
 
     if (warningMessage) {
-        return <div>{warningMessage}</div>;
+        return (
+            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
+                {warningMessage}
+            </div>
+        );
     }
 
     return (
