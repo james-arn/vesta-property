@@ -1,5 +1,5 @@
-import { RightmovePageModelType } from "../types/rightmovePageModel";
-import { capitaliseFirstLetter } from "./text";
+import { RightmovePageModelType } from "@/types/rightmovePageModel";
+import { capitaliseFirstLetter } from "@/utils/text";
 
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
   pageModel: RightmovePageModelType

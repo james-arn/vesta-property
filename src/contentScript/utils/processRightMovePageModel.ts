@@ -1,10 +1,11 @@
-import { ExtractedPropertyData } from "../types/property";
-import { RightmovePageModelType } from "../types/rightmovePageModel";
+import { ExtractedPropertyData } from "../../types/property";
+import { RightmovePageModelType } from "../../types/rightmovePageModel";
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
   getBroadbandSpeed as getBroadbandSpeedFromDOM,
 } from "./propertyScrapeHelpers";
 
+// Takes right rightmove
 export function processRightmovePageModel(
   pageModel: RightmovePageModelType | null
 ): ExtractedPropertyData | null {

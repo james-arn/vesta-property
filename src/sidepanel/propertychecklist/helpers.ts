@@ -1,5 +1,5 @@
-import { DataStatus } from "../types/property";
-import { formatTimeInYearsMonthsWeeksDays } from "../utils/dates";
+import { DataStatus } from "../../types/property";
+import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
 import { agentMissingInfo } from "./propertyChecklist";
 
 export function getYesNoOrMissingStatus(value: string | null): DataStatus {

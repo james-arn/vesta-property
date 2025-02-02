@@ -4,7 +4,7 @@ import {
   ExtractedPropertyData,
   PropertyDataList,
   PropertyGroups,
-} from "../types/property";
+} from "../../types/property";
 import {
   calculateListingHistoryDetails,
   getStatusFromBoolean,

@@ -2,7 +2,6 @@ import { STEPS } from "@/constants/steps";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import React, { useEffect, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
-import { generatePropertyChecklist } from "../propertychecklist/propertyChecklist";
 import {
   DataStatus,
   ExtractedPropertyData,
@@ -13,6 +12,7 @@ import {
   getStatusColor,
   getStatusIcon,
 } from "./helpers";
+import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 
 const emptyPropertyData: ExtractedPropertyData = {
@@ -223,7 +223,7 @@ const App: React.FC = () => {
           }}
         >
           {(item.key === "epc" || item.key === "floorPlan") &&
-          item.value !== "Ask agent" ? (
+            item.value !== "Ask agent" ? (
             <span
               onClick={() => handleEpcClick(item.value ?? "")}
               style={{
