@@ -19,10 +19,19 @@ export function setupContentScriptEventListeners() {
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Content Script: Received message:", request);
-    if (request.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+    if (
+      request.action ===
+      ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED
+    ) {
       const currentUrl = request.data;
       console.log("Content Script: Current URL:", currentUrl);
-      if (currentUrl.includes("rightmove.co.uk/properties/")) {
+      if (
+        currentUrl.startsWith(
+          "https://www.rightmove.co.uk/property-for-sale/contactBranch"
+        )
+      ) {
+        // No action needed, as the sidebar can use the step directly
+      } else if (currentUrl.includes("rightmove.co.uk/properties/")) {
         const propertyData = extractPropertyDataFromDOM(pageModel);
         console.log("Content Script: Extracted property data:", propertyData);
 
@@ -40,81 +49,76 @@ export function setupContentScriptEventListeners() {
         });
       }
     }
-    if (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM) {
+    if (request.action === ActionEvents.NAVIGATE_AND_SEND_DATA) {
       const selectedWarningItems: PropertyDataList[] =
         request.data.selectedWarningItems;
-      console.log(
-        "Content Script: Filling Rightmove contact form with:",
-        selectedWarningItems
-      );
-      console.log("contentScript.ts: DOMContentLoaded");
-      const textArea = document.querySelector(
-        "textarea#comments"
-      ) as HTMLTextAreaElement;
-      console.log("contentScript.ts: textArea:", textArea);
-      if (textArea) {
-        const focusEvent = new Event("focus", { bubbles: true });
-        textArea.dispatchEvent(focusEvent);
-        textArea.value = "Hi, please clarify:";
-        textArea.value +=
-          "\n\n" +
-          selectedWarningItems
-            .map((item, index) =>
-              selectedWarningItems.length > 1
-                ? `${index + 1}. ${item.askAgentMessage}`
-                : item.askAgentMessage
-            )
-            .join("\n");
 
-        // Simulate input and blur so field doesn't reset
-        const inputEvent = new Event("input", { bubbles: true });
-        textArea.dispatchEvent(inputEvent);
-        const blurEvent = new Event("blur", { bubbles: true });
-        textArea.dispatchEvent(blurEvent);
+      chrome.storage.local.set({ selectedWarningItems }, () => {
+        console.log("Selected warning items stored.");
 
-        textArea.style.borderColor = "green";
-        textArea.style.transition =
-          "border-color 0.3s ease, box-shadow 0.3s ease";
-        textArea.style.boxShadow = "0 0 10px rgba(0, 255, 0, 0.7)";
-
-        const styleSheet = document.styleSheets[0];
-        styleSheet.insertRule(
-          `
-          @keyframes pulse {
-            0% {
-              transform: scale(1);
-            }
-            50% {
-              transform: scale(1.05);
-            }
-            100% {
-              transform: scale(1);
-            }
-          }
-        `,
-          styleSheet.cssRules.length
-        );
-
-        textArea.scrollIntoView({ behavior: "smooth", block: "center" });
-
-        // Use IntersectionObserver to wait until the text area is in view
-        const observer = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            // Start the pulsating effect
-            textArea.style.animation = "pulse 1s infinite"; // Start pulsating effect
-
-            // Stop the effect after a few seconds
-            setTimeout(() => {
-              textArea.style.borderColor = "";
-              textArea.style.boxShadow = "";
-              textArea.style.animation = "";
-              observer.disconnect();
-            }, 3000);
-          }
-        });
-
-        observer.observe(textArea);
-      }
+        // Navigate to the new URL
+        window.location.href = request.data.url;
+      });
     }
+  });
+
+  window.addEventListener("load", () => {
+    console.log("Content Script: Window loaded");
+    chrome.storage.local.get("selectedWarningItems", (result) => {
+      const selectedWarningItems: PropertyDataList[] =
+        result.selectedWarningItems;
+      if (selectedWarningItems) {
+        console.log("Retrieved selected warning items:", selectedWarningItems);
+
+        const textArea = document.querySelector(
+          "textarea#comments"
+        ) as HTMLTextAreaElement;
+        if (textArea) {
+          const focusEvent = new Event("focus", { bubbles: true });
+          textArea.dispatchEvent(focusEvent);
+          textArea.value = "Hi, please clarify:";
+          textArea.value +=
+            "\n\n" +
+            selectedWarningItems
+              .map((item, index) =>
+                selectedWarningItems.length > 1
+                  ? `${index + 1}. ${item.askAgentMessage}`
+                  : item.askAgentMessage
+              )
+              .join("\n");
+
+          const inputEvent = new Event("input", { bubbles: true });
+          textArea.dispatchEvent(inputEvent);
+          const blurEvent = new Event("blur", { bubbles: true });
+          textArea.dispatchEvent(blurEvent);
+
+          textArea.style.borderColor = "green";
+          textArea.style.transition =
+            "border-color 0.3s ease, box-shadow 0.3s ease";
+          textArea.style.boxShadow = "0 0 10px rgba(0, 255, 0, 0.7)";
+          textArea.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          // Use IntersectionObserver to wait until the text area is in view
+          const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting) {
+              // Start the pulsating effect
+              textArea.style.animation = "pulse 1s infinite";
+
+              // Stop the effect after a few seconds
+              setTimeout(() => {
+                textArea.style.borderColor = "";
+                textArea.style.boxShadow = "";
+                textArea.style.animation = "";
+                observer.disconnect();
+              }, 3000);
+            }
+          });
+
+          observer.observe(textArea);
+        }
+
+        chrome.storage.local.remove("selectedWarningItems");
+      }
+    });
   });
 }

@@ -2,9 +2,9 @@ import { ActionEvents } from "./constants/actionEvents";
 import {
   FillRightmoveContactFormMessage,
   MessageRequest,
+  NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
   ResponseType,
   ShowWarningMessage,
-  TabChangedOrExtensionOpenedMessage,
   UpdatePropertyDataMessage,
 } from "./types/messages";
 
@@ -61,8 +61,8 @@ function handleInitialLoadOrTabChange() {
       return;
     }
 
-    const message: TabChangedOrExtensionOpenedMessage = {
-      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
+    const message: NavigatedUrlOrTabChangedOrExtensionOpenedMessage = {
+      action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
       data: currentUrl,
     };
     console.log("[background.ts] Sending message to tab:", tabId, message);
@@ -119,19 +119,12 @@ function handleContentScriptMessage(request: FillRightmoveContactFormMessage) {
     }
     const tabId = tabs[0].id;
 
-    const fullUrl = `https://www.rightmove.co.uk${emailAgentUrl}`;
-    const updatedUrl = new URL(fullUrl);
-
-    chrome.tabs.update(tabId, { url: updatedUrl.toString() }, () => {
-      chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-        if (changeInfo.status === "complete") {
-          chrome.tabs.onUpdated.removeListener(listener);
-          chrome.tabs.sendMessage(tabId, {
-            action: ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM,
-            data: { selectedWarningItems },
-          });
-        }
-      });
+    chrome.tabs.sendMessage(tabId, {
+      action: ActionEvents.NAVIGATE_AND_SEND_DATA,
+      data: {
+        url: `https://www.rightmove.co.uk${emailAgentUrl}`,
+        selectedWarningItems,
+      },
     });
   });
 }
@@ -206,10 +199,10 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
     if (tab.url) {
       // Send the URL to the sidebar
       chrome.runtime.sendMessage<
-        TabChangedOrExtensionOpenedMessage,
+        NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
         ResponseType
       >({
-        action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
+        action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
         data: tab.url,
       });
     }
@@ -220,10 +213,10 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.active) {
     chrome.runtime.sendMessage<
-      TabChangedOrExtensionOpenedMessage,
+      NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
       ResponseType
     >({
-      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
+      action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
       data: tab.url ?? "",
     });
   }
