@@ -36,7 +36,7 @@ This architecture allows for a modular and maintainable codebase, making it easi
 
 ## How Chrome Extensions Work & debugging
 
-Chrome extensions are composed of different components that work together to provide functionality. In this project, the main components are:
+Chrome extensions (Manifest V3) are composed of different components that work together to provide functionality. In this project, the main components are:
 
 - **UI (App.tsx):** This is the user interface of the extension, built using React. It is responsible for rendering the sidebar that users interact with when they click the extension icon.
   Debug by: right clicking on the sidebar - not the webpage and clicking inspect.
