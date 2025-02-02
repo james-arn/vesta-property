@@ -1,15 +1,33 @@
-import { processRightmovePageModel } from "@/contentScript/utils/processRightMovePageModel";
-import { isFloorPlanPresent } from "@/contentScript/utils/propertyScrapeHelpers";
+import {
+  extractInfoFromPageModelKeyFeaturesAndDescription,
+  getBroadbandSpeedFromDOM,
+} from "@/contentScript/utils/propertyScrapeHelpers";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
-import { capitaliseFirstLetter } from "@/utils/text";
 
 export function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
 ) {
-  console.log("pageModel:", pageModel);
-  const pageModelData = processRightmovePageModel(pageModel);
-  console.log("processed pageModelData:", pageModelData);
-  if (pageModelData) return pageModelData;
+  if (!pageModel)
+    console.error("No page model available, attempting data only from DOM");
+
+  const {
+    heating: heatingFromUnstructuredText,
+    windows: windowsFromUnstructuredText,
+    garden: gardenFromUnstructuredText,
+    accessibility: accessibilityFromUnstructuredText,
+  } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
+  const epc =
+    (pageModel?.propertyData?.epcGraphs?.length ?? 0) > 0 &&
+    pageModel?.propertyData?.epcGraphs?.[0]?.url
+      ? pageModel?.propertyData?.epcGraphs?.[0]?.url
+      : "Ask agent";
+
+  const floorPlan =
+    pageModel?.propertyData?.floorplans &&
+    pageModel?.propertyData?.floorplans?.length > 0 &&
+    pageModel?.propertyData?.floorplans?.[0]?.url
+      ? pageModel?.propertyData?.floorplans?.[0]?.url
+      : "Ask agent";
 
   // Fallback to DOM extraction
   const priceElement = Array.from(document.querySelectorAll("span")).find(
@@ -41,53 +59,86 @@ export function extractPropertyDataFromDOM(
     .find((dt) => dt.textContent?.includes("SIZE"))
     ?.nextElementSibling?.textContent?.trim();
 
-  const extractInfoFromKeyFeatureAndDescription = () => {
-    const heatingRegex =
-      /\b(?:gas central heating|electric heating|electric central heating|underfloor heating|radiators|boiler)\b/gi;
-    const gardenRegex = /\bgarden\b/gi;
-    const parkingRegex = /\bparking\b/gi;
-
-    // Function to get text by label (Key Features, Description)
-    const getTextByHeading = (headingText: string) => {
-      const heading = Array.from(document.querySelectorAll("h2")).find((el) =>
-        el.textContent?.includes(headingText)
-      );
-      return heading?.nextElementSibling?.textContent || "";
-    };
-
-    // Extract text from Key Features and Description
-    const keyFeatures = getTextByHeading("Key features");
-    const description = getTextByHeading("Description");
-
-    // Combine and search for terms
-    const allText = `${keyFeatures} ${description}`;
-    const heatingMatches = allText.match(heatingRegex);
-    const gardenMatches = allText.match(gardenRegex);
-    const parkingMatches = allText.match(parkingRegex);
-
-    return {
-      heating: heatingMatches
-        ? capitaliseFirstLetter([...new Set(heatingMatches)].join(", "))
-        : null,
-      garden: gardenMatches ? [...new Set(gardenMatches)] : null,
-      parking: parkingMatches ? [...new Set(parkingMatches)] : null,
-    };
-  };
-
-  const { heating } = extractInfoFromKeyFeatureAndDescription();
-
   return {
-    price: priceElement?.textContent?.trim() || null,
-    location: locationElement?.textContent?.trim() || null,
-    propertyType: propertyTypeElement || null,
-    tenure: tenureElement || null,
-    bedrooms: bedroomsElement || null,
-    bathrooms: bathroomsElement || null,
-    parking: parkingElement || null,
-    garden: gardenElement || null,
-    councilTax: councilTaxElement || null,
-    size: sizeElement || null,
-    heating: heating || "Ask agent",
-    floorPlan: isFloorPlanPresent() ? "Yes" : "Ask agent",
+    agent: {
+      name: pageModel?.propertyData?.customer?.branchDisplayName,
+      contactUrl: pageModel?.metadata?.emailAgentUrl,
+    },
+    price:
+      pageModel?.propertyData?.prices?.primaryPrice ||
+      priceElement?.textContent?.trim() ||
+      null,
+    location:
+      pageModel?.propertyData?.address?.displayAddress ||
+      locationElement?.textContent?.trim() ||
+      null,
+    propertyType:
+      pageModel?.propertyData?.propertySubType || propertyTypeElement || null,
+    tenure:
+      pageModel?.propertyData?.tenure?.tenureType || tenureElement || null,
+    bedrooms:
+      pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
+    bathrooms:
+      pageModel?.propertyData?.bathrooms?.toString() ||
+      bathroomsElement ||
+      null,
+    parking:
+      pageModel?.propertyData?.features?.parking?.[0]?.displayText ||
+      parkingElement ||
+      null,
+    garden:
+      pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
+      gardenFromUnstructuredText ||
+      "Ask agent",
+    councilTax:
+      pageModel?.propertyData?.livingCosts?.councilTaxBand ||
+      councilTaxElement ||
+      null,
+    size:
+      pageModel?.propertyData?.sizings &&
+      pageModel?.propertyData?.sizings?.length > 0
+        ? `${Math.ceil(pageModel?.propertyData?.sizings?.[0]?.maximumSize).toLocaleString()} ${pageModel?.propertyData?.sizings?.[0]?.displayUnit} (${Math.ceil(pageModel?.propertyData?.sizings?.[0]?.maximumSize * 10.764).toLocaleString()} sq ft)`
+        : sizeElement || "Ask agent",
+    heating:
+      pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
+      heatingFromUnstructuredText ||
+      "Ask agent",
+    floorPlan: floorPlan,
+
+    epc: epc,
+    broadband: (() => {
+      const broadbandFeature =
+        pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
+      const broadbandSpeed = getBroadbandSpeedFromDOM();
+      if (broadbandFeature && broadbandSpeed) {
+        return `${broadbandFeature}, ${broadbandSpeed}`;
+      } else if (broadbandFeature) return broadbandFeature;
+      else if (broadbandSpeed) return broadbandSpeed;
+      else return "Ask agent";
+    })(),
+    listingHistory:
+      pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
+      "Ask agent",
+    windows: windowsFromUnstructuredText || "Ask agent",
+    publicRightOfWayObligation:
+      pageModel?.propertyData?.features?.obligations?.rightsOfWay,
+    privateRightOfWayObligation:
+      pageModel?.propertyData?.features?.obligations?.requiredAccess,
+    listedProperty: pageModel?.propertyData?.features?.obligations?.listed,
+
+    restrictions: pageModel?.propertyData?.features?.obligations?.restrictions,
+    floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences,
+    floodSources: pageModel?.propertyData?.features?.risks?.floodSources,
+    floodedInLastFiveYears:
+      pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears,
+    accessibility:
+      pageModel?.propertyData?.features?.accessibility &&
+      pageModel?.propertyData?.features?.accessibility?.length > 0
+        ? pageModel?.propertyData?.features?.accessibility
+            ?.map((item) => item.displayText)
+            .join(", ") ||
+          accessibilityFromUnstructuredText ||
+          "Ask agent"
+        : "Ask agent",
   };
 }

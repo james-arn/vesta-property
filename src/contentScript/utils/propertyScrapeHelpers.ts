@@ -2,10 +2,11 @@ import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { capitaliseFirstLetter } from "@/utils/text";
 
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
-  pageModel: RightmovePageModelType
+  pageModel: RightmovePageModelType | null
 ) {
-  const keyFeatures = pageModel.propertyData.keyFeatures || "";
-  const description = pageModel.propertyData.text.description || "";
+  // TODO: Create back up if pageModel isn't available grabbing the text from the DOM
+  const keyFeatures = pageModel?.propertyData?.keyFeatures || "";
+  const description = pageModel?.propertyData?.text?.description || "";
   const combinedText = `${keyFeatures} ${description}`.toLowerCase();
 
   const windowTerms = [
@@ -126,7 +127,7 @@ export function clickBroadbandChecker() {
   }
 }
 
-export function getBroadbandSpeed(): string | null {
+export function getBroadbandSpeedFromDOM(): string | null {
   const broadbandDiv = document.querySelector(
     'div[data-gtm-name="broadband-checker"]'
   );
