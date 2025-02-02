@@ -59,11 +59,19 @@ export function extractPropertyDataFromDOM(
     .find((dt) => dt.textContent?.includes("SIZE"))
     ?.nextElementSibling?.textContent?.trim();
 
+  const phoneNumber =
+    pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber ||
+    pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber
+      ? `${pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber || pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber}`
+      : null;
+
   return {
     agent: {
       name: pageModel?.propertyData?.customer?.branchDisplayName,
       contactUrl: pageModel?.metadata?.emailAgentUrl,
+      phoneNumber: phoneNumber,
     },
+    copyLinkUrl: pageModel?.metadata?.copyLinkUrl,
     price:
       pageModel?.propertyData?.prices?.primaryPrice ||
       priceElement?.textContent?.trim() ||

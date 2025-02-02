@@ -1,4 +1,5 @@
 import { STEPS } from "@/constants/steps";
+import { AgentDetails } from "@/types/property";
 import React from "react";
 import AccordionControls from "./AccordionControls";
 import { FilterControls } from "./FilterControls";
@@ -13,6 +14,7 @@ interface SettingsBarProps {
   toggleFilter: (filterName: keyof SettingsBarProps["filters"]) => void;
   currentStep: keyof typeof STEPS;
   handleNext: () => void;
+  agentDetails: AgentDetails | null;
 }
 
 const SettingsBar: React.FC<SettingsBarProps> = ({
@@ -23,10 +25,11 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
   toggleFilter,
   currentStep,
   handleNext,
+  agentDetails,
 }) => {
   return (
     <div className="flex justify-between items-center p-2 bg-gray-100 rounded-md shadow-md space-x-4">
-      <TextInstructions currentStep={currentStep} />
+      <TextInstructions currentStep={currentStep} agentDetails={agentDetails} />
       <NextStepButton currentStep={currentStep} onNext={handleNext} />
       <div className="flex flex-col space-y-1">
         <FilterControls

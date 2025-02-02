@@ -5,7 +5,9 @@ export const ActionEvents = {
   TAB_CHANGED_OR_EXTENSION_OPENED: "navigatedUrlOrTabChangedOrExtensionOpened",
   SIDE_PANEL_OPENED: "sidePanelOpened",
   FILL_RIGHTMOVE_CONTACT_FORM: "fillRightmoveContactForm",
-  NAVIGATE_AND_SEND_DATA: "navigateAndSendData",
+  NAVIGATE_TO_CONTACT_AGENT_PAGE: "navigateToContactAgentPage",
+  NAVIGATE_BACK_TO_PROPERTY_LISTING: "navigateBackToPropertyListing",
+  AGENT_CONTACT_FORM_SUBMITTED: "agentContactFormSubmitted",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

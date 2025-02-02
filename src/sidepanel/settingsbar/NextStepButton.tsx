@@ -5,7 +5,8 @@ import { IoArrowForward } from "react-icons/io5";
 const buttonLabels = {
   [STEPS.INITIAL_REVIEW]: "Select Issues",
   [STEPS.SELECT_ISSUES]: "Create message",
-  [STEPS.REVIEW_MESSAGE]: "Review message",
+  // There;s no review message button - handled in rightmove form
+  [STEPS.EMAIL_SENT]: "Return to property",
 };
 
 interface NextStepButtonProps {
@@ -17,6 +18,9 @@ const NextStepButton: React.FC<NextStepButtonProps> = ({
   currentStep,
   onNext,
 }) => {
+  if (currentStep === STEPS.REVIEW_MESSAGE) {
+    return null;
+  }
   return (
     <button
       onClick={onNext}

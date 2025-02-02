@@ -41,6 +41,7 @@ const emptyPropertyData: ExtractedPropertyData = {
   floodedInLastFiveYears: null,
   accessibility: null,
   agent: null,
+  copyLinkUrl: null,
 };
 
 const App: React.FC = () => {
@@ -70,6 +71,9 @@ const App: React.FC = () => {
         setWarningMessage(message.data || null);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);
+      } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
+        console.log("[Side Panel] AGENT_CONTACT_FORM_SUBMITTED message received");
+        setCurrentStep(STEPS.EMAIL_SENT);
       }
     };
 
@@ -159,7 +163,6 @@ const App: React.FC = () => {
           setSelectedWarningItems(askAgentItems);
           return STEPS.SELECT_ISSUES;
         case STEPS.SELECT_ISSUES:
-          console.log("Selected Issues:", selectedWarningItems);
           const emailAgentUrl = propertyData.agent?.contactUrl;
           if (emailAgentUrl) {
             chrome.runtime.sendMessage<
@@ -171,7 +174,18 @@ const App: React.FC = () => {
             });
           }
           return STEPS.REVIEW_MESSAGE;
-        case STEPS.REVIEW_MESSAGE:
+        // no review message button - it's handled with user submission in rightmove itself 
+        // & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
+        case STEPS.EMAIL_SENT:
+          const propertyListingUrl = propertyData.copyLinkUrl
+            ? propertyData.copyLinkUrl.split("?")[0]
+            : null;
+          chrome.runtime.sendMessage({
+            action: ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING,
+            data: {
+              url: propertyListingUrl,
+            },
+          });
           return STEPS.INITIAL_REVIEW;
         default:
           return STEPS.INITIAL_REVIEW;
@@ -280,6 +294,7 @@ const App: React.FC = () => {
         toggleFilter={toggleFilter}
         currentStep={currentStep}
         handleNext={handleNextStep}
+        agentDetails={propertyData.agent}
       />
       <ul style={{ listStyle: "none", padding: 0 }}>
         {checklistToRender.map((item) => {

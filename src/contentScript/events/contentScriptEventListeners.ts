@@ -14,7 +14,10 @@ export function setupContentScriptEventListeners() {
   let pageModel: RightmovePageModelType | null = null;
 
   window.addEventListener("message", (event: any) => {
-    if (event.source !== window || event.data.type !== "pageModelAvailable") {
+    if (
+      event.source !== window ||
+      event.data.type !== ActionEvents.PAGE_MODEL_AVAILABLE
+    ) {
       return;
     }
     clickBroadbandChecker();
@@ -51,7 +54,7 @@ export function setupContentScriptEventListeners() {
         });
       }
     }
-    if (request.action === ActionEvents.NAVIGATE_AND_SEND_DATA) {
+    if (request.action === ActionEvents.NAVIGATE_TO_CONTACT_AGENT_PAGE) {
       const selectedWarningItems: PropertyDataList[] =
         request.data.selectedWarningItems;
 
@@ -65,6 +68,10 @@ export function setupContentScriptEventListeners() {
           window.location.href = request.data.url;
         }
       );
+    }
+
+    if (request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING) {
+      window.location.href = request.data.url;
     }
   });
 
@@ -130,4 +137,36 @@ export function setupContentScriptEventListeners() {
       }
     );
   });
+
+  const observeDOMChanges = () => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "childList" || mutation.type === "attributes") {
+          const confirmationPage = document.querySelector(
+            '[data-test="confirmationPage"]'
+          );
+          const confirmationBanner = document.querySelector(
+            '[data-test="confirmationBanner"]'
+          );
+
+          if (confirmationPage || confirmationBanner) {
+            console.log("Successful form submission detected");
+            chrome.runtime.sendMessage({
+              action: ActionEvents.AGENT_CONTACT_FORM_SUBMITTED,
+            });
+            observer.disconnect();
+          }
+        }
+      });
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+  };
+
+  // Initialize the observer
+  observeDOMChanges();
 }

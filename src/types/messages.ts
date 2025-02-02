@@ -23,7 +23,7 @@ export interface UpdatePropertyDataMessage extends MessageRequest {
 export interface NavigatedUrlOrTabChangedOrExtensionOpenedMessage
   extends MessageRequest {
   action: typeof ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED;
-  data: string;
+  data: any;
 }
 
 export interface FillRightmoveContactFormMessage extends MessageRequest {

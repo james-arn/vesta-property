@@ -14,7 +14,14 @@ export interface PropertyDataList {
   askAgentMessage: string;
 }
 
+export interface AgentDetails {
+  name: string;
+  contactUrl: string;
+  phoneNumber: string | null;
+}
+
 export interface ExtractedPropertyData {
+  copyLinkUrl: string | null;
   price: string | null;
   location: string | null;
   propertyType: string | null;
@@ -39,10 +46,7 @@ export interface ExtractedPropertyData {
   floodSources: string[] | null;
   floodedInLastFiveYears: boolean | null;
   accessibility: string | null;
-  agent: {
-    name: string;
-    contactUrl: string;
-  } | null;
+  agent: AgentDetails | null;
 }
 
 export const PropertyGroups = {

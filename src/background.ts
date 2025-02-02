@@ -1,6 +1,5 @@
 import { ActionEvents } from "./constants/actionEvents";
 import {
-  FillRightmoveContactFormMessage,
   MessageRequest,
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
   ResponseType,
@@ -110,8 +109,8 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error(error));
 
-function handleContentScriptMessage(request: FillRightmoveContactFormMessage) {
-  const { emailAgentUrl, selectedWarningItems } = request.data;
+function handleToContentScriptFromUIMessage(request: MessageRequest) {
+  const { action, data } = request;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].id) {
       console.warn("background.ts: No active tab found.");
@@ -119,17 +118,35 @@ function handleContentScriptMessage(request: FillRightmoveContactFormMessage) {
     }
     const tabId = tabs[0].id;
 
-    chrome.tabs.sendMessage(tabId, {
-      action: ActionEvents.NAVIGATE_AND_SEND_DATA,
-      data: {
-        url: `https://www.rightmove.co.uk${emailAgentUrl}`,
-        selectedWarningItems,
-      },
-    });
+    switch (action) {
+      case ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM:
+        const { emailAgentUrl, selectedWarningItems } = data;
+        chrome.tabs.sendMessage(tabId, {
+          action: ActionEvents.NAVIGATE_TO_CONTACT_AGENT_PAGE,
+          data: {
+            url: `https://www.rightmove.co.uk${emailAgentUrl}`,
+            selectedWarningItems,
+          },
+        });
+        break;
+
+      case ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING:
+        const { url } = data;
+        chrome.tabs.sendMessage(tabId, {
+          action: ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING,
+          data: {
+            url,
+          },
+        });
+        break;
+
+      default:
+        console.warn("Unhandled action type:", action);
+    }
   });
 }
 
-function handleUIMessage(
+function handleToUIFromContentScriptMessage(
   request: MessageRequest,
   sendResponse: (response: ResponseType) => void
 ) {
@@ -183,12 +200,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
     request.action === ActionEvents.SHOW_WARNING
   ) {
-    handleUIMessage(request, sendResponse);
+    handleToUIFromContentScriptMessage(request, sendResponse);
   }
 
   // Messages for the Content Script
-  if (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM) {
-    handleContentScriptMessage(request);
+  if (
+    request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM ||
+    request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING
+  ) {
+    handleToContentScriptFromUIMessage(request);
+  }
+
+  // Listen for form submission messages from the content script
+  if (request.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
+    console.log("[background.ts] Form submitted message received");
+    // Forward the message to the React app
+    chrome.runtime.sendMessage({
+      action: ActionEvents.AGENT_CONTACT_FORM_SUBMITTED,
+    });
   }
 });
 
