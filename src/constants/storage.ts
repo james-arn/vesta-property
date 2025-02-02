@@ -1,3 +1,3 @@
 export const StorageKeys = {
-  LAST_URL: "lastUrl",
+  SELECTED_WARNING_ITEMS: "selectedWarningItems",
 } as const;

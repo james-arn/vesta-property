@@ -4,7 +4,7 @@ import React from "react";
 const textInstructions = {
   [STEPS.INITIAL_REVIEW]: "1. Start by reviewing the below checklist.",
   [STEPS.SELECT_ISSUES]: "2. Click to remove any issues from your message.",
-  [STEPS.REVIEW_MESSAGE]: "3. Review the message to the agent in rightmove.",
+  [STEPS.REVIEW_MESSAGE]: "3. Review the message in rightmove and fill in your details.",
 };
 
 interface TextInstructionsProps {
