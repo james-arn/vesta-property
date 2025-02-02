@@ -19,10 +19,7 @@ export function setupContentScriptEventListeners() {
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log("Content Script: Received message:", request);
-    if (
-      request.action ===
-      ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED
-    ) {
+    if (request.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
       const currentUrl = request.data;
       console.log("Content Script: Current URL:", currentUrl);
       if (

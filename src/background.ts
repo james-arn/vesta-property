@@ -62,7 +62,7 @@ function handleInitialLoadOrTabChange() {
     }
 
     const message: NavigatedUrlOrTabChangedOrExtensionOpenedMessage = {
-      action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
+      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
       data: currentUrl,
     };
     console.log("[background.ts] Sending message to tab:", tabId, message);
@@ -202,7 +202,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
         NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
         ResponseType
       >({
-        action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
+        action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
         data: tab.url,
       });
     }
@@ -216,7 +216,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
       ResponseType
     >({
-      action: ActionEvents.NAVIGATED_URL_OR_TAB_CHANGED_OR_EXTENSION_OPENED,
+      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
       data: tab.url ?? "",
     });
   }
