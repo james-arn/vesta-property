@@ -34,14 +34,17 @@ The project uses the following technologies:
 
 This architecture allows for a modular and maintainable codebase, making it easier to develop and extend the extension's functionality.
 
-## How Chrome Extensions Work
+## How Chrome Extensions Work & debugging
 
 Chrome extensions are composed of different components that work together to provide functionality. In this project, the main components are:
 
 - **UI (App.tsx):** This is the user interface of the extension, built using React. It is responsible for rendering the sidebar that users interact with when they click the extension icon.
+  Debug by: right clicking on the sidebar - not the webpage and clicking inspect.
 
 - **Background Script (background.ts):** This script runs in the background and manages the extension's lifecycle. Here, we access the chrome API such as tabs. It can listen for events, manage state, and communicate with other parts of the extension. Think of it as the middleman between the UI and the content script.
+  Debug by: going to `chrome://extensions/` - finding the extension and clicking on 'errors'
 
 - **Content Script (contentScript.ts):** This script is injected into web pages and can interact with the page's DOM. It acts as a bridge between the web page and the extension, allowing the extension to read and modify the content of the page.
+  Debug by: right clicking on the webpage (not sidebar) and clicking inspect.
 
 These components communicate with each other using message passing, allowing the extension to perform complex tasks by coordinating actions between the UI, background script, and content script.
