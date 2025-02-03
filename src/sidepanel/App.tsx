@@ -212,47 +212,40 @@ const App: React.FC = () => {
     const isSelected = selectedWarningItems.some(
       (selectedItem) => selectedItem.key === item.key
     );
+    const isWarning = item.status === DataStatus.ASK_AGENT;
     return (
       <li
         key={item.key}
-        className={`flex justify-between items-center p-2 bg-gray-100 rounded-md my-1 ${currentStep === STEPS.SELECT_ISSUES && !isSelected ? 'opacity-30' : ''
-          }`}
-        onClick={() =>
-          currentStep === STEPS.SELECT_ISSUES && toggleSelection(item.key)
-        }
+        className={`grid grid-cols-[1rem_90px_1fr_2rem] items-center p-2 bg-gray-100 rounded-md my-1 ${currentStep === STEPS.SELECT_ISSUES && !isSelected ? 'opacity-30' : ''} ${isWarning ? 'border border-yellow-400' : ''}`}
+        onClick={() => currentStep === STEPS.SELECT_ISSUES && toggleSelection(item.key)}
       >
-        <div className="flex items-center min-w-[80px]">
-          {getStatusIcon(item.status)} {item.label}
+        <div className="flex items-center justify-start">
+          {getStatusIcon(item.status)}
         </div>
-        <div className="flex-1 ml-5 text-gray-800">
-          <span className="block w-[100px]">
-            {(item.key === "epc" || item.key === "floorPlan") &&
-              item.value !== "Ask agent" ? (
-              <span
-                onClick={() => handleEpcClick(item.value ?? "")}
-                className="cursor-pointer text-blue-500 underline"
-              >
-                Yes
-              </span>
-            ) : (
-              <span>{item.value || "Not found"}</span>
-            )}
-          </span>
+        <div className="flex items-center ml-2">
+          <span>{item.label}</span>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <FaInfoCircle className="ml-2 cursor-pointer" />
-            </TooltipTrigger>
-            <TooltipContent
-              side="right"
-              align="center"
-              className="w-[200px] whitespace-normal"
-            >
-              {item.toolTipExplainer}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="text-gray-800 ml-4">
+          {(item.key === "epc" || item.key === "floorPlan") && item.value !== "Ask agent" ? (
+            <span onClick={() => handleEpcClick(item.value ?? "")} className="cursor-pointer text-blue-500 underline">
+              Yes
+            </span>
+          ) : (
+            <span>{item.value || "Not found"}</span>
+          )}
+        </div>
+        <div className="flex items-center justify-center ml-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <FaInfoCircle className="cursor-pointer" />
+              </TooltipTrigger>
+              <TooltipContent side="right" align="center" className="w-[200px] whitespace-normal">
+                {item.toolTipExplainer}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </li>
     );
   };
@@ -260,15 +253,7 @@ const App: React.FC = () => {
   const renderGroupHeading = (group: string) => {
     return (
       <li
-        style={{
-          marginTop: "20px",
-          fontWeight: "bold",
-          fontSize: "1.2em",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
+        className="mt-5 font-bold text-lg cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
         <span>{group}</span>
