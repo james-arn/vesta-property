@@ -12,6 +12,7 @@ export interface PropertyDataList {
   group: string;
   selected?: boolean;
   askAgentMessage: string;
+  toolTipExplainer: string;
 }
 
 export interface AgentDetails {

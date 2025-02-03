@@ -13,18 +13,13 @@ import {
 } from "./helpers";
 
 export const agentMissingInfo = "ask agent";
-
 export function generatePropertyChecklist(
   extractedData: ExtractedPropertyData
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(extractedData.listingHistory);
-  console.log("listingHistoryStatus:", listingHistoryStatus);
-  console.log("listingHistoryValue:", listingHistoryValue);
 
-  console.log("ext", extractedData.accessibility);
   return [
-    // General Property Information
     {
       group: PropertyGroups.GENERAL,
       label: "Price",
@@ -34,26 +29,8 @@ export function generatePropertyChecklist(
         : DataStatus.ASK_AGENT,
       value: extractedData.price,
       askAgentMessage: "What's the price?",
-    },
-    {
-      group: PropertyGroups.GENERAL,
-      label: "Location",
-      key: "location",
-      status: extractedData.location
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: extractedData.location,
-      askAgentMessage: "Where's the property located?",
-    },
-    {
-      group: PropertyGroups.GENERAL,
-      label: "Property Type",
-      key: "propertyType",
-      status: extractedData.propertyType
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: extractedData.propertyType,
-      askAgentMessage: "What's the property type?",
+      toolTipExplainer:
+        "Knowing the purchase price means you can work out the total cost of buying the property. Not only mortgage payments and deposit, but also any stamp duty, legal and moving costs.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -64,6 +41,8 @@ export function generatePropertyChecklist(
         : DataStatus.ASK_AGENT,
       value: extractedData.tenure,
       askAgentMessage: "What's the tenure?",
+      toolTipExplainer:
+        "Tenure determines how you legally own the property and any associated costs or obligations. Types include Freehold, Leasehold, Commonhold, Shared Ownership, and Non-traditional Tenure. Each tenure type has different responsibilities, rights, and costs associated with it.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -72,9 +51,21 @@ export function generatePropertyChecklist(
       status: listingHistoryStatus,
       value: listingHistoryValue,
       askAgentMessage: "What's the listing history?",
+      toolTipExplainer:
+        "Listing history provides insights into the property's market activity, such as price changes and time on the market. This can indicate whether the property has been difficult to sell or if it has had price reductions.",
     },
     {
-      group: PropertyGroups.GENERAL,
+      group: PropertyGroups.EXTERIOR,
+      label: "Parking",
+      key: "parking",
+      status: getYesNoOrMissingStatus(extractedData.parking),
+      value: extractedData.parking ?? "Ask agent",
+      askAgentMessage: "Is there parking?",
+      toolTipExplainer:
+        "Parking can refer to how and where vehicles can be parked, and any associated costs. Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
+    },
+    {
+      group: PropertyGroups.EXTERIOR,
       label: "Accessibility",
       key: "accessibility",
       status:
@@ -83,131 +74,21 @@ export function generatePropertyChecklist(
           : DataStatus.ASK_AGENT,
       value: extractedData.accessibility,
       askAgentMessage: "Is the property accessible-friendly?",
+      toolTipExplainer:
+        "Accessibility features make the property suitable for people with mobility needs. Common accessible features include level access, lift access, ramped access, wet rooms, wide doorways, step-free access, level access showers, and lateral living (a property where all key rooms are on the entry level).",
     },
-
-    // Interior Details
     {
-      group: PropertyGroups.INTERIOR,
-      label: "Bedrooms",
-      key: "bedrooms",
-      status: extractedData.bedrooms
+      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      label: "Listed property",
+      key: "listedProperty",
+      status: extractedData.listedProperty
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
-      value: extractedData.bedrooms,
-      askAgentMessage: "How many bedrooms?",
+      value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
+      askAgentMessage: "Is the property listed?",
+      toolTipExplainer:
+        "A listed property is designated as being of architectural or historical interest and requires special permission before being altered. There are three grades of listed buildings: Grade I (exceptional interest), Grade II* (more than special interest), and Grade II (special interest, most common for homes).",
     },
-    {
-      group: PropertyGroups.INTERIOR,
-      label: "Bathrooms",
-      key: "bathrooms",
-      status: extractedData.bathrooms
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: extractedData.bathrooms,
-      askAgentMessage: "How many bathrooms?",
-    },
-    {
-      group: PropertyGroups.INTERIOR,
-      label: "Heating Type",
-      key: "heatingType",
-      status:
-        typeof extractedData.heating === "string" &&
-        extractedData.heating.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value: extractedData.heating,
-      askAgentMessage: "What's the heating type?",
-    },
-    {
-      group: PropertyGroups.INTERIOR,
-      label: "Size",
-      key: "size",
-      status:
-        typeof extractedData.size === "string" &&
-        extractedData.size.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value: extractedData.size,
-      askAgentMessage: "What's the size?",
-    },
-    {
-      group: PropertyGroups.INTERIOR,
-      label: "Floor Plan",
-      key: "floorPlan",
-      status: extractedData.floorPlan
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: DOMPurify.sanitize(extractedData.floorPlan ?? ""),
-      askAgentMessage: "Do you have a floor plan?",
-    },
-
-    // Exterior Details
-    {
-      group: PropertyGroups.EXTERIOR,
-      label: "Parking",
-      key: "parking",
-      status: getYesNoOrMissingStatus(extractedData.parking),
-      value: extractedData.parking ?? "Ask agent",
-      askAgentMessage: "Is there parking?",
-    },
-    {
-      group: PropertyGroups.EXTERIOR,
-      label: "Garden",
-      key: "garden",
-      status: getYesNoOrMissingStatus(extractedData.garden),
-      value: extractedData.garden ?? "Ask agent",
-      askAgentMessage: "Is there a garden?",
-    },
-
-    {
-      group: PropertyGroups.EXTERIOR,
-      label: "Windows",
-      key: "windows",
-      status:
-        typeof extractedData.windows === "string" &&
-        extractedData.windows.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value: extractedData.windows,
-      askAgentMessage: "Windows - material & glazing?",
-    },
-
-    // Utilities and Services
-    {
-      group: PropertyGroups.UTILITIES,
-      label: "EPC Certificate",
-      key: "epc",
-      status: extractedData.epc
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: DOMPurify.sanitize(extractedData.epc ?? ""),
-      askAgentMessage: "Do you have the EPC certificate?",
-    },
-    {
-      group: PropertyGroups.UTILITIES,
-      label: "Council Tax Band",
-      key: "councilTax",
-      status:
-        extractedData.councilTax &&
-        extractedData.councilTax !== agentMissingInfo &&
-        extractedData.councilTax?.toLowerCase() !== "tbc"
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value: extractedData.councilTax,
-      askAgentMessage: "What council tax band?",
-    },
-    {
-      group: PropertyGroups.UTILITIES,
-      label: "Broadband",
-      key: "broadband",
-      status: extractedData.broadband
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: extractedData.broadband,
-      askAgentMessage: "How's the broadband?",
-    },
-
-    // Rights and Restrictions
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Public right of way obligation",
@@ -220,6 +101,8 @@ export function generatePropertyChecklist(
         extractedData.publicRightOfWayObligation
       ),
       askAgentMessage: "Public right of way obligation?",
+      toolTipExplainer:
+        "Public Rights of Way are legal obligations requiring access to private property, such as footpaths or bridleways. Property owners may be responsible for upkeep and work with the council for maintenance.",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -233,25 +116,9 @@ export function generatePropertyChecklist(
         extractedData.privateRightOfWayObligation
       ),
       askAgentMessage: "Private right of way obligation?",
+      toolTipExplainer:
+        "Private Rights of Way allow individuals or companies to access or alter land without requiring permission. Examples include access rights for neighbouring properties or utility companies installing infrastructure.",
     },
-    {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Listed property",
-      key: "listedProperty",
-      status: getStatusFromBoolean(extractedData.listedProperty, true),
-      value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
-      askAgentMessage: "Is the property listed?",
-    },
-
-    {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Restrictions",
-      key: "restrictions",
-      status: getStatusFromBoolean(extractedData.restrictions, true),
-      value: getYesNoOrAskAgentStringFromBoolean(extractedData.restrictions),
-      askAgentMessage: "Any restrictions?",
-    },
-
     {
       group: PropertyGroups.RISKS,
       label: "Flood Defences",
@@ -259,22 +126,9 @@ export function generatePropertyChecklist(
       status: getStatusFromBoolean(extractedData.floodDefences),
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodDefences),
       askAgentMessage: "Any flood defences?",
+      toolTipExplainer:
+        "Flood defences help protect the property from water damage. It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
     },
-    {
-      group: PropertyGroups.RISKS,
-      label: "Flood Sources",
-      key: "floodSources",
-      status:
-        (extractedData.floodSources ?? []).length > 0
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value:
-        (extractedData.floodSources ?? []).length > 0
-          ? (extractedData.floodSources?.join(", ") ?? "Ask agent")
-          : "Ask agent",
-      askAgentMessage: "Any flood sources?",
-    },
-
     {
       group: PropertyGroups.RISKS,
       label: "Flooded in last 5 years",
@@ -284,8 +138,36 @@ export function generatePropertyChecklist(
         extractedData.floodedInLastFiveYears
       ),
       askAgentMessage: "Flooded in last 5 years?",
+      toolTipExplainer:
+        "A history of flooding can impact property value and insurance. Buyers should check for any past flooding incidents and existing flood defences.",
     },
-
+    {
+      group: PropertyGroups.UTILITIES,
+      label: "EPC Certificate",
+      key: "epc",
+      status: extractedData.epc
+        ? DataStatus.FOUND_POSITIVE
+        : DataStatus.ASK_AGENT,
+      value: DOMPurify.sanitize(extractedData.epc ?? ""),
+      askAgentMessage: "Do you have the EPC certificate?",
+      toolTipExplainer:
+        "An Energy Performance Certificate (EPC) provides a property's energy efficiency rating, ranging from A (most efficient) to G (least efficient). An EPC is required before a property is sold or rented and is valid for 10 years.",
+    },
+    {
+      group: PropertyGroups.UTILITIES,
+      label: "Council Tax Band",
+      key: "councilTax",
+      status:
+        extractedData.councilTax &&
+        extractedData.councilTax !== agentMissingInfo &&
+        extractedData.councilTax?.toLowerCase() !== "tbc"
+          ? DataStatus.FOUND_POSITIVE
+          : DataStatus.ASK_AGENT,
+      value: extractedData.councilTax,
+      askAgentMessage: "What council tax band?",
+      toolTipExplainer:
+        "Council tax is a payment to the local authority for services like schools and waste collection. Council tax bands are based on property value, and some exemptions apply (e.g., students).",
+    },
     // TODO: ON ROADMAP...
     // building safety
     // coastal erosion

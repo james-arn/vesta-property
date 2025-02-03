@@ -1,6 +1,13 @@
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { STEPS } from "@/constants/steps";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import React, { useEffect, useState } from "react";
+import { FaInfoCircle } from 'react-icons/fa';
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
@@ -9,8 +16,7 @@ import {
 } from "../types/property";
 import {
   filterChecklistToAllAskAgentOnlyItems,
-  getStatusColor,
-  getStatusIcon,
+  getStatusIcon
 } from "./helpers";
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
@@ -209,47 +215,44 @@ const App: React.FC = () => {
     return (
       <li
         key={item.key}
-        style={{
-          color: getStatusColor(item.status),
-          margin: "4px 0",
-          padding: "8px",
-          backgroundColor: "#f5f5f5",
-          borderRadius: "4px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          opacity: currentStep === STEPS.SELECT_ISSUES && !isSelected ? 0.3 : 1,
-          cursor: currentStep === STEPS.SELECT_ISSUES ? "pointer" : "default",
-        }}
+        className={`flex justify-between items-center p-2 bg-gray-100 rounded-md my-1 ${currentStep === STEPS.SELECT_ISSUES && !isSelected ? 'opacity-30' : ''
+          }`}
         onClick={() =>
           currentStep === STEPS.SELECT_ISSUES && toggleSelection(item.key)
         }
       >
-        <div>
+        <div className="flex items-center min-w-[80px]">
           {getStatusIcon(item.status)} {item.label}
         </div>
-        <div
-          style={{
-            marginLeft: "20px",
-            color: "#333",
-          }}
-        >
-          {(item.key === "epc" || item.key === "floorPlan") &&
-            item.value !== "Ask agent" ? (
-            <span
-              onClick={() => handleEpcClick(item.value ?? "")}
-              style={{
-                cursor: "pointer",
-                color: "blue",
-                textDecoration: "underline",
-              }}
-            >
-              Yes
-            </span>
-          ) : (
-            <span>{item.value || "Not found"}</span>
-          )}
+        <div className="flex-1 ml-5 text-gray-800">
+          <span className="block w-[100px]">
+            {(item.key === "epc" || item.key === "floorPlan") &&
+              item.value !== "Ask agent" ? (
+              <span
+                onClick={() => handleEpcClick(item.value ?? "")}
+                className="cursor-pointer text-blue-500 underline"
+              >
+                Yes
+              </span>
+            ) : (
+              <span>{item.value || "Not found"}</span>
+            )}
+          </span>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <FaInfoCircle className="ml-2 cursor-pointer" />
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              align="center"
+              className="w-[200px] whitespace-normal"
+            >
+              {item.toolTipExplainer}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </li>
     );
   };
