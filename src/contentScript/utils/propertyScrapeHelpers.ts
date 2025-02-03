@@ -152,3 +152,55 @@ export function getBroadbandSpeedFromDOM(): string | null {
   console.log(`[property scrape helpers] Broadband speed found: ${result}`);
   return result;
 }
+
+export function convertSizeToSquareFeet(size: number, unit: string): string {
+  const conversionFactor = unit === "ac" ? 43560 : 10.764;
+  return Math.ceil(size * conversionFactor).toLocaleString();
+}
+
+export function formatPropertySize(
+  sizings?: {
+    unit: string;
+    displayUnit: string;
+    minimumSize: number;
+    maximumSize: number;
+  }[]
+): string {
+  if (!sizings || sizings.length === 0) {
+    return "Ask agent";
+  }
+
+  const sizeInAcres = sizings.find(
+    (sizing) => sizing.unit === "ac" && sizing.maximumSize >= 1
+  );
+  const sizeInSquareFeet = sizings.find((sizing) => sizing.unit === "sqft");
+  const sizeInSquareMeters = sizings.find((sizing) => sizing.unit === "sqm");
+
+  const formattedSizes = [];
+
+  if (sizeInAcres) {
+    const sizeInOriginalUnit = sizeInAcres.maximumSize.toFixed(0);
+    const sizeInSquareFeet = convertSizeToSquareFeet(
+      sizeInAcres.maximumSize,
+      sizeInAcres.unit
+    );
+    formattedSizes.push(
+      `${sizeInOriginalUnit} ${sizeInAcres.displayUnit} (${sizeInSquareFeet} sq ft)`
+    );
+  } else if (sizeInSquareMeters) {
+    const sizeInOriginalUnit = sizeInSquareMeters.maximumSize.toFixed(0);
+    const sizeInSquareFeet = (sizeInSquareMeters.maximumSize * 10.764).toFixed(
+      0
+    );
+    formattedSizes.push(
+      `${sizeInOriginalUnit} ${sizeInSquareMeters.displayUnit} (${sizeInSquareFeet} sq ft)`
+    );
+  } else if (sizeInSquareFeet) {
+    const sizeInOriginalUnit = sizeInSquareFeet.maximumSize.toLocaleString();
+    formattedSizes.push(
+      `${sizeInOriginalUnit} ${sizeInSquareFeet.displayUnit}`
+    );
+  }
+
+  return formattedSizes.join(" / ");
+}

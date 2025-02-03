@@ -232,8 +232,6 @@ const App: React.FC = () => {
           style={{
             marginLeft: "20px",
             color: "#333",
-            fontWeight:
-              item.status === DataStatus.ASK_AGENT ? "normal" : "bold",
           }}
         >
           {(item.key === "epc" || item.key === "floorPlan") &&

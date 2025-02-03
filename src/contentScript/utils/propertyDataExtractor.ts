@@ -1,5 +1,6 @@
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
+  formatPropertySize,
   getBroadbandSpeedFromDOM,
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
@@ -102,11 +103,7 @@ export function extractPropertyDataFromDOM(
       pageModel?.propertyData?.livingCosts?.councilTaxBand ||
       councilTaxElement ||
       null,
-    size:
-      pageModel?.propertyData?.sizings &&
-      pageModel?.propertyData?.sizings?.length > 0
-        ? `${Math.ceil(pageModel?.propertyData?.sizings?.[0]?.maximumSize).toLocaleString()} ${pageModel?.propertyData?.sizings?.[0]?.displayUnit} (${Math.ceil(pageModel?.propertyData?.sizings?.[0]?.maximumSize * 10.764).toLocaleString()} sq ft)`
-        : sizeElement || "Ask agent",
+    size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement,
     heating:
       pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
       heatingFromUnstructuredText ||

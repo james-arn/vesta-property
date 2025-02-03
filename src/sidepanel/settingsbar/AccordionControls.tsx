@@ -50,8 +50,7 @@ const AccordionControls: React.FC<AccordionControlsProps> = ({
             <TooltipTrigger>
               <div
                 onClick={collapseAll}
-                className="cursor-pointer bg-none border-none"
-              >
+                className="cursor-pointer bg-none border-none"              >
                 <VscCollapseAll size={20} />
               </div>
             </TooltipTrigger>

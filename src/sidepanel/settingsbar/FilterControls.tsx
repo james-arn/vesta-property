@@ -21,6 +21,7 @@ export const FilterControls = ({
 }: FilterControlsProps) => {
   const showAllTitle = "Show all items";
   const showAskAgentTitle = "Show ask agent items only";
+  const isDisabled = currentStep !== STEPS.INITIAL_REVIEW;
 
   const currentTitle = filters.showAskAgentOnly
     ? showAllTitle
@@ -36,11 +37,12 @@ export const FilterControls = ({
       <Tooltip>
         <TooltipTrigger>
           <div
+            aria-disabled={isDisabled}
             onClick={() =>
-              currentStep !== STEPS.SELECT_ISSUES &&
-              toggleFilter("showAskAgentOnly")
+              !isDisabled
+              && toggleFilter("showAskAgentOnly")
             }
-            className={`cursor-pointer bg-none ${currentStep === STEPS.SELECT_ISSUES ? "opacity-50 cursor-not-allowed" : ""}`}
+            className={`bg-none ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer "}`}
           >
             {CurrentIcon}
           </div>
