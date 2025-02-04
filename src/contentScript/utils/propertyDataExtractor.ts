@@ -1,7 +1,7 @@
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
   formatPropertySize,
-  getBroadbandSpeedFromDOM,
+  getBroadbandInfo,
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 
@@ -111,16 +111,7 @@ export function extractPropertyDataFromDOM(
     floorPlan: floorPlan,
 
     epc: epc,
-    broadband: (() => {
-      const broadbandFeature =
-        pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
-      const broadbandSpeed = getBroadbandSpeedFromDOM();
-      if (broadbandFeature && broadbandSpeed) {
-        return `${broadbandFeature}, ${broadbandSpeed}`;
-      } else if (broadbandFeature) return broadbandFeature;
-      else if (broadbandSpeed) return broadbandSpeed;
-      else return "Ask agent";
-    })(),
+    broadband: getBroadbandInfo(pageModel),
     listingHistory:
       pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
       "Ask agent",

@@ -212,3 +212,28 @@ export function formatPropertySize(
 
   return formattedSizes.join(" / ");
 }
+
+export function getBroadbandInfo(
+  pageModel: RightmovePageModelType | null
+): string {
+  const broadbandFeature =
+    pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
+  const broadbandSpeed = getBroadbandSpeedFromDOM();
+  let result = "Ask agent";
+
+  if (broadbandFeature && broadbandSpeed) {
+    result = `${broadbandFeature}, ${broadbandSpeed}`;
+  }
+  if (broadbandFeature && !broadbandSpeed) {
+    result = broadbandFeature;
+  } else if (broadbandSpeed && !broadbandFeature) {
+    result = broadbandSpeed;
+  }
+
+  const speedValue = broadbandSpeed ? parseFloat(broadbandSpeed) : null;
+  if (speedValue && speedValue <= 10) {
+    result += " - this is considered a poor speed";
+  }
+
+  return result;
+}

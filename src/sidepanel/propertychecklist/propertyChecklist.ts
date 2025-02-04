@@ -13,6 +13,8 @@ import {
   getYesNoOrMissingStatus,
 } from "./helpers";
 
+const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
+
 export const agentMissingInfo = "ask agent";
 export function generatePropertyChecklist(
   extractedData: ExtractedPropertyData
@@ -341,7 +343,14 @@ export function generatePropertyChecklist(
       label: "Broadband",
       key: "broadband",
       status: extractedData.broadband
-        ? DataStatus.FOUND_POSITIVE
+        ? (() => {
+            const match = extractedData.broadband.match(
+              BROADBAND_SPEED_UNDER_10MBS_REGEX
+            );
+            return match && parseInt(match[1]) <= 10
+              ? DataStatus.ASK_AGENT
+              : DataStatus.FOUND_POSITIVE;
+          })()
         : DataStatus.ASK_AGENT,
       value: extractedData.broadband,
       askAgentMessage: "How's the broadband speed?",
