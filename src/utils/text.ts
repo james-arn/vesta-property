@@ -1,2 +1,6 @@
-export const capitaliseFirstLetter = (str: string) =>
-  str.charAt(0).toUpperCase() + str.slice(1);
+export const capitaliseFirstLetterAndCleanString = (str: string) => {
+  const cleanedString = str.replace(/_/g, " ");
+  return (
+    cleanedString.charAt(0).toUpperCase() + cleanedString.slice(1).toLowerCase()
+  );
+};

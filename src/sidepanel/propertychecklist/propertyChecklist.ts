@@ -1,3 +1,4 @@
+import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import DOMPurify from "dompurify";
 import {
   DataStatus,
@@ -40,7 +41,7 @@ export function generatePropertyChecklist(
       status: extractedData.tenure
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
-      value: extractedData.tenure,
+      value: capitaliseFirstLetterAndCleanString(extractedData.tenure ?? ""),
       askAgentMessage: "What's the tenure?",
       toolTipExplainer:
         "Tenure determines how you legally own the property and any associated costs or obligations.\n\n" +

@@ -1,5 +1,5 @@
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
-import { capitaliseFirstLetter } from "@/utils/text";
+import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
   pageModel: RightmovePageModelType | null
@@ -52,19 +52,27 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
 
   return {
     heating: heatingMatches
-      ? capitaliseFirstLetter([...new Set(heatingMatches)].join(", "))
+      ? capitaliseFirstLetterAndCleanString(
+          [...new Set(heatingMatches)].join(", ")
+        )
       : null,
     garden: hasCommunalGarden
       ? "Communal garden"
       : gardenMatches
-        ? capitaliseFirstLetter([...new Set(gardenMatches)].join(", "))
+        ? capitaliseFirstLetterAndCleanString(
+            [...new Set(gardenMatches)].join(", ")
+          )
         : null,
     parking: parkingMatches ? [...new Set(parkingMatches)] : null,
     windows: windowMatches
-      ? capitaliseFirstLetter([...new Set(windowMatches)].join(", "))
+      ? capitaliseFirstLetterAndCleanString(
+          [...new Set(windowMatches)].join(", ")
+        )
       : null,
     accessibility: accessibilityMatches
-      ? capitaliseFirstLetter([...new Set(accessibilityMatches)].join(", "))
+      ? capitaliseFirstLetterAndCleanString(
+          [...new Set(accessibilityMatches)].join(", ")
+        )
       : null,
   };
 }
