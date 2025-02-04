@@ -251,12 +251,13 @@ const App: React.FC = () => {
   };
 
   const renderGroupHeading = (group: string) => {
+    const itemCount = propertyChecklistData.filter(item => item.group === group).length;
     return (
       <li
         className="mt-5 font-bold text-lg cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
-        <span>{group}</span>
+        <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
         <span>{openGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
