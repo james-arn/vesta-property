@@ -236,11 +236,11 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center justify-center ml-4">
           <TooltipProvider>
-            <Tooltip>
+            <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <FaInfoCircle className="cursor-pointer" />
               </TooltipTrigger>
-              <TooltipContent side="right" align="center" className="w-[200px] whitespace-normal">
+              <TooltipContent side="right" align="center" className="w-[200px] whitespace-pre-line">
                 {item.toolTipExplainer}
               </TooltipContent>
             </Tooltip>

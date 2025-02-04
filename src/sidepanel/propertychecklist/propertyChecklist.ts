@@ -30,7 +30,8 @@ export function generatePropertyChecklist(
       value: extractedData.price,
       askAgentMessage: "What's the price?",
       toolTipExplainer:
-        "Knowing the purchase price means you can work out the total cost of buying the property. Not only mortgage payments and deposit, but also any stamp duty, legal and moving costs.",
+        "Knowing the purchase price means you can work out the total cost of buying the property.\n\n" +
+        "Not only mortgage payments and deposit, but also any stamp duty, legal and moving costs.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -42,7 +43,9 @@ export function generatePropertyChecklist(
       value: extractedData.tenure,
       askAgentMessage: "What's the tenure?",
       toolTipExplainer:
-        "Tenure determines how you legally own the property and any associated costs or obligations. Types include Freehold, Leasehold, Commonhold, Shared Ownership, and Non-traditional Tenure. Each tenure type has different responsibilities, rights, and costs associated with it.",
+        "Tenure determines how you legally own the property and any associated costs or obligations.\n\n" +
+        "Types include Freehold, Leasehold, Commonhold, Shared Ownership, and Non-traditional Tenure.\n\n" +
+        "Each tenure type has different responsibilities, rights, and costs associated with it.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -54,7 +57,9 @@ export function generatePropertyChecklist(
       value: extractedData.location,
       askAgentMessage: "Where's the property located?",
       toolTipExplainer:
-        "Location is a critical factor in property valuation and desirability. It affects accessibility to amenities, schools, and transport links, and can influence the property's future value. A prime location can enhance lifestyle and convenience, while also impacting safety and community engagement.",
+        "Location is a critical factor in property valuation and desirability.\n\n" +
+        "It affects accessibility to amenities, schools, and transport links, and can influence the property's future value.\n\n" +
+        "A prime location can enhance lifestyle and convenience, while also impacting safety and community engagement.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -66,7 +71,9 @@ export function generatePropertyChecklist(
       value: extractedData.propertyType,
       askAgentMessage: "What's the property type?",
       toolTipExplainer:
-        "Property type refers to the category of the property, such as residential, commercial, or mixed-use. It can also include specific types like flats, houses, or apartments. Understanding the property type helps in assessing its value, potential use, and market demand.",
+        "Property type refers to the category of the property, such as residential, commercial, or mixed-use.\n\n" +
+        "It can also include specific types like flats, houses, or apartments.\n\n" +
+        "Understanding the property type helps in assessing its value, potential use, and market demand.",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -79,7 +86,8 @@ export function generatePropertyChecklist(
       value: extractedData.accessibility,
       askAgentMessage: "Is the property accessible-friendly?",
       toolTipExplainer:
-        "Accessibility features make the property suitable for people with mobility needs. Common accessible features include level access, lift access, ramped access, wet rooms, wide doorways, step-free access, level access showers, and lateral living (a property where all key rooms are on the entry level).",
+        "Accessibility features make the property suitable for people with mobility needs.\n\n" +
+        "Common accessible features include level access, lift access, ramped access, wet rooms, wide doorways, step-free access, level access showers, and lateral living (a property where all key rooms are on the entry level).",
     },
     {
       group: PropertyGroups.GENERAL,
@@ -89,7 +97,8 @@ export function generatePropertyChecklist(
       value: listingHistoryValue,
       askAgentMessage: "What's the listing history?",
       toolTipExplainer:
-        "Listing history provides insights into the property's market activity, such as price changes and time on the market. This can indicate whether the property has been difficult to sell or if it has had price reductions.",
+        "Listing history provides insights into the property's market activity, such as price changes and time on the market.\n\n" +
+        "This can indicate whether the property has been difficult to sell or if it has had price reductions.",
     },
     // Interior Details
     {
@@ -102,7 +111,8 @@ export function generatePropertyChecklist(
       value: extractedData.bedrooms,
       askAgentMessage: "How many bedrooms?",
       toolTipExplainer:
-        "The number of bedrooms in a property is a key factor in its desirability and value. More bedrooms generally indicate a larger living space, which can be more valuable in the housing market.",
+        "The number of bedrooms in a property is a key factor in its desirability and value.\n\n" +
+        "More bedrooms generally indicate a larger living space, which can be more valuable in the housing market.",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -114,7 +124,8 @@ export function generatePropertyChecklist(
       value: extractedData.bathrooms,
       askAgentMessage: "How many bathrooms?",
       toolTipExplainer:
-        "The number of bathrooms in a property is a key factor in its desirability and value. More bathrooms generally indicate a larger living space, which can be more valuable in the housing market.",
+        "The number of bathrooms in a property is a key factor in its desirability and value.\n\n" +
+        "More bathrooms generally indicate a larger living space, which can be more valuable in the housing market.",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -128,7 +139,9 @@ export function generatePropertyChecklist(
       value: extractedData.heating,
       askAgentMessage: "What's the heating type?",
       toolTipExplainer:
-        "Heating type refers to the method of heating used in the property, such as gas central heating, electric heating, or underfloor heating. It can also include specific types like boilers, radiators, or heat pumps. Understanding the heating type helps in assessing the property's energy efficiency and comfort.",
+        "Heating type refers to the method of heating used in the property, such as gas central heating, electric heating, or underfloor heating.\n\n" +
+        "It can also include specific types like boilers, radiators, or heat pumps.\n\n" +
+        "Understanding the heating type helps in assessing the property's energy efficiency and comfort.",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -142,7 +155,9 @@ export function generatePropertyChecklist(
       value: extractedData.size,
       askAgentMessage: "What's the size?",
       toolTipExplainer:
-        "The size of a property refers to the total area of the property, including all habitable rooms and spaces. It is a key factor in determining the property's value, as larger properties generally have higher value. Size can also impact the property's energy efficiency and maintenance costs.",
+        "The size of a property refers to the total area of the property, including all habitable rooms and spaces.\n\n" +
+        "It is a key factor in determining the property's value, as larger properties generally have higher value.\n\n" +
+        "Size can also impact the property's energy efficiency and maintenance costs.",
     },
     {
       group: PropertyGroups.INTERIOR,
@@ -154,7 +169,8 @@ export function generatePropertyChecklist(
       value: DOMPurify.sanitize(extractedData.floorPlan ?? ""),
       askAgentMessage: "Do you have a floor plan?",
       toolTipExplainer:
-        "A floor plan is a detailed layout of the property's interior spaces, including rooms, hallways, and other features. It provides a visual representation of the property's layout and can be useful for understanding the property's size, layout, and potential for renovation or extension.",
+        "A floor plan is a detailed layout of the property's interior spaces, including rooms, hallways, and other features.\n\n" +
+        "It provides a visual representation of the property's layout and can be useful for understanding the property's size, layout, and potential for renovation or extension.",
     },
     {
       group: PropertyGroups.EXTERIOR,
@@ -164,7 +180,8 @@ export function generatePropertyChecklist(
       value: extractedData.garden ?? "Ask agent",
       askAgentMessage: "Is there a garden?",
       toolTipExplainer:
-        "A garden is a private outdoor space associated with a property, providing a place for relaxation, entertainment, and gardening. It can range from a small patio or balcony to a large garden with various features like lawns, trees, and outdoor living areas.",
+        "A garden is a private outdoor space associated with a property, providing a place for relaxation, entertainment, and gardening.\n\n" +
+        "It can range from a small patio or balcony to a large garden with various features like lawns, trees, and outdoor living areas.",
     },
     {
       group: PropertyGroups.EXTERIOR,
@@ -178,7 +195,8 @@ export function generatePropertyChecklist(
       value: extractedData.windows,
       askAgentMessage: "Windows - material & glazing?",
       toolTipExplainer:
-        "The key information to know is the materials, such as wood, aluminium, or uPVC, and the glazing, such as single or double-glazed windows. Understanding the window material and glazing can impact the property's energy efficiency and comfort.",
+        "The key information to know is the materials, such as wood, aluminium, or uPVC, and the glazing, such as single or double-glazed windows.\n\n" +
+        "Understanding the window material and glazing can impact the property's energy efficiency and comfort.",
     },
     {
       group: PropertyGroups.EXTERIOR,
@@ -188,7 +206,8 @@ export function generatePropertyChecklist(
       value: extractedData.parking ?? "Ask agent",
       askAgentMessage: "Is there parking?",
       toolTipExplainer:
-        "Parking can refer to how and where vehicles can be parked, and any associated costs. Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
+        "Parking can refer to how and where vehicles can be parked, and any associated costs.\n\n" +
+        "Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -200,7 +219,8 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
       askAgentMessage: "Is the property listed?",
       toolTipExplainer:
-        "A listed property is designated as being of architectural or historical interest and requires special permission before being altered. There are three grades of listed buildings: Grade I (exceptional interest), Grade II* (more than special interest), and Grade II (special interest, most common for homes).",
+        "A listed property is designated as being of architectural or historical interest and requires special permission before being altered.\n\n" +
+        "There are three grades of listed buildings: Grade I (exceptional interest), Grade II* (more than special interest), and Grade II (special interest, most common for homes).",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -210,7 +230,8 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.restrictions),
       askAgentMessage: "Any restrictions?",
       toolTipExplainer:
-        "Restrictions are legal constraints on what can be done with the property, such as building height limits, conservation area regulations, or planning permissions. These restrictions can impact the property's value and potential use.",
+        "Restrictions are legal constraints on what can be done with the property, such as building height limits, conservation area regulations, or planning permissions.\n\n" +
+        "These restrictions can impact the property's value and potential use.",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -225,7 +246,8 @@ export function generatePropertyChecklist(
       ),
       askAgentMessage: "Public right of way obligation?",
       toolTipExplainer:
-        "Public Rights of Way are legal obligations requiring access to private property, such as footpaths or bridleways. Property owners may be responsible for upkeep and work with the council for maintenance.",
+        "Public Rights of Way are legal obligations requiring access to private property, such as footpaths or bridleways.\n\n" +
+        "Property owners may be responsible for upkeep and work with the council for maintenance.",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -240,7 +262,8 @@ export function generatePropertyChecklist(
       ),
       askAgentMessage: "Private right of way obligation?",
       toolTipExplainer:
-        "Private Rights of Way allow individuals or companies to access or alter land without requiring permission. Examples include access rights for neighbouring properties or utility companies installing infrastructure.",
+        "Private Rights of Way allow individuals or companies to access or alter land without requiring permission.\n\n" +
+        "Examples include access rights for neighbouring properties or utility companies installing infrastructure.",
     },
     {
       group: PropertyGroups.RISKS,
@@ -250,7 +273,8 @@ export function generatePropertyChecklist(
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodDefences),
       askAgentMessage: "Any flood defences?",
       toolTipExplainer:
-        "Flood defences help protect the property from water damage. It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
+        "Flood defences help protect the property from water damage.\n\n" +
+        "It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
     },
     {
       group: PropertyGroups.RISKS,
@@ -266,7 +290,8 @@ export function generatePropertyChecklist(
           : "Ask agent",
       askAgentMessage: "Any flood sources?",
       toolTipExplainer:
-        "Flood sources are the natural or man-made features that contribute to flooding, such as rivers, streams, dams, or levees. Understanding the flood sources can help assess the property's risk of flooding and the effectiveness of flood defences.",
+        "Flood sources are the natural or man-made features that contribute to flooding, such as rivers, streams, dams, or levees.\n\n" +
+        "Understanding the flood sources can help assess the property's risk of flooding and the effectiveness of flood defences.",
     },
     {
       group: PropertyGroups.RISKS,
@@ -278,7 +303,8 @@ export function generatePropertyChecklist(
       ),
       askAgentMessage: "Flooded in last 5 years?",
       toolTipExplainer:
-        "A history of flooding can impact property value and insurance. Buyers should check for any past flooding incidents and existing flood defences.",
+        "A history of flooding can impact property value and insurance.\n\n" +
+        "Buyers should check for any past flooding incidents and existing flood defences.",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -290,7 +316,8 @@ export function generatePropertyChecklist(
       value: DOMPurify.sanitize(extractedData.epc ?? ""),
       askAgentMessage: "Do you have the EPC certificate?",
       toolTipExplainer:
-        "An Energy Performance Certificate (EPC) provides a property's energy efficiency rating, ranging from A (most efficient) to G (least efficient). An EPC is required before a property is sold or rented and is valid for 10 years.",
+        "An Energy Performance Certificate (EPC) provides a property's energy efficiency rating, ranging from A (most efficient) to G (least efficient).\n\n" +
+        "An EPC is required before a property is sold or rented and is valid for 10 years.",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -305,7 +332,8 @@ export function generatePropertyChecklist(
       value: extractedData.councilTax,
       askAgentMessage: "What council tax band?",
       toolTipExplainer:
-        "Council tax is a payment to the local authority for services like schools and waste collection. Council tax bands are based on property value, and some exemptions apply (e.g., students).",
+        "Council tax is a payment to the local authority for services like schools and waste collection.\n\n" +
+        "Council tax bands are based on property value, and some exemptions apply (e.g., students).",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -317,7 +345,9 @@ export function generatePropertyChecklist(
       value: extractedData.broadband,
       askAgentMessage: "How's the broadband speed?",
       toolTipExplainer:
-        "Broadband speed refers to the speed of internet connection, measured in megabits per second (Mbps). Faster speeds provide better internet connectivity, allowing for faster downloads, streaming, and online activities. It's important to check the broadband speed to ensure it meets your needs, especially for work, streaming, and gaming.",
+        "Broadband speed refers to the speed of internet connection, measured in megabits per second (Mbps).\n\n" +
+        "Faster speeds provide better internet connectivity, allowing for faster downloads, streaming, and online activities.\n\n" +
+        "It's important to check the broadband speed to ensure it meets your needs, especially for work, streaming, and gaming.",
     },
     // TODO: ON ROADMAP...
     // building safety
