@@ -251,7 +251,7 @@ const App: React.FC = () => {
   };
 
   const renderGroupHeading = (group: string) => {
-    const itemCount = propertyChecklistData.filter(item => item.group === group).length;
+    const itemCount = checklistToRender.filter(item => item.group === group).length;
     return (
       <li
         className="mt-5 font-bold text-lg cursor-pointer flex justify-between items-center"
