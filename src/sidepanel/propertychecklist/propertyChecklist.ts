@@ -179,7 +179,7 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "Volatility measures the degree of fluctuation in the property's sale price changes over time by calculating the standard deviation of the percentage changes between consecutive sales.\n\n" +
         "A value below 10% generally indicates stable, consistent price changes, while a value above 10% suggests greater variability. \n\n" +
-        "This 10% threshold is set as a benchmark for normal fluctuations in a stable market. " +
+        "This 10% threshold is set as a benchmark for normal fluctuations in a stable market. \n\n" +
         "Keep in mind that with only a few data points available, this metric might not be fully representative and could display as 'N/A'.",
     },
 
