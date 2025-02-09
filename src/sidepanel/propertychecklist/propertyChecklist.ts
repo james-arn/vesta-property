@@ -1,3 +1,4 @@
+import { volatilityThreshold } from "@/constants/thresholds";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import DOMPurify from "dompurify";
 import {
@@ -11,6 +12,7 @@ import {
   getStatusFromBoolean,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
+  priceDiscrepancyMessages,
 } from "./helpers";
 
 const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
@@ -22,15 +24,19 @@ export function generatePropertyChecklist(
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(extractedData.listingHistory);
 
+  const priceDiscrepancyLabel = extractedData.salesHistory.priceDiscrepancy.value
+    ?.trim()
+    ?.startsWith("-")
+    ? "Price decrease from last sale"
+    : "Price increase from last sale";
+
   return [
     {
       group: PropertyGroups.GENERAL,
       label: "Price",
       key: "price",
-      status: extractedData.price
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
-      value: extractedData.price,
+      status: extractedData.salePrice ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      value: extractedData.salePrice,
       askAgentMessage: "What's the price?",
       toolTipExplainer:
         "Knowing the purchase price means you can work out the total cost of buying the property.\n\n" +
@@ -40,9 +46,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Tenure",
       key: "tenure",
-      status: extractedData.tenure
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.tenure ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: capitaliseFirstLetterAndCleanString(extractedData.tenure ?? ""),
       askAgentMessage: "What's the tenure?",
       toolTipExplainer:
@@ -54,9 +58,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Location",
       key: "location",
-      status: extractedData.location
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.location ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: extractedData.location,
       askAgentMessage: "Where's the property located?",
       toolTipExplainer:
@@ -68,9 +70,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Property Type",
       key: "propertyType",
-      status: extractedData.propertyType
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.propertyType ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: extractedData.propertyType,
       askAgentMessage: "What's the property type?",
       toolTipExplainer:
@@ -103,14 +103,92 @@ export function generatePropertyChecklist(
         "Listing history provides insights into the property's market activity, such as price changes and time on the market.\n\n" +
         "This can indicate whether the property has been difficult to sell or if it has had price reductions.",
     },
+
+    // Sales History
+    {
+      group: PropertyGroups.SALES_HISTORY,
+      label: "Price Change from Last Sale",
+      key: "priceDiscrepancy",
+      status: extractedData.salesHistory.priceDiscrepancy.status ?? DataStatus.ASK_AGENT,
+      value: extractedData.salesHistory.priceDiscrepancy.value,
+      askAgentMessage:
+        priceDiscrepancyMessages[extractedData.salesHistory.priceDiscrepancy.reason ?? ""]
+          ?.askAgentMessage || "",
+      toolTipExplainer:
+        priceDiscrepancyMessages[extractedData.salesHistory.priceDiscrepancy.reason ?? ""]
+          ?.toolTipExplainer ||
+        "This metric shows the percentage change between the current listing price and the last sold price, " +
+          "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
+    },
+    {
+      group: PropertyGroups.SALES_HISTORY,
+      label: "Historical Compound Annual Growth Rate (CAGR)",
+      key: "compoundAnnualGrowthRate",
+      status: (() => {
+        const historicalCAGR = extractedData.salesHistory.compoundAnnualGrowthRate;
+        if (historicalCAGR === null || typeof historicalCAGR !== "number") {
+          return DataStatus.ASK_AGENT;
+        }
+        // Flag bag compound annual growth rate
+        return historicalCAGR < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
+      })(),
+      value:
+        extractedData.salesHistory.compoundAnnualGrowthRate !== null &&
+        typeof extractedData.salesHistory.compoundAnnualGrowthRate === "number"
+          ? `${(extractedData.salesHistory.compoundAnnualGrowthRate * 100).toFixed(2)}%`
+          : "N/A",
+      askAgentMessage: (() => {
+        const cagr = extractedData.salesHistory.compoundAnnualGrowthRate;
+        if (cagr === null || typeof cagr !== "number") {
+          return "";
+        }
+        if (cagr < 0.03) {
+          return "The historical growth rate appears low compared to market expectations. Is there reasons as to why the property underperformed historically?";
+        }
+        return "";
+      })(),
+      toolTipExplainer:
+        "The CAGR represents the average yearly increase in the property's historical sale values (excluding the current listing). " +
+        "A CAGR below 3% indicates that the property has underperformed historically.",
+    },
+    {
+      group: PropertyGroups.SALES_HISTORY,
+      label: "Volatility",
+      key: "volatility",
+      status: (() => {
+        const volStr = extractedData.salesHistory.volatility;
+        if (!volStr) return DataStatus.ASK_AGENT;
+        const volatilityNumber = parseFloat(volStr.replace("%", ""));
+        return (!isNaN(volatilityNumber) && volatilityNumber <= volatilityThreshold) ||
+          volStr === "N/A"
+          ? DataStatus.FOUND_POSITIVE
+          : DataStatus.ASK_AGENT;
+      })(),
+      value: extractedData.salesHistory.volatility,
+      askAgentMessage: (() => {
+        const volStr = extractedData.salesHistory.volatility;
+        if (!volStr || volStr === "N/A") {
+          return "";
+        }
+        const volatilityNumber = parseFloat(volStr.replace("%", ""));
+        if (!isNaN(volatilityNumber) && volatilityNumber > volatilityThreshold) {
+          return "The price history for this property shows significant fluctuations. Is there a reason for these variations?";
+        }
+        return "";
+      })(),
+      toolTipExplainer:
+        "Volatility measures the degree of fluctuation in the property's sale price changes over time by calculating the standard deviation of the percentage changes between consecutive sales.\n\n" +
+        "A value below 10% generally indicates stable, consistent price changes, while a value above 10% suggests greater variability. \n\n" +
+        "This 10% threshold is set as a benchmark for normal fluctuations in a stable market. " +
+        "Keep in mind that with only a few data points available, this metric might not be fully representative and could display as 'N/A'.",
+    },
+
     // Interior Details
     {
       group: PropertyGroups.INTERIOR,
       label: "Bedrooms",
       key: "bedrooms",
-      status: extractedData.bedrooms
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.bedrooms ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: extractedData.bedrooms,
       askAgentMessage: "How many bedrooms?",
       toolTipExplainer:
@@ -121,9 +199,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Bathrooms",
       key: "bathrooms",
-      status: extractedData.bathrooms
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.bathrooms ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: extractedData.bathrooms,
       askAgentMessage: "How many bathrooms?",
       toolTipExplainer:
@@ -166,9 +242,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Floor Plan",
       key: "floorPlan",
-      status: extractedData.floorPlan
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.floorPlan ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: DOMPurify.sanitize(extractedData.floorPlan ?? ""),
       askAgentMessage: "Do you have a floor plan?",
       toolTipExplainer:
@@ -216,9 +290,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed property",
       key: "listedProperty",
-      status: extractedData.listedProperty
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.listedProperty ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
       askAgentMessage: "Is the property listed?",
       toolTipExplainer:
@@ -240,13 +312,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Public right of way obligation",
       key: "publicRightOfWayObligation",
-      status: getStatusFromBoolean(
-        extractedData.publicRightOfWayObligation,
-        true
-      ),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        extractedData.publicRightOfWayObligation
-      ),
+      status: getStatusFromBoolean(extractedData.publicRightOfWayObligation, true),
+      value: getYesNoOrAskAgentStringFromBoolean(extractedData.publicRightOfWayObligation),
       askAgentMessage: "Public right of way obligation?",
       toolTipExplainer:
         "Public Rights of Way are legal obligations requiring access to private property, such as footpaths or bridleways.\n\n" +
@@ -256,13 +323,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Private right of way obligation",
       key: "privateRightOfWayObligation",
-      status: getStatusFromBoolean(
-        extractedData.privateRightOfWayObligation,
-        true
-      ),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        extractedData.privateRightOfWayObligation
-      ),
+      status: getStatusFromBoolean(extractedData.privateRightOfWayObligation, true),
+      value: getYesNoOrAskAgentStringFromBoolean(extractedData.privateRightOfWayObligation),
       askAgentMessage: "Private right of way obligation?",
       toolTipExplainer:
         "Private Rights of Way allow individuals or companies to access or alter land without requiring permission.\n\n" +
@@ -301,9 +363,7 @@ export function generatePropertyChecklist(
       label: "Flooded in last 5 years",
       key: "floodedInLastFiveYears",
       status: getStatusFromBoolean(extractedData.floodedInLastFiveYears, true),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        extractedData.floodedInLastFiveYears
-      ),
+      value: getYesNoOrAskAgentStringFromBoolean(extractedData.floodedInLastFiveYears),
       askAgentMessage: "Flooded in last 5 years?",
       toolTipExplainer:
         "A history of flooding can impact property value and insurance.\n\n" +
@@ -313,9 +373,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.UTILITIES,
       label: "EPC Certificate",
       key: "epc",
-      status: extractedData.epc
-        ? DataStatus.FOUND_POSITIVE
-        : DataStatus.ASK_AGENT,
+      status: extractedData.epc ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
       value: DOMPurify.sanitize(extractedData.epc ?? ""),
       askAgentMessage: "Do you have the EPC certificate?",
       toolTipExplainer:
@@ -344,9 +402,7 @@ export function generatePropertyChecklist(
       key: "broadband",
       status: extractedData.broadband
         ? (() => {
-            const match = extractedData.broadband.match(
-              BROADBAND_SPEED_UNDER_10MBS_REGEX
-            );
+            const match = extractedData.broadband.match(BROADBAND_SPEED_UNDER_10MBS_REGEX);
             return match && parseInt(match[1]) <= 10
               ? DataStatus.ASK_AGENT
               : DataStatus.FOUND_POSITIVE;

@@ -232,8 +232,25 @@ export function getBroadbandInfo(
 
   const speedValue = broadbandSpeed ? parseFloat(broadbandSpeed) : null;
   if (speedValue && speedValue <= 10) {
-    result += " - this is considered a poor speed";
+    result += " - slow speed";
+  }
+  if (speedValue && speedValue > 10) {
+    result += " - good speed";
   }
 
   return result;
+}
+
+export function clickPropertySaleHistoryButton() {
+  const buttons = document.querySelectorAll('button[aria-expanded="false"]');
+  const targetButton = Array.from(buttons).find((button) =>
+    button.textContent?.includes("Property sale history")
+  );
+
+  if (targetButton) {
+    (targetButton as HTMLButtonElement).click();
+    console.log("Property sale history button clicked.");
+  } else {
+    console.error("Property sale history button not found.");
+  }
 }

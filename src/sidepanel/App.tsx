@@ -22,7 +22,7 @@ import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist
 import SettingsBar from "./settingsbar/SettingsBar";
 
 const emptyPropertyData: ExtractedPropertyData = {
-  price: null,
+  salePrice: null,
   location: null,
   bedrooms: null,
   bathrooms: null,
@@ -48,6 +48,15 @@ const emptyPropertyData: ExtractedPropertyData = {
   accessibility: null,
   agent: null,
   copyLinkUrl: null,
+  salesHistory: {
+    priceDiscrepancy: {
+      value: null,
+      status: null,
+      reason: null,
+    },
+    compoundAnnualGrowthRate: null,
+    volatility: null,
+  },
 };
 
 const App: React.FC = () => {
