@@ -1,3 +1,4 @@
+import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import {
   Tooltip,
   TooltipContent,
@@ -89,6 +90,7 @@ const App: React.FC = () => {
   const [selectedWarningItems, setSelectedWarningItems] = useState<
     PropertyDataList[]
   >([]);
+  const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
 
   useEffect(() => {
     // **1. Add Message Listener First**
@@ -96,6 +98,7 @@ const App: React.FC = () => {
       console.log("[Side Panel] Received message:", message);
       if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
         setPropertyData(message.data);
+        setIsPropertyDataLoading(false);
         setNoPropertyPageWarningMessage(null);
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
@@ -287,6 +290,10 @@ const App: React.FC = () => {
       </li>
     );
   };
+
+  if (isPropertyDataLoading) {
+    return <SideBarLoading />;
+  }
 
   if (nonPropertyPageWarningMessage) {
     return (
