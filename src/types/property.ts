@@ -28,40 +28,41 @@ interface TermResult {
 }
 
 export interface ExtractedPropertyData {
-  copyLinkUrl: string | null;
-  salePrice: string | null;
-  location: string | null;
-  propertyType: string | null;
-  tenure: string | null;
-  bedrooms: string | null;
-  bathrooms: string | null;
-  councilTax: string | null;
-  size: string | null;
-  parking: string | null;
-  heating: string | null;
-  floorPlan: string | null;
-  garden: string | null;
-  epc: string | null;
-  broadband: string | null;
-  listingHistory: string | null;
-  windows: string | null;
-  publicRightOfWayObligation: boolean | null;
-  privateRightOfWayObligation: boolean | null;
-  listedProperty: boolean | null;
-  restrictions: boolean | null;
-  floodDefences: boolean | null;
-  floodSources: string[] | null;
-  floodedInLastFiveYears: boolean | null;
   accessibility: string | null;
   agent: AgentDetails | null;
+  bathrooms: string | null;
+  bedrooms: string | null;
+  broadband: string | null;
+  buildingSafety: TermResult;
+  coastalErosion: TermResult;
+  copyLinkUrl: string | null;
+  councilTax: string | null;
+  epc: string | null;
+  floodedInLastFiveYears: boolean | null;
+  floodDefences: boolean | null;
+  floodSources: string[] | null;
+  floorPlan: string | null;
+  garden: string | null;
+  heating: string | null;
+  isRental: boolean;
+  listedProperty: boolean | null;
+  listingHistory: string | null;
+  location: string | null;
+  miningImpact: TermResult;
+  parking: string | null;
+  privateRightOfWayObligation: boolean | null;
+  propertyType: string | null;
+  publicRightOfWayObligation: boolean | null;
+  restrictions: boolean | null;
+  salePrice: string | null;
   salesHistory: {
     priceDiscrepancy: TermResult;
     compoundAnnualGrowthRate: number | null;
     volatility: string | null;
   };
-  buildingSafety: TermResult;
-  coastalErosion: TermResult;
-  miningImpact: TermResult;
+  size: string | null;
+  tenure: string | null;
+  windows: string | null;
 }
 
 export interface SaleHistoryEntry {

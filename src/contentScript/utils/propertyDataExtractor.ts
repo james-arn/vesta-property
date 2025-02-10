@@ -2,6 +2,7 @@ import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
   formatPropertySize,
   getBroadbandInfo,
+  isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import { ExtractedPropertyData } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
@@ -82,61 +83,9 @@ export async function extractPropertyDataFromDOM(
     volatility,
   } = await getPropertySalesInsights(salePrice);
 
+  const isRental = isRentalProperty(pageModel);
+
   return {
-    agent: {
-      name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
-      contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
-      phoneNumber: phoneNumber,
-    },
-    copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
-    salePrice,
-    buildingSafety: buildingSafetyResultFromUnstructuredText,
-    coastalErosion: coastalErosionResultFromUnstructuredText,
-    miningImpact: miningImpactResultFromUnstructuredText,
-    salesHistory: {
-      priceDiscrepancy: {
-        value: priceDiscrepancyValue,
-        status: priceDiscrepancyStatus,
-        reason: priceDiscrepancyReason,
-      },
-      compoundAnnualGrowthRate,
-      volatility,
-    },
-    location:
-      pageModel?.propertyData?.address?.displayAddress ||
-      locationElement?.textContent?.trim() ||
-      null,
-    propertyType: pageModel?.propertyData?.propertySubType || propertyTypeElement || null,
-    tenure: pageModel?.propertyData?.tenure?.tenureType || tenureElement || null,
-    bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
-    bathrooms: pageModel?.propertyData?.bathrooms?.toString() || bathroomsElement || null,
-    parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
-    garden:
-      pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
-      gardenFromUnstructuredText ||
-      "Not mentioned",
-    councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
-    size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
-    heating:
-      pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
-      heatingFromUnstructuredText ||
-      "Not mentioned",
-    floorPlan: floorPlan,
-
-    epc: epc,
-    broadband: getBroadbandInfo(pageModel),
-    listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
-    windows: windowsFromUnstructuredText || "Not mentioned",
-    publicRightOfWayObligation: pageModel?.propertyData?.features?.obligations?.rightsOfWay ?? null,
-    privateRightOfWayObligation:
-      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
-    listedProperty: pageModel?.propertyData?.features?.obligations?.listed ?? null,
-
-    restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
-    floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,
-    floodSources: pageModel?.propertyData?.features?.risks?.floodSources ?? null,
-    floodedInLastFiveYears:
-      pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
     accessibility:
       pageModel?.propertyData?.features?.accessibility &&
       pageModel?.propertyData?.features?.accessibility?.length > 0
@@ -146,5 +95,58 @@ export async function extractPropertyDataFromDOM(
           accessibilityFromUnstructuredText ||
           "Not mentioned"
         : "Not mentioned",
+    agent: {
+      name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
+      contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
+      phoneNumber: phoneNumber,
+    },
+    bathrooms: pageModel?.propertyData?.bathrooms?.toString() || bathroomsElement || null,
+    bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
+    broadband: getBroadbandInfo(pageModel),
+    buildingSafety: buildingSafetyResultFromUnstructuredText,
+    coastalErosion: coastalErosionResultFromUnstructuredText,
+    copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
+    councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
+    epc: epc,
+    floodedInLastFiveYears:
+      pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
+    floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,
+    floodSources: pageModel?.propertyData?.features?.risks?.floodSources ?? null,
+    floorPlan: floorPlan,
+    garden:
+      pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
+      gardenFromUnstructuredText ||
+      "Not mentioned",
+    heating:
+      pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
+      heatingFromUnstructuredText ||
+      "Not mentioned",
+    isRental,
+    listedProperty: pageModel?.propertyData?.features?.obligations?.listed ?? null,
+    listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
+    location:
+      pageModel?.propertyData?.address?.displayAddress ||
+      locationElement?.textContent?.trim() ||
+      null,
+    miningImpact: miningImpactResultFromUnstructuredText,
+    parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
+    privateRightOfWayObligation:
+      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
+    propertyType: pageModel?.propertyData?.propertySubType || propertyTypeElement || null,
+    publicRightOfWayObligation: pageModel?.propertyData?.features?.obligations?.rightsOfWay ?? null,
+    restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
+    salePrice,
+    salesHistory: {
+      priceDiscrepancy: {
+        value: priceDiscrepancyValue,
+        status: priceDiscrepancyStatus,
+        reason: priceDiscrepancyReason,
+      },
+      compoundAnnualGrowthRate,
+      volatility,
+    },
+    size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
+    tenure: pageModel?.propertyData?.tenure?.tenureType || tenureElement || null,
+    windows: windowsFromUnstructuredText || "Not mentioned",
   };
 }

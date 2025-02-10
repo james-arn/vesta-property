@@ -48,6 +48,7 @@ const emptyPropertyData: ExtractedPropertyData = {
   accessibility: null,
   agent: null,
   copyLinkUrl: null,
+  isRental: false,
   salesHistory: {
     priceDiscrepancy: {
       value: null,
@@ -77,7 +78,7 @@ const emptyPropertyData: ExtractedPropertyData = {
 const App: React.FC = () => {
   const [propertyData, setPropertyData] =
     useState<ExtractedPropertyData>(emptyPropertyData);
-  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [nonPropertyPageWarningMessage, setNoPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
     // Add more filters here
@@ -95,10 +96,10 @@ const App: React.FC = () => {
       console.log("[Side Panel] Received message:", message);
       if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
         setPropertyData(message.data);
-        setWarningMessage(null);
+        setNoPropertyPageWarningMessage(null);
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
-        setWarningMessage(message.data || null);
+        setNoPropertyPageWarningMessage(message.data || null);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);
       } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
@@ -287,49 +288,59 @@ const App: React.FC = () => {
     );
   };
 
-  if (warningMessage) {
+  if (nonPropertyPageWarningMessage) {
     return (
       <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
-        {warningMessage}
+        {nonPropertyPageWarningMessage}
       </div>
     );
   }
 
   return (
-    <div className="p-4">
-      <SettingsBar
-        openGroups={openGroups}
-        setOpenGroups={setOpenGroups}
-        propertyChecklistData={propertyChecklistData}
-        filters={filters}
-        toggleFilter={toggleFilter}
-        currentStep={currentStep}
-        handleNext={handleNextStep}
-        agentDetails={propertyData.agent}
-      />
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {checklistToRender.map((item) => {
-          const showGroupHeading = item.group !== lastGroup;
-          lastGroup = item.group;
+    <>
+      {propertyData.isRental && (
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
+          <p>
+            Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent.<br /><br />
+            You can still use the tool but some features may not work as expected.
+          </p>
+        </div>
+      )}
+      <div className="p-4">
+        <SettingsBar
+          openGroups={openGroups}
+          setOpenGroups={setOpenGroups}
+          propertyChecklistData={propertyChecklistData}
+          filters={filters}
+          toggleFilter={toggleFilter}
+          currentStep={currentStep}
+          handleNext={handleNextStep}
+          agentDetails={propertyData.agent}
+        />
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {checklistToRender.map((item) => {
+            const showGroupHeading = item.group !== lastGroup;
+            lastGroup = item.group;
 
-          return (
-            <React.Fragment key={item.key}>
-              {showGroupHeading && renderGroupHeading(item.group)}
-              <div
-                style={{
-                  maxHeight: openGroups[item.group] ? "1000px" : "0",
-                  overflow: "hidden",
-                  transition: "max-height 0.3s ease, opacity 0.3s ease",
-                  opacity: openGroups[item.group] ? 1 : 0,
-                }}
-              >
-                {renderChecklistItem(item)}
-              </div>
-            </React.Fragment>
-          );
-        })}
-      </ul>
-    </div>
+            return (
+              <React.Fragment key={item.key}>
+                {showGroupHeading && renderGroupHeading(item.group)}
+                <div
+                  style={{
+                    maxHeight: openGroups[item.group] ? "1000px" : "0",
+                    overflow: "hidden",
+                    transition: "max-height 0.3s ease, opacity 0.3s ease",
+                    opacity: openGroups[item.group] ? 1 : 0,
+                  }}
+                >
+                  {renderChecklistItem(item)}
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </ul>
+      </div>
+    </>
   );
 };
 

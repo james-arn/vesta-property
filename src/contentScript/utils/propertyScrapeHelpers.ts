@@ -148,6 +148,14 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
   };
 }
 
+export function isRentalProperty(pageModel: RightmovePageModelType | null): boolean {
+  if (!pageModel) return false;
+  return (
+    pageModel.propertyData.transactionType === "RENT" ||
+    pageModel.propertyData.channel === "RES_LET"
+  );
+}
+
 export const isFloorPlanPresent = () => {
   // Check for the "No floorplan" text
   const noFloorplanText = Array.from(document.querySelectorAll("div")).some((div) =>
