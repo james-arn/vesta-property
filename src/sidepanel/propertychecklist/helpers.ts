@@ -13,7 +13,7 @@ export function getYesNoOrMissingStatus(value: string | null): DataStatus {
 
 export function getYesNoOrAskAgentStringFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Ask agent";
+    return "Not mentioned";
   }
   return value ? "Yes" : "No";
 }
@@ -86,7 +86,7 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
 
 export function getYesNoOrAskAgentFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Ask agent";
+    return "Not mentioned";
   }
   return value ? "Yes" : "No";
 }

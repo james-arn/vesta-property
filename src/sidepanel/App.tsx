@@ -57,6 +57,21 @@ const emptyPropertyData: ExtractedPropertyData = {
     compoundAnnualGrowthRate: null,
     volatility: null,
   },
+  buildingSafety: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  coastalErosion: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  miningImpact: {
+    value: null,
+    status: null,
+    reason: null,
+  },
 };
 
 const App: React.FC = () => {
@@ -235,7 +250,7 @@ const App: React.FC = () => {
           <span>{item.label}</span>
         </div>
         <div className="text-gray-800 ml-4">
-          {(item.key === "epc" || item.key === "floorPlan") && item.value !== "Ask agent" ? (
+          {(item.key === "epc" || item.key === "floorPlan") && item.value !== "Not mentioned" ? (
             <span onClick={() => handleEpcClick(item.value ?? "")} className="cursor-pointer text-blue-500 underline">
               Yes
             </span>

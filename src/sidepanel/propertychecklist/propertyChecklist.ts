@@ -17,18 +17,12 @@ import {
 
 const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 
-export const agentMissingInfo = "ask agent";
+export const agentMissingInfo = "not mentioned";
 export function generatePropertyChecklist(
   extractedData: ExtractedPropertyData
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(extractedData.listingHistory);
-
-  const priceDiscrepancyLabel = extractedData.salesHistory.priceDiscrepancy.value
-    ?.trim()
-    ?.startsWith("-")
-    ? "Price decrease from last sale"
-    : "Price increase from last sale";
 
   return [
     {
@@ -107,7 +101,7 @@ export function generatePropertyChecklist(
     // Sales History
     {
       group: PropertyGroups.SALES_HISTORY,
-      label: "Price Change from Last Sale",
+      label: "Price Change from last sale",
       key: "priceDiscrepancy",
       status: extractedData.salesHistory.priceDiscrepancy.status ?? DataStatus.ASK_AGENT,
       value: extractedData.salesHistory.priceDiscrepancy.value,
@@ -148,7 +142,7 @@ export function generatePropertyChecklist(
         return "";
       })(),
       toolTipExplainer:
-        "The CAGR represents the average yearly increase in the property's historical sale values (excluding the current listing). " +
+        "The CAGR represents the average yearly increase in the property's historical sale values (excluding the current listing). \n\n" +
         "A CAGR below 3% indicates that the property has underperformed historically.",
     },
     {
@@ -254,7 +248,7 @@ export function generatePropertyChecklist(
       label: "Garden",
       key: "garden",
       status: getYesNoOrMissingStatus(extractedData.garden),
-      value: extractedData.garden ?? "Ask agent",
+      value: extractedData.garden ?? "Not mentioned",
       askAgentMessage: "Is there a garden?",
       toolTipExplainer:
         "A garden is a private outdoor space associated with a property, providing a place for relaxation, entertainment, and gardening.\n\n" +
@@ -280,7 +274,7 @@ export function generatePropertyChecklist(
       label: "Parking",
       key: "parking",
       status: getYesNoOrMissingStatus(extractedData.parking),
-      value: extractedData.parking ?? "Ask agent",
+      value: extractedData.parking ?? "Not mentioned",
       askAgentMessage: "Is there parking?",
       toolTipExplainer:
         "Parking can refer to how and where vehicles can be parked, and any associated costs.\n\n" +
@@ -351,8 +345,8 @@ export function generatePropertyChecklist(
           : DataStatus.ASK_AGENT,
       value:
         (extractedData.floodSources ?? []).length > 0
-          ? (extractedData.floodSources?.join(", ") ?? "Ask agent")
-          : "Ask agent",
+          ? (extractedData.floodSources?.join(", ") ?? "Not mentioned")
+          : "Not mentioned",
       askAgentMessage: "Any flood sources?",
       toolTipExplainer:
         "Flood sources are the natural or man-made features that contribute to flooding, such as rivers, streams, dams, or levees.\n\n" +
@@ -368,6 +362,39 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "A history of flooding can impact property value and insurance.\n\n" +
         "Buyers should check for any past flooding incidents and existing flood defences.",
+    },
+    {
+      group: PropertyGroups.RISKS,
+      label: "Building Safety",
+      key: "buildingSafety",
+      status: extractedData.buildingSafety.status ?? DataStatus.ASK_AGENT,
+      value: extractedData.buildingSafety.value ?? "Not mentioned",
+      askAgentMessage: extractedData.buildingSafety.reason ?? "",
+      toolTipExplainer:
+        "This item identifies building safety information by scanning for key terms. " +
+        "Positive terms such as 'Fire Alarm System' indicate robust safety measures, while negative terms (e.g. 'Mould') " +
+        "may flag potential concerns. The absence of any mention means further clarification might be needed.",
+    },
+    {
+      group: PropertyGroups.RISKS,
+      label: "Coastal Erosion",
+      key: "coastalErosion",
+      status: extractedData.coastalErosion.status ?? DataStatus.ASK_AGENT,
+      value: extractedData.coastalErosion.value ?? "Not mentioned",
+      askAgentMessage: extractedData.coastalErosion.reason ?? "",
+      toolTipExplainer:
+        "Coastal erosion isn't mentioned in the listing. This could mean the property isn't in a coastal area—or it might be an omission. Please confirm if there's any coastal risk.",
+    },
+    {
+      group: PropertyGroups.RISKS,
+      label: "Mining Impact",
+      key: "miningImpact",
+      status: extractedData.miningImpact.status ?? DataStatus.ASK_AGENT,
+      value: extractedData.miningImpact.value ?? "Not mentioned",
+      askAgentMessage: extractedData.miningImpact.reason ?? "",
+      toolTipExplainer:
+        "Mining impact refers to the impact of mining on the property and the surrounding area.\n\n" +
+        "It's important to check the mining impact to ensure the property is not at risk of mining subsidence or other mining-related risks.",
     },
     {
       group: PropertyGroups.UTILITIES,
@@ -416,16 +443,8 @@ export function generatePropertyChecklist(
         "It's important to check the broadband speed to ensure it meets your needs, especially for work, streaming, and gaming.",
     },
     // TODO: ON ROADMAP...
-    // building safety
-    // coastal erosion
-    // impact of mining in the area
     // construction type of the property
-    // // Neighbourhood and Environment
-    // { group: PropertyGroups.NEIGHBOURHOOD, label: "Noise Levels", key: "noiseLevels", status: DataStatus.ASK_AGENT, value: null },
-    // { group: PropertyGroups.NEIGHBOURHOOD, label: "Local Amenities", key: "localAmenities", status: DataStatus.ASK_AGENT, value: null },
-
-    // // Legal and Ownership
-    // { group: PropertyGroups.LEGAL, label: "Planning Permissions", key: "planningPermissions", status: DataStatus.ASK_AGENT, value: null },
-    // { group: PropertyGroups.LEGAL, label: "Ownership History", key: "ownershipHistory", status: DataStatus.ASK_AGENT, value: null },
+    // Neighbourhood and Environment - noise levels
+    // Planning permissions
   ];
 }

@@ -61,7 +61,6 @@ export function setupContentScriptEventListeners() {
   });
 
   window.addEventListener("load", () => {
-    console.log("Content Script: Window loaded");
     retrieveDataFromStorage(StorageKeys.SELECTED_WARNING_ITEMS).then((selectedWarningItems) => {
       if (selectedWarningItems) {
         console.log("Retrieved selected warning items:", selectedWarningItems);

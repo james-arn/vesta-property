@@ -21,6 +21,12 @@ export interface AgentDetails {
   phoneNumber: string | null;
 }
 
+interface TermResult {
+  value: string | null;
+  status: DataStatus | null;
+  reason: string | null;
+}
+
 export interface ExtractedPropertyData {
   copyLinkUrl: string | null;
   salePrice: string | null;
@@ -49,14 +55,13 @@ export interface ExtractedPropertyData {
   accessibility: string | null;
   agent: AgentDetails | null;
   salesHistory: {
-    priceDiscrepancy: {
-      value: string | null;
-      status: DataStatus | null;
-      reason: string | null;
-    };
+    priceDiscrepancy: TermResult;
     compoundAnnualGrowthRate: number | null;
     volatility: string | null;
   };
+  buildingSafety: TermResult;
+  coastalErosion: TermResult;
+  miningImpact: TermResult;
 }
 
 export interface SaleHistoryEntry {

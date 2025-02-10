@@ -1,5 +1,79 @@
+import {
+  accessibilityTerms,
+  buildingSafetyTermsNegative,
+  buildingSafetyTermsPositive,
+  coastalErosionTermsNegative,
+  coastalErosionTermsPositive,
+  miningImpactTermsNegative,
+  miningImpactTermsPositive,
+  windowTerms,
+} from "@/constants/keyTerms";
+import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
+import { TermExtractionResult } from "@/types/domScraping";
+import { DataStatus } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
+
+export function computeTermChecklistResult(
+  termResult: TermExtractionResult | null,
+  subject: string
+): { status: DataStatus; displayValue: string; askAgentMessage: string } {
+  if (!termResult) {
+    return {
+      status: DataStatus.ASK_AGENT,
+      displayValue: "Not mentioned",
+      askAgentMessage: `I couldn't find any ${subject.toLowerCase()} details. Can you please confirm?`,
+    };
+  }
+
+  // Build the display string to include both positive and negative matches (if any)
+  let displayValueParts: string[] = [];
+  if (termResult.positive.length > 0) {
+    displayValueParts.push(`Positive: ${termResult.positive.join(", ")}`);
+  }
+  if (termResult.negative.length > 0) {
+    displayValueParts.push(`Negative: ${termResult.negative.join(", ")}`);
+  }
+  const displayValue = displayValueParts.join(" | ") || "Not mentioned";
+
+  // Set status: If there are any negative details or no positive details, using ASK_AGENT.
+  const status =
+    termResult.negative.length > 0 || termResult.positive.length === 0
+      ? DataStatus.ASK_AGENT
+      : DataStatus.FOUND_POSITIVE;
+
+  // Construct the appropriate ask-agent message
+  let askAgentMessage = "";
+  if (status === DataStatus.ASK_AGENT) {
+    askAgentMessage =
+      termResult.negative.length > 0
+        ? `I noticed for ${subject}, you mentioned the following: ${termResult.negative.join(
+            ", "
+          )}. Can you provide more details?`
+        : `Can you please confirm ${subject.toLowerCase()} details? `;
+  }
+
+  return {
+    status,
+    displayValue,
+    askAgentMessage,
+  };
+}
+
+function extractTermInfo(
+  subject: string,
+  combinedText: string,
+  positiveTerms: string[],
+  negativeTerms: string[]
+) {
+  const lowerText = combinedText.toLowerCase();
+  const positiveMatches = positiveTerms.filter((term) => lowerText.includes(term));
+  const negativeMatches = negativeTerms.filter((term) => lowerText.includes(term));
+  const matchResult = { positive: positiveMatches, negative: negativeMatches };
+
+  const buildingSafetyChecklist = computeTermChecklistResult(matchResult, subject);
+  return buildingSafetyChecklist;
+}
 
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
   pageModel: RightmovePageModelType | null
@@ -9,78 +83,75 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
   const description = pageModel?.propertyData?.text?.description || "";
   const combinedText = `${keyFeatures} ${description}`.toLowerCase();
 
-  const windowTerms = [
-    "double glazing",
-    "double glazed",
-    "triple glazing",
-    "triple glazed",
-    "single glazing",
-    "single glazed",
-    "secondary glazing",
-    "secondary glazed",
-    "uPVC",
-    "timber frames",
-    "aluminium frames",
-    "sealed units",
-    "glazing replacement",
-  ];
-  const accessibilityTerms = [
-    "step-free access to property",
-    "wheelchair accessible parking",
-    "level access throughout property",
-    "wet room within property",
-    "step-free access into garden",
-    "disabled access",
-  ];
-  const heatingRegex =
-    /\b(?:gas central heating|electric heating|electric central heating|underfloor heating|radiators|boiler)\b/gi;
-  const gardenRegex = /\bgarden\b(?!.*communal garden)/gi;
-  const parkingRegex = /\bparking\b/gi;
-
   const heatingMatches = combinedText.match(heatingRegex);
   const gardenMatches = combinedText.match(gardenRegex);
   const parkingMatches = combinedText.match(parkingRegex);
-  const windowMatches = windowTerms.filter((term) =>
-    combinedText.includes(term)
+  const windowMatches = windowTerms.filter((term) => combinedText.includes(term));
+  const accessibilityMatches = accessibilityTerms.filter((term) => combinedText.includes(term));
+
+  const buildingSafetyResult = extractTermInfo(
+    "Building Safety",
+    combinedText,
+    buildingSafetyTermsPositive,
+    buildingSafetyTermsNegative
   );
-  const accessibilityMatches = accessibilityTerms.filter((term) =>
-    combinedText.includes(term)
+
+  const coastalErosionResult = extractTermInfo(
+    "Coastal Erosion",
+    combinedText,
+    coastalErosionTermsPositive,
+    coastalErosionTermsNegative
   );
+
+  const miningImpactResult = extractTermInfo(
+    "Mining Impact",
+    combinedText,
+    miningImpactTermsPositive,
+    miningImpactTermsNegative
+  );
+
   const hasCommunalGarden = combinedText.includes("communal garden");
 
   console.log("[property scrape helpers] garden matches found:", gardenMatches);
 
   return {
     heating: heatingMatches
-      ? capitaliseFirstLetterAndCleanString(
-          [...new Set(heatingMatches)].join(", ")
-        )
+      ? capitaliseFirstLetterAndCleanString([...new Set(heatingMatches)].join(", "))
       : null,
     garden: hasCommunalGarden
       ? "Communal garden"
       : gardenMatches
-        ? capitaliseFirstLetterAndCleanString(
-            [...new Set(gardenMatches)].join(", ")
-          )
+        ? capitaliseFirstLetterAndCleanString([...new Set(gardenMatches)].join(", "))
         : null,
     parking: parkingMatches ? [...new Set(parkingMatches)] : null,
     windows: windowMatches
-      ? capitaliseFirstLetterAndCleanString(
-          [...new Set(windowMatches)].join(", ")
-        )
+      ? capitaliseFirstLetterAndCleanString([...new Set(windowMatches)].join(", "))
       : null,
     accessibility: accessibilityMatches
-      ? capitaliseFirstLetterAndCleanString(
-          [...new Set(accessibilityMatches)].join(", ")
-        )
+      ? capitaliseFirstLetterAndCleanString([...new Set(accessibilityMatches)].join(", "))
       : null,
+    buildingSafety: {
+      value: buildingSafetyResult.displayValue,
+      status: buildingSafetyResult.status,
+      reason: buildingSafetyResult.askAgentMessage,
+    },
+    coastalErosion: {
+      value: coastalErosionResult.displayValue,
+      status: coastalErosionResult.status,
+      reason: coastalErosionResult.askAgentMessage,
+    },
+    miningImpact: {
+      value: miningImpactResult.displayValue,
+      status: miningImpactResult.status,
+      reason: miningImpactResult.askAgentMessage,
+    },
   };
 }
 
 export const isFloorPlanPresent = () => {
   // Check for the "No floorplan" text
-  const noFloorplanText = Array.from(document.querySelectorAll("div")).some(
-    (div) => div.innerText.includes("No floorplan")
+  const noFloorplanText = Array.from(document.querySelectorAll("div")).some((div) =>
+    div.innerText.includes("No floorplan")
   );
 
   if (noFloorplanText) {
@@ -89,8 +160,8 @@ export const isFloorPlanPresent = () => {
   }
 
   // Check if an <img> tag related to a floor plan exists
-  const floorPlanImg = Array.from(document.querySelectorAll("img")).find(
-    (img) => img.alt?.toLowerCase().includes("floorplan")
+  const floorPlanImg = Array.from(document.querySelectorAll("img")).find((img) =>
+    img.alt?.toLowerCase().includes("floorplan")
   );
 
   if (floorPlanImg) {
@@ -113,22 +184,16 @@ export const isFloorPlanPresent = () => {
 };
 
 export function clickBroadbandChecker() {
-  const broadbandDiv = document.querySelector(
-    'div[data-gtm-name="broadband-checker"]'
-  );
+  const broadbandDiv = document.querySelector('div[data-gtm-name="broadband-checker"]');
 
   if (broadbandDiv) {
-    const broadbandButton = broadbandDiv.querySelector(
-      "button"
-    ) as HTMLButtonElement;
+    const broadbandButton = broadbandDiv.querySelector("button") as HTMLButtonElement;
 
     if (broadbandButton) {
       broadbandButton.click();
       console.log("Broadband checker button clicked.");
     } else {
-      console.error(
-        "Broadband button not found within the broadband checker div."
-      );
+      console.error("Broadband button not found within the broadband checker div.");
     }
   } else {
     console.error("Broadband checker div not found.");
@@ -136,17 +201,13 @@ export function clickBroadbandChecker() {
 }
 
 export function getBroadbandSpeedFromDOM(): string | null {
-  const broadbandDiv = document.querySelector(
-    'div[data-gtm-name="broadband-checker"]'
-  );
+  const broadbandDiv = document.querySelector('div[data-gtm-name="broadband-checker"]');
   if (!broadbandDiv) {
     console.error("Broadband checker div not found.");
     return null;
   }
 
-  console.log(
-    "[property scrape helpers] Searching for broadband speed elements."
-  );
+  console.log("[property scrape helpers] Searching for broadband speed elements.");
   const speedElements = broadbandDiv.querySelectorAll("p");
 
   console.log(
@@ -175,12 +236,10 @@ export function formatPropertySize(
   }[]
 ): string {
   if (!sizings || sizings.length === 0) {
-    return "Ask agent";
+    return "Not mentioned";
   }
 
-  const sizeInAcres = sizings.find(
-    (sizing) => sizing.unit === "ac" && sizing.maximumSize >= 1
-  );
+  const sizeInAcres = sizings.find((sizing) => sizing.unit === "ac" && sizing.maximumSize >= 1);
   const sizeInSquareFeet = sizings.find((sizing) => sizing.unit === "sqft");
   const sizeInSquareMeters = sizings.find((sizing) => sizing.unit === "sqm");
 
@@ -188,38 +247,28 @@ export function formatPropertySize(
 
   if (sizeInAcres) {
     const sizeInOriginalUnit = sizeInAcres.maximumSize.toFixed(0);
-    const sizeInSquareFeet = convertSizeToSquareFeet(
-      sizeInAcres.maximumSize,
-      sizeInAcres.unit
-    );
+    const sizeInSquareFeet = convertSizeToSquareFeet(sizeInAcres.maximumSize, sizeInAcres.unit);
     formattedSizes.push(
       `${sizeInOriginalUnit} ${sizeInAcres.displayUnit} (${sizeInSquareFeet} sq ft)`
     );
   } else if (sizeInSquareMeters) {
     const sizeInOriginalUnit = sizeInSquareMeters.maximumSize.toFixed(0);
-    const sizeInSquareFeet = (sizeInSquareMeters.maximumSize * 10.764).toFixed(
-      0
-    );
+    const sizeInSquareFeet = (sizeInSquareMeters.maximumSize * 10.764).toFixed(0);
     formattedSizes.push(
       `${sizeInOriginalUnit} ${sizeInSquareMeters.displayUnit} (${sizeInSquareFeet} sq ft)`
     );
   } else if (sizeInSquareFeet) {
     const sizeInOriginalUnit = sizeInSquareFeet.maximumSize.toLocaleString();
-    formattedSizes.push(
-      `${sizeInOriginalUnit} ${sizeInSquareFeet.displayUnit}`
-    );
+    formattedSizes.push(`${sizeInOriginalUnit} ${sizeInSquareFeet.displayUnit}`);
   }
 
   return formattedSizes.join(" / ");
 }
 
-export function getBroadbandInfo(
-  pageModel: RightmovePageModelType | null
-): string {
-  const broadbandFeature =
-    pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
+export function getBroadbandInfo(pageModel: RightmovePageModelType | null): string {
+  const broadbandFeature = pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
   const broadbandSpeed = getBroadbandSpeedFromDOM();
-  let result = "Ask agent";
+  let result = "Not mentioned";
 
   if (broadbandFeature && broadbandSpeed) {
     result = `${broadbandFeature}, ${broadbandSpeed}`;

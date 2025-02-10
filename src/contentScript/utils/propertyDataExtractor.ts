@@ -18,19 +18,23 @@ export async function extractPropertyDataFromDOM(
     windows: windowsFromUnstructuredText,
     garden: gardenFromUnstructuredText,
     accessibility: accessibilityFromUnstructuredText,
+    buildingSafety: buildingSafetyResultFromUnstructuredText,
+    coastalErosion: coastalErosionResultFromUnstructuredText,
+    miningImpact: miningImpactResultFromUnstructuredText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
+
   const epc =
     (pageModel?.propertyData?.epcGraphs?.length ?? 0) > 0 &&
     pageModel?.propertyData?.epcGraphs?.[0]?.url
       ? pageModel?.propertyData?.epcGraphs?.[0]?.url
-      : "Ask agent";
+      : "Not mentioned";
 
   const floorPlan =
     pageModel?.propertyData?.floorplans &&
     pageModel?.propertyData?.floorplans?.length > 0 &&
     pageModel?.propertyData?.floorplans?.[0]?.url
       ? pageModel?.propertyData?.floorplans?.[0]?.url
-      : "Ask agent";
+      : "Not mentioned";
 
   const phoneNumber =
     pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber ||
@@ -86,6 +90,9 @@ export async function extractPropertyDataFromDOM(
     },
     copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
     salePrice,
+    buildingSafety: buildingSafetyResultFromUnstructuredText,
+    coastalErosion: coastalErosionResultFromUnstructuredText,
+    miningImpact: miningImpactResultFromUnstructuredText,
     salesHistory: {
       priceDiscrepancy: {
         value: priceDiscrepancyValue,
@@ -107,19 +114,19 @@ export async function extractPropertyDataFromDOM(
     garden:
       pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
       gardenFromUnstructuredText ||
-      "Ask agent",
+      "Not mentioned",
     councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
     size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
     heating:
       pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
       heatingFromUnstructuredText ||
-      "Ask agent",
+      "Not mentioned",
     floorPlan: floorPlan,
 
     epc: epc,
     broadband: getBroadbandInfo(pageModel),
-    listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Ask agent",
-    windows: windowsFromUnstructuredText || "Ask agent",
+    listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
+    windows: windowsFromUnstructuredText || "Not mentioned",
     publicRightOfWayObligation: pageModel?.propertyData?.features?.obligations?.rightsOfWay ?? null,
     privateRightOfWayObligation:
       pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
@@ -137,7 +144,7 @@ export async function extractPropertyDataFromDOM(
             ?.map((item) => item.displayText)
             .join(", ") ||
           accessibilityFromUnstructuredText ||
-          "Ask agent"
-        : "Ask agent",
+          "Not mentioned"
+        : "Not mentioned",
   };
 }
