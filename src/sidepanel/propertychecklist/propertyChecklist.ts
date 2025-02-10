@@ -121,7 +121,7 @@ export function generatePropertyChecklist(
       status: (() => {
         const historicalCAGR = extractedData.salesHistory.compoundAnnualGrowthRate;
         if (historicalCAGR === null || typeof historicalCAGR !== "number") {
-          return DataStatus.ASK_AGENT;
+          return DataStatus.FOUND_POSITIVE; // this means no sales history, so is fine.
         }
         // Flag bag compound annual growth rate
         return historicalCAGR < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
@@ -143,7 +143,10 @@ export function generatePropertyChecklist(
       })(),
       toolTipExplainer:
         "The CAGR represents the average yearly increase in the property's historical sale values (excluding the current listing). \n\n" +
-        "A CAGR below 3% indicates that the property has underperformed historically.",
+        "A CAGR below 3% indicates that the property has underperformed historically." +
+        (extractedData.salesHistory.compoundAnnualGrowthRate === null
+          ? "\n\nIt is N/A as there is no sales history."
+          : ""),
     },
     {
       group: PropertyGroups.SALES_HISTORY,
