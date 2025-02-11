@@ -4,10 +4,7 @@
   "version": "1.0",
   "description": "Evaluate property listings with ease using automated checklists.",
   "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
-  "host_permissions": [
-    "https://www.rightmove.co.uk/*",
-    "https://www.idealista.com/*"
-  ],
+  "host_permissions": ["https://www.rightmove.co.uk/*"],
   "icons": {
     "16": "images/icon16.png",
     "48": "images/icon48.png",

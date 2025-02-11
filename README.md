@@ -48,3 +48,12 @@ Chrome extensions (Manifest V3) are composed of different components that work t
   Debug by: right clicking on the webpage (not sidebar) and clicking inspect.
 
 These components communicate with each other using message passing, allowing the extension to perform complex tasks by coordinating actions between the UI, background script, and content script.
+
+## Publishing the extension to chrome web store
+
+When publishing your extension to the Chrome Web Store, you only need to upload the production build – not your entire project. Typically, this means you should:
+
+1. Run your production build (using `npm run build`) to generate the `dist` folder.
+2. Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
+3. Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
+4. Upload that zip file during the extension submission process.

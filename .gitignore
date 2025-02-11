@@ -50,3 +50,6 @@ Thumbs.db
 
 # Yarn Integrity file
 .yarn-integrity
+
+# production build releases
+dist.zip
