@@ -6,12 +6,14 @@ import {
   ShowWarningMessage,
   UpdatePropertyDataMessage,
 } from "./types/messages";
+import { initSentry, logErrorToSentry } from "./utils/sentry";
 
 console.log("[background.ts] Background script loaded");
 // Background.ts is the central hub
 // Listens for messages from the sidebar or content script.
 // Sends commands to the content script to scrape data.
 // Relays data between the content script and sidebar.
+initSentry();
 
 function sendWarningMessage(logMessage: string) {
   console.warn(logMessage);
@@ -19,29 +21,20 @@ function sendWarningMessage(logMessage: string) {
     action: ActionEvents.SHOW_WARNING,
     data: "Please open a property page on rightmove.co.uk.",
   };
-  chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(
-    warningMessage,
-    (response) => {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "[background.ts] Error sending warning message:",
-          chrome.runtime.lastError
-        );
-      } else {
-        console.log(
-          "[background.ts] Warning message sent successfully:",
-          response
-        );
-      }
+  chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(warningMessage, (response) => {
+    if (chrome.runtime.lastError) {
+      logErrorToSentry(chrome.runtime.lastError);
+    } else {
+      console.log("[background.ts] Warning message sent successfully:", response);
     }
-  );
+  });
 }
 
 // Function to update the stored URL and send a message
 function handleInitialLoadOrTabChange() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].url) {
-      console.warn("No active tab found or tab has no URL.");
+      logErrorToSentry("No active tab found or tab has no URL.", "warning");
       return;
     }
 
@@ -54,9 +47,7 @@ function handleInitialLoadOrTabChange() {
     }
 
     if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
-      sendWarningMessage(
-        "Internal Chrome page detected. Sending warning directly."
-      );
+      sendWarningMessage("Internal Chrome page detected. Sending warning directly.");
       return;
     }
 
@@ -67,18 +58,9 @@ function handleInitialLoadOrTabChange() {
     console.log("[background.ts] Sending message to tab:", tabId, message);
     chrome.tabs.sendMessage(tabId, message, (response) => {
       if (chrome.runtime.lastError) {
-        console.error(
-          "[background.ts] Error sending message:",
-          chrome.runtime.lastError
-        );
-        if (
-          chrome.runtime.lastError?.message?.includes(
-            "Could not establish connection"
-          )
-        ) {
-          sendWarningMessage(
-            "Content script not loaded. Sending warning directly."
-          );
+        logErrorToSentry(chrome.runtime.lastError);
+        if (chrome.runtime.lastError?.message?.includes("Could not establish connection")) {
+          sendWarningMessage("Content script not loaded. Sending warning directly.");
         }
       } else {
         console.log("[background.ts] Message sent successfully:", response);
@@ -107,13 +89,13 @@ chrome.tabs.onCreated.addListener((tab) => {
 // Set panel behavior and update URL when the panel is opened
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((error) => console.error(error));
+  .catch((error) => logErrorToSentry(error));
 
 function handleToContentScriptFromUIMessage(request: MessageRequest) {
   const { action, data } = request;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].id) {
-      console.warn("background.ts: No active tab found.");
+      logErrorToSentry("background.ts: No active tab found.", "warning");
       return;
     }
     const tabId = tabs[0].id;
@@ -162,10 +144,7 @@ function handleToUIFromContentScriptMessage(
       request as UpdatePropertyDataMessage,
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error(
-            "[background.ts] Error forwarding message:",
-            chrome.runtime.lastError
-          );
+          logErrorToSentry(chrome.runtime.lastError);
         } else {
           console.log("[background.ts] Message forwarded to UI:", request);
           console.log("[background.ts] Response:", response);
@@ -180,10 +159,7 @@ function handleToUIFromContentScriptMessage(
       request as ShowWarningMessage,
       () => {
         if (chrome.runtime.lastError) {
-          console.error(
-            "[background.ts] Error forwarding message:",
-            chrome.runtime.lastError
-          );
+          logErrorToSentry(chrome.runtime.lastError);
         } else {
           console.log("[background.ts] Message forwarded to UI:", request);
         }
@@ -227,10 +203,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
     if (tab.url) {
       // Send the URL to the sidebar
-      chrome.runtime.sendMessage<
-        NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
-        ResponseType
-      >({
+      chrome.runtime.sendMessage<NavigatedUrlOrTabChangedOrExtensionOpenedMessage, ResponseType>({
         action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
         data: tab.url,
       });
@@ -241,10 +214,7 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 // Optionally, listen for tab updates (e.g., when the page reloads or URL changes)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.active) {
-    chrome.runtime.sendMessage<
-      NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
-      ResponseType
-    >({
+    chrome.runtime.sendMessage<NavigatedUrlOrTabChangedOrExtensionOpenedMessage, ResponseType>({
       action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
       data: tab.url ?? "",
     });

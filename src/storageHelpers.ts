@@ -1,8 +1,6 @@
-export function storeDataToStorage(
-  key: string,
-  data: any,
-  callback?: () => void
-) {
+import { logErrorToSentry } from "./utils/sentry";
+
+export function storeDataToStorage(key: string, data: any, callback?: () => void) {
   try {
     // Attempt to serialize the data to ensure it's JSON-compatible
     JSON.stringify(data);
@@ -16,7 +14,7 @@ export function storeDataToStorage(
       }
     });
   } catch (error) {
-    console.error(
+    logErrorToSentry(
       `Failed to store data under key "${key}": ${JSON.stringify(data, null, 2)}, error: ${error}`
     );
   }
@@ -33,14 +31,12 @@ export function retrieveDataFromStorage(key: string): Promise<any> {
           );
           resolve(data);
         } else {
-          console.error(`No data found for key: ${key}`);
+          logErrorToSentry(`No data found for key: ${key}`);
           resolve(null); // Resolve with null if no data is found
         }
       });
     } catch (error) {
-      console.error(
-        `Failed to retrieve data under key "${key}", error: ${error}`
-      );
+      logErrorToSentry(`Failed to retrieve data under key "${key}", error: ${error}`);
       reject(error);
     }
   });

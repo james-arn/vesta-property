@@ -53,3 +53,5 @@ Thumbs.db
 
 # production build releases
 dist.zip
+# Sentry Config File
+.env.sentry-build-plugin

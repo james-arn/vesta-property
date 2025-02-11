@@ -1,3 +1,4 @@
+import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import {
   Tooltip,
@@ -7,6 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { STEPS } from "@/constants/steps";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
+import { logErrorToSentry } from '@/utils/sentry';
 import React, { useEffect, useState } from "react";
 import { FaInfoCircle } from 'react-icons/fa';
 import { ActionEvents } from "../constants/actionEvents";
@@ -121,8 +123,7 @@ const App: React.FC = () => {
       { action: ActionEvents.SIDE_PANEL_OPENED },
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error(
-            "[Side Panel] Error sending SIDE_PANEL_OPENED message:",
+          logErrorToSentry(
             chrome.runtime.lastError
           );
         } else {
@@ -297,21 +298,28 @@ const App: React.FC = () => {
 
   if (nonPropertyPageWarningMessage) {
     return (
-      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
-        {nonPropertyPageWarningMessage}
-      </div>
+      <Alert
+        type="warning"
+        message={nonPropertyPageWarningMessage}
+      />
     );
   }
 
   return (
     <>
+      {nonPropertyPageWarningMessage && (
+        <Alert
+          type="warning"
+          message={nonPropertyPageWarningMessage}
+          onClose={() => setNoPropertyPageWarningMessage(null)}
+        />
+      )}
       {propertyData.isRental && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
-          <p>
-            Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent.<br /><br />
-            You can still use the tool but some features may not work as expected.
-          </p>
-        </div>
+        <Alert
+          type="warning"
+          message="Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent. You can still use the tool but some features may not work as expected."
+          onClose={() => setNoPropertyPageWarningMessage(null)}
+        />
       )}
       <div className="p-4">
         <SettingsBar

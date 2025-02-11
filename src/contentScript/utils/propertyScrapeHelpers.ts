@@ -12,6 +12,7 @@ import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
 import { TermExtractionResult } from "@/types/domScraping";
 import { DataStatus } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
+import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 
 export function computeTermChecklistResult(
@@ -308,6 +309,6 @@ export function clickPropertySaleHistoryButton() {
     (targetButton as HTMLButtonElement).click();
     console.log("Property sale history button clicked.");
   } else {
-    console.error("Property sale history button not found.");
+    logErrorToSentry("Property sale history button not found.");
   }
 }

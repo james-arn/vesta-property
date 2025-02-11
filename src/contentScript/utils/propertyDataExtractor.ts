@@ -6,12 +6,13 @@ import {
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import { ExtractedPropertyData } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
+import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
-
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
 ): Promise<ExtractedPropertyData> {
-  if (!pageModel) console.error("No page model available, attempting data only from DOM");
+  if (!pageModel)
+    logErrorToSentry("No page model available, attempting data only from DOM", "fatal");
 
   // Page model extraction
   const {

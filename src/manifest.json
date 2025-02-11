@@ -4,7 +4,13 @@
   "version": "1.0",
   "description": "Evaluate property listings with ease using automated checklists.",
   "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
-  "host_permissions": ["https://www.rightmove.co.uk/*"],
+  "host_permissions": [
+    "https://www.rightmove.co.uk/*",
+    "https://o4508799628738560.ingest.de.sentry.io/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://o4508799628738560.ingest.de.sentry.io"
+  },
   "icons": {
     "16": "images/icon16.png",
     "48": "images/icon48.png",

@@ -1,3 +1,5 @@
+const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
+
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
@@ -5,7 +7,7 @@ const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
-  mode: "production",
+  mode: process.env.NODE_ENV || "development",
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
     background: "./src/background.ts",
@@ -47,6 +49,11 @@ module.exports = {
         { from: "src/images", to: "images" },
         { from: "src/injectScript.js", to: "injectScript.js" },
       ],
+    }),
+    sentryWebpackPlugin({
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: "vesta-ja",
+      project: "vesta",
     }),
   ],
   devtool: "source-map",
