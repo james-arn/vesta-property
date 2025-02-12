@@ -1,3 +1,4 @@
+import Feedback from '@/components/Feedback';
 import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import {
@@ -95,18 +96,6 @@ const App: React.FC = () => {
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Delay for a short period (e.g., 100ms) to ensure that the Toaster is mounted
-    const timeoutId = setTimeout(() => {
-      toast({
-        title: "We'd love your feedback!",
-        description: "Please let us know how we can improve.",
-        variant: "default",
-      });
-    }, 100);
-    return () => clearTimeout(timeoutId);
-  }, [toast]);
 
   useEffect(() => {
     // **1. Add Message Listener First**
@@ -370,6 +359,7 @@ const App: React.FC = () => {
           })}
         </ul>
       </div>
+      <Feedback />
     </>
   );
 };
