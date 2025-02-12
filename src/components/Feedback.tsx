@@ -2,6 +2,7 @@ import { CHROME_EXTENSION_STORE_REVIEW_URL } from "@/constants/urls";
 import { sendGA4Event } from "@/contentScript/utils/googleAnalytics";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState } from "react";
+import { Button } from "./ui/button";
 const FeedbackToastContent: React.FC = () => {
     const [feedback, setFeedback] = useState<"initial" | "happy" | "medium" | "sad" | "reviewingInChromeStore">("initial");
     const [writtenFeedback, setWrittenFeedback] = useState("");
@@ -69,7 +70,7 @@ const FeedbackToastContent: React.FC = () => {
                     <button
                         onClick={submitReview}
                         onMouseLeave={() => setHoverRating(0)}
-                        className="mt-2 btn btn-primary"
+                        className="mt-2 btn btn-primary bg-blue-500 text-white"
                     >
                         {[1, 2, 3, 4, 5].map((starNumber) => (
                             <span
@@ -88,16 +89,16 @@ const FeedbackToastContent: React.FC = () => {
                     <p>Our small team values your feedback and want to improve. Please help us:</p>
                     <textarea
                         placeholder="Your feedback"
-                        className="mt-2 block"
+                        className="mt-2 block w-full h-32 p-2 border border-gray-300 rounded"
                         onChange={(e) => setWrittenFeedback(e.target.value)}
                         value={writtenFeedback}
                     />
-                    <button
+                    <Button
                         onClick={submitFeedback}
-                        className={`mt-2 btn ${feedback === "medium" ? "btn-warning" : "btn-danger"}`}
+                        className={`mt-2 btn`}
                     >
-                        Send Feedback
-                    </button>
+                        Email feedback
+                    </Button>
                 </div>
             )}
             {feedback === "reviewingInChromeStore" && (
