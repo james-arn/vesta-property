@@ -105,6 +105,7 @@ const App: React.FC = () => {
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
         setNoPropertyPageWarningMessage(message.data || null);
+        setIsPropertyDataLoading(false);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);
       } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
@@ -292,10 +293,6 @@ const App: React.FC = () => {
     );
   };
 
-  if (isPropertyDataLoading) {
-    return <SideBarLoading />;
-  }
-
   if (nonPropertyPageWarningMessage) {
     return (
       <Alert
@@ -303,6 +300,10 @@ const App: React.FC = () => {
         message={nonPropertyPageWarningMessage}
       />
     );
+  }
+
+  if (isPropertyDataLoading) {
+    return <SideBarLoading />;
   }
 
   return (
