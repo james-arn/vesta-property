@@ -96,6 +96,7 @@ const FeedbackToastContent: React.FC = () => {
                     <Button
                         onClick={submitFeedback}
                         className={`mt-2 btn`}
+                        disabled={!writtenFeedback}
                     >
                         Email feedback
                     </Button>
