@@ -1,27 +1,63 @@
+import { CHROME_EXTENSION_STORE_REVIEW_URL } from "@/constants/urls";
+import { sendGA4Event } from "@/contentScript/utils/googleAnalytics";
 import { useToast } from "@/hooks/use-toast";
 import React, { useState } from "react";
-
 const FeedbackToastContent: React.FC = () => {
-    const [feedback, setFeedback] = useState<"initial" | "happy" | "medium" | "sad">("initial");
+    const [feedback, setFeedback] = useState<"initial" | "happy" | "medium" | "sad" | "reviewingInChromeStore">("initial");
+    const [writtenFeedback, setWrittenFeedback] = useState("");
+    const [hoverRating, setHoverRating] = useState(0);
 
-    // Determine title based on state
-    const title =
-        feedback === "initial" ? "How are you finding Vesta?" : "Feedback Received";
+    // Analytics function – replace with your actual implementation if needed
+    const trackFeedbackAnalytics = (type: "happy" | "medium" | "sad") => {
+        sendGA4Event("feedback_selected", {
+            feedback_type: type,
+        });
+    };
+
+    const handleFeedbackSelection = (type: "happy" | "medium" | "sad") => {
+        trackFeedbackAnalytics(type);
+        setFeedback(type);
+    };
+
+    const getTitle = (state: "initial" | "happy" | "medium" | "sad" | "reviewingInChromeStore") => {
+        switch (state) {
+            case "initial":
+                return "How are you finding Vesta?";
+            case "happy":
+                return "Leave a review? ❤️";
+            case "medium":
+            case "sad":
+                return "How could we improve? 🤔";
+            case "reviewingInChromeStore":
+                return "Almost there! 🎉";
+            default:
+                return "How could we improve? 🤔";
+        }
+    };
+
+    const submitReview = () => {
+        chrome.tabs.create({ url: CHROME_EXTENSION_STORE_REVIEW_URL }); // TODO: when published, update url
+        setFeedback("reviewingInChromeStore");
+    };
+
+    const submitFeedback = () => {
+        const mailtoLink = `mailto:j1mes@hotmail.co.uk?subject=Feedback on Vesta&body=${encodeURIComponent(writtenFeedback)}`;
+        chrome.tabs.create({ url: mailtoLink });
+    };
 
     return (
-        <div className="p-4">
-            {/* Title rendered inside the component */}
-            <h4 className="mb-2 text-lg font-bold">{title}</h4>
+        <div>
+            <h4 className="mb-2 text-lg font-bold">{getTitle(feedback)}</h4>
 
             {feedback === "initial" && (
-                <div className="flex space-x-2">
-                    <button onClick={() => setFeedback("happy")} className="text-2xl">
+                <div className="flex space-x-2 justify-evenly">
+                    <button onClick={() => handleFeedbackSelection("happy")} className="text-2xl">
                         😄
                     </button>
-                    <button onClick={() => setFeedback("medium")} className="text-2xl">
+                    <button onClick={() => handleFeedbackSelection("medium")} className="text-2xl">
                         😐
                     </button>
-                    <button onClick={() => setFeedback("sad")} className="text-2xl">
+                    <button onClick={() => handleFeedbackSelection("sad")} className="text-2xl">
                         😞
                     </button>
                 </div>
@@ -29,29 +65,47 @@ const FeedbackToastContent: React.FC = () => {
 
             {feedback === "happy" && (
                 <div>
-                    <p>
-                        We love that you're enjoying Vesta! Thanks for the positive
-                        feedback!
-                    </p>
-                    <button className="mt-2 btn btn-primary">See More Happy Tips</button>
+                    <p>It really helps us out - your good deed for the day!</p>
+                    <button
+                        onClick={submitReview}
+                        onMouseLeave={() => setHoverRating(0)}
+                        className="mt-2 btn btn-primary"
+                    >
+                        {[1, 2, 3, 4, 5].map((starNumber) => (
+                            <span
+                                key={starNumber}
+                                onMouseEnter={() => setHoverRating(starNumber)}
+                                style={{ cursor: "pointer", fontSize: "2rem", color: hoverRating >= starNumber ? "gold" : "lightgray" }}
+                            >
+                                {hoverRating >= starNumber ? "★" : "☆"}
+                            </span>
+                        ))}
+                    </button>
                 </div>
             )}
-
-            {feedback === "medium" && (
+            {(feedback === "medium" || feedback === "sad") && (
                 <div>
-                    <p>
-                        Thanks for your feedback. We'll work on improving your experience!
-                    </p>
-                    <button className="mt-2 btn btn-warning">Learn How to Improve</button>
+                    <p>Our small team values your feedback and want to improve. Please help us:</p>
+                    <textarea
+                        placeholder="Your feedback"
+                        className="mt-2 block"
+                        onChange={(e) => setWrittenFeedback(e.target.value)}
+                        value={writtenFeedback}
+                    />
+                    <button
+                        onClick={submitFeedback}
+                        className={`mt-2 btn ${feedback === "medium" ? "btn-warning" : "btn-danger"}`}
+                    >
+                        Send Feedback
+                    </button>
                 </div>
             )}
-
-            {feedback === "sad" && (
+            {feedback === "reviewingInChromeStore" && (
                 <div>
                     <p>
-                        We're sorry to hear that. We'll strive to address your concerns.
+                        Please leave a review in the Chrome Extension Store
+                        <span className="mr-2">←</span>
                     </p>
-                    <button className="mt-2 btn btn-danger">Contact Support</button>
                 </div>
             )}
         </div>
