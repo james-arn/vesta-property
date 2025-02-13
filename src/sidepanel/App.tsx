@@ -45,7 +45,11 @@ const emptyPropertyData: ExtractedPropertyData = {
   windows: null,
   publicRightOfWayObligation: null,
   privateRightOfWayObligation: null,
-  listedProperty: null,
+  listedProperty: {
+    value: null,
+    status: null,
+    reason: null,
+  },
   restrictions: null,
   floodDefences: null,
   floodSources: null,

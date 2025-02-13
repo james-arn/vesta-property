@@ -24,6 +24,7 @@ export async function extractPropertyDataFromDOM(
     buildingSafety: buildingSafetyResultFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
     miningImpact: miningImpactResultFromUnstructuredText,
+    listedProperty: listedPropertyFromUnstructuredText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
   const epc =
@@ -129,7 +130,7 @@ export async function extractPropertyDataFromDOM(
       heatingFromUnstructuredText ||
       "Not mentioned",
     isRental,
-    listedProperty: pageModel?.propertyData?.features?.obligations?.listed ?? null,
+    listedProperty: listedPropertyFromUnstructuredText ?? null,
     listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
     location:
       pageModel?.propertyData?.address?.displayAddress ||

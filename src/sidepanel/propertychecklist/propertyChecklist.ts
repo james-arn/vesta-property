@@ -293,12 +293,12 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed property",
       key: "listedProperty",
-      status: extractedData.listedProperty ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
-      value: getYesNoOrAskAgentStringFromBoolean(extractedData.listedProperty),
-      askAgentMessage: "Is the property listed?",
+      status: extractedData.listedProperty.status ?? DataStatus.ASK_AGENT,
+      value: extractedData.listedProperty.value ?? "Not mentioned",
+      askAgentMessage: extractedData.listedProperty.reason ?? "",
       toolTipExplainer:
         "A listed property is designated as being of architectural or historical interest and requires special permission before being altered.\n\n" +
-        "There are three grades of listed buildings: Grade I (exceptional interest), Grade II* (more than special interest), and Grade II (special interest, most common for homes).",
+        "There are three grades of listed buildings: Grade I (exceptional interest), Grade II (special interest, most common for homes), and Grade II* (national importance).",
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,

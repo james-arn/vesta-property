@@ -10,7 +10,7 @@ import {
 } from "@/constants/keyTerms";
 import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
 import { TermExtractionResult } from "@/types/domScraping";
-import { DataStatus } from "@/types/property";
+import { DataStatus, PropertyItem } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
@@ -76,6 +76,72 @@ function extractTermInfo(
   return buildingSafetyChecklist;
 }
 
+export function getListedPropertyDetails(
+  pageModel: RightmovePageModelType | null,
+  combinedText: string
+): PropertyItem {
+  const obligations = pageModel?.propertyData?.features?.obligations?.listed;
+  const listingRegex = /grade\s*(ii\*?|i)/gi;
+
+  // Capture any grade matches (preserving an asterisk, if present)
+  const matches: string[] = [];
+  let regexMatch: RegExpExecArray | null = null;
+  while ((regexMatch = listingRegex.exec(combinedText)) !== null) {
+    // Use the captured numeral portion and preserve the asterisk (if present) in uppercase.
+    const numeral = regexMatch[1].toUpperCase();
+    matches.push(`Grade ${numeral}`);
+  }
+
+  // Remove duplicate matches and join them for display
+  const uniqueGrades = matches.length > 0 ? [...new Set(matches)] : [];
+  const gradeFormatted = uniqueGrades.length > 0 ? uniqueGrades.join(", ") : null;
+
+  // Determine the string value based on the obligations flag and grade info.
+  let listingStatus = "Not mentioned";
+  if (obligations === true) {
+    listingStatus = gradeFormatted ? `Yes - (${gradeFormatted})` : "Yes";
+  } else if (obligations === false) {
+    listingStatus = "No";
+  } else if (obligations === null && uniqueGrades.length > 0) {
+    listingStatus = `Yes - (${gradeFormatted})`;
+  }
+
+  // Compute the DataStatus based on the final string.
+  const lowerCaseListing = listingStatus.toLowerCase().trim();
+  const computedStatus = (() => {
+    switch (lowerCaseListing) {
+      case "no":
+        return DataStatus.FOUND_POSITIVE;
+      default:
+        return DataStatus.ASK_AGENT;
+    }
+  })();
+
+  // Provide a context-specific reason based on the computed status and value.
+  const reason = (() => {
+    switch (computedStatus) {
+      case DataStatus.FOUND_POSITIVE:
+        return ""; // No agent message required
+      case DataStatus.ASK_AGENT:
+        if (lowerCaseListing === "yes" || lowerCaseListing.startsWith("yes -")) {
+          return "Are there any important details or restrictions I should know as it's a listed property?";
+        } else if (lowerCaseListing === "not mentioned" || lowerCaseListing === "ask agent") {
+          return "Is the property listed?";
+        } else {
+          return "Is the property listed?";
+        }
+      default:
+        return "Is the property listed?";
+    }
+  })();
+
+  return {
+    value: listingStatus,
+    status: computedStatus,
+    reason,
+  };
+}
+
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
   pageModel: RightmovePageModelType | null
 ) {
@@ -119,6 +185,8 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
 
   const hasCommunalGarden = combinedText.includes("communal garden");
 
+  const listedProperty = getListedPropertyDetails(pageModel, combinedText);
+
   console.log("[property scrape helpers] garden matches found:", gardenMatches);
 
   return {
@@ -138,6 +206,7 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       ? capitaliseFirstLetterAndCleanString([...new Set(accessibilityMatches)].join(", "))
       : null,
     bathroom: bathroomFormatted,
+    listedProperty: listedProperty,
     buildingSafety: {
       value: buildingSafetyResult.displayValue,
       status: buildingSafetyResult.status,
