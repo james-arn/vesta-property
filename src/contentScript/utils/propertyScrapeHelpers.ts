@@ -90,6 +90,12 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
   const windowMatches = windowTerms.filter((term) => combinedText.includes(term));
   const accessibilityMatches = accessibilityTerms.filter((term) => combinedText.includes(term));
 
+  const bathroomRegex = /(?:en[-\s]?suite\s*bathroom|ensuite\s*bathroom|bathroom)/gi;
+  const bathroomMatches = combinedText.match(bathroomRegex);
+  const bathroomFormatted = bathroomMatches
+    ? capitaliseFirstLetterAndCleanString([...new Set(bathroomMatches)].join(", "))
+    : null;
+
   const buildingSafetyResult = extractTermInfo(
     "Building Safety",
     combinedText,
@@ -131,6 +137,7 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
     accessibility: accessibilityMatches
       ? capitaliseFirstLetterAndCleanString([...new Set(accessibilityMatches)].join(", "))
       : null,
+    bathroom: bathroomFormatted,
     buildingSafety: {
       value: buildingSafetyResult.displayValue,
       status: buildingSafetyResult.status,

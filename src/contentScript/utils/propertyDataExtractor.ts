@@ -19,6 +19,7 @@ export async function extractPropertyDataFromDOM(
     heating: heatingFromUnstructuredText,
     windows: windowsFromUnstructuredText,
     garden: gardenFromUnstructuredText,
+    bathroom: bathroomFromUnstructuredText,
     accessibility: accessibilityFromUnstructuredText,
     buildingSafety: buildingSafetyResultFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
@@ -102,7 +103,11 @@ export async function extractPropertyDataFromDOM(
       contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
       phoneNumber: phoneNumber,
     },
-    bathrooms: pageModel?.propertyData?.bathrooms?.toString() || bathroomsElement || null,
+    bathrooms:
+      pageModel?.propertyData?.bathrooms?.toString() ||
+      bathroomsElement ||
+      bathroomFromUnstructuredText ||
+      null,
     bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
     broadband: getBroadbandInfo(pageModel),
     buildingSafety: buildingSafetyResultFromUnstructuredText,
