@@ -28,6 +28,7 @@ interface TermResult {
 }
 
 export interface ExtractedPropertyData {
+  propertyId: string | null;
   accessibility: string | null;
   agent: AgentDetails | null;
   bathrooms: string | null;

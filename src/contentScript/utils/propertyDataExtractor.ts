@@ -87,6 +87,7 @@ export async function extractPropertyDataFromDOM(
   const isRental = isRentalProperty(pageModel);
 
   return {
+    propertyId: pageModel?.propertyData?.id ?? null,
     accessibility:
       pageModel?.propertyData?.features?.accessibility &&
       pageModel?.propertyData?.features?.accessibility?.length > 0

@@ -1,9 +1,9 @@
 import { CHROME_EXTENSION_STORE_REVIEW_URL } from "@/constants/urls";
 import { sendGA4Event } from "@/contentScript/utils/googleAnalytics";
-import { useToast } from "@/hooks/use-toast";
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-const FeedbackToastContent: React.FC = () => {
+
+const Feedback: React.FC = () => {
     const [feedback, setFeedback] = useState<"initial" | "happy" | "medium" | "sad" | "reviewingInChromeStore">("initial");
     const [writtenFeedback, setWrittenFeedback] = useState("");
     const [hoverRating, setHoverRating] = useState(0);
@@ -70,7 +70,7 @@ const FeedbackToastContent: React.FC = () => {
                     <button
                         onClick={submitReview}
                         onMouseLeave={() => setHoverRating(0)}
-                        className="mt-2 btn btn-primary bg-blue-500 text-white"
+                        className="mt-2"
                     >
                         {[1, 2, 3, 4, 5].map((starNumber) => (
                             <span
@@ -106,26 +106,13 @@ const FeedbackToastContent: React.FC = () => {
                 <div>
                     <p>
                         Please leave a review in the Chrome Extension Store
-                        <span className="mr-2">←</span>
+                        <br></br>
+                        <span>←</span>
                     </p>
                 </div>
             )}
         </div>
     );
-};
-
-const Feedback: React.FC = () => {
-    const { toast } = useToast();
-
-    // Show the toast when the component mounts
-    React.useEffect(() => {
-        toast({
-            description: <FeedbackToastContent />,
-            variant: "default",
-        });
-    }, [toast]);
-
-    return null;
 };
 
 export default Feedback;
