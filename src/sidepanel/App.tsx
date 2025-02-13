@@ -112,6 +112,12 @@ const App: React.FC = () => {
         setIsPropertyDataLoading(false);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);
+      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
+        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_PAGE_OPENED message received");
+        setCurrentStep(STEPS.RIGHTMOVE_SIGN_IN);
+      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
+        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_COMPLETED message received");
+        setCurrentStep(STEPS.REVIEW_MESSAGE);
       } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
         console.log("[Side Panel] AGENT_CONTACT_FORM_SUBMITTED message received");
         setCurrentStep(STEPS.EMAIL_SENT);
@@ -214,8 +220,8 @@ const App: React.FC = () => {
             });
           }
           return STEPS.REVIEW_MESSAGE;
-        // no review message button - it's handled with user submission in rightmove itself 
-        // & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
+        // No review message button - it's handled with user submission in rightmove itself & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
+        // No sign in step button - it's handled with user submission in rightmove itself & through the message actionevents.RIGHTMOVE_SIGN_IN
         case STEPS.EMAIL_SENT:
           const propertyListingUrl = propertyData.copyLinkUrl
             ? propertyData.copyLinkUrl.split("?")[0]

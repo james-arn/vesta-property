@@ -18,7 +18,7 @@ const NextStepButton: React.FC<NextStepButtonProps> = ({
   currentStep,
   onNext,
 }) => {
-  if (currentStep === STEPS.REVIEW_MESSAGE) {
+  if (currentStep === STEPS.REVIEW_MESSAGE || currentStep === STEPS.RIGHTMOVE_SIGN_IN) {
     return null;
   }
   return (

@@ -60,7 +60,7 @@ export function setupContentScriptEventListeners() {
     }
   });
 
-  window.addEventListener("load", () => {
+  function proceedAutoWrite() {
     retrieveDataFromStorage(StorageKeys.SELECTED_WARNING_ITEMS).then((selectedWarningItems) => {
       if (selectedWarningItems) {
         console.log("Retrieved selected warning items:", selectedWarningItems);
@@ -73,7 +73,7 @@ export function setupContentScriptEventListeners() {
           textArea.value +=
             "\n\n" +
             selectedWarningItems
-              .map((item: PropertyDataList, index: number) =>
+              .map((item: any, index: number) =>
                 selectedWarningItems.length > 1
                   ? `${index + 1}. ${item.askAgentMessage}`
                   : item.askAgentMessage
@@ -90,10 +90,9 @@ export function setupContentScriptEventListeners() {
           textArea.style.boxShadow = "0 0 10px rgba(0, 255, 0, 0.7)";
           textArea.scrollIntoView({ behavior: "smooth", block: "center" });
 
-          // Use IntersectionObserver to wait until the text area is in view
+          // Use IntersectionObserver to trigger pulsating effect
           const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
-              // Start the pulsating effect
               textArea.style.animation = "pulse 1s infinite";
 
               // Stop the effect after a few seconds
@@ -112,9 +111,34 @@ export function setupContentScriptEventListeners() {
         chrome.storage.local.remove("selectedWarningItems");
       }
     });
+  }
+
+  // For currentStep === STEPS.RIGHTMOVE_SIGN_IN, we check if the sign in page has appeared and guide user to continue as guest or sign in manually
+  window.addEventListener("load", () => {
+    // Check if the sign in page is loaded by detecting the password form
+    if (document.querySelector("#password-form")) {
+      // send messages to the extension to update the UI
+      chrome.runtime.sendMessage({
+        action: ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED,
+        data: null,
+      });
+      const signInPoller = setInterval(() => {
+        // Poll until the password form is no longer present
+        if (!document.querySelector("#password-form")) {
+          clearInterval(signInPoller);
+          // Notify the UI that sign in is complete and we’ve moved on to the next step.
+          chrome.runtime.sendMessage({
+            action: ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED,
+          });
+          proceedAutoWrite();
+        }
+      }, 1000);
+      return;
+    }
+    proceedAutoWrite();
   });
 
-  const observeDOMChanges = () => {
+  const observeEmailAgentSentDOMChanges = () => {
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === "childList" || mutation.type === "attributes") {
@@ -122,7 +146,7 @@ export function setupContentScriptEventListeners() {
           const confirmationBanner = document.querySelector('[data-test="confirmationBanner"]');
 
           if (confirmationPage || confirmationBanner) {
-            console.log("Successful form submission detected");
+            console.log("Successful email agent form submission detected");
             chrome.runtime.sendMessage({
               action: ActionEvents.AGENT_CONTACT_FORM_SUBMITTED,
             });
@@ -140,5 +164,5 @@ export function setupContentScriptEventListeners() {
   };
 
   // Initialize the observer
-  observeDOMChanges();
+  observeEmailAgentSentDOMChanges();
 }

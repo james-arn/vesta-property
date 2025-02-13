@@ -6,6 +6,8 @@ export const ActionEvents = {
   SIDE_PANEL_OPENED: "sidePanelOpened",
   FILL_RIGHTMOVE_CONTACT_FORM: "fillRightmoveContactForm",
   NAVIGATE_TO_CONTACT_AGENT_PAGE: "navigateToContactAgentPage",
+  RIGHTMOVE_SIGN_IN_PAGE_OPENED: "rightmoveSignInPageOpened",
+  RIGHTMOVE_SIGN_IN_COMPLETED: "rightmoveSignInCompleted",
   NAVIGATE_BACK_TO_PROPERTY_LISTING: "navigateBackToPropertyListing",
   AGENT_CONTACT_FORM_SUBMITTED: "agentContactFormSubmitted",
 } as const;

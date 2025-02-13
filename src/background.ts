@@ -166,6 +166,26 @@ function handleToUIFromContentScriptMessage(
       }
     );
   }
+  if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
+    console.log("[background.ts] Rightmove sign in message received");
+    chrome.runtime.sendMessage(request, () => {
+      if (chrome.runtime.lastError) {
+        logErrorToSentry(chrome.runtime.lastError);
+      } else {
+        console.log("[background.ts] Message forwarded to UI:", request);
+      }
+    });
+  }
+  if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
+    console.log("[background.ts] Rightmove sign in completed message received");
+    chrome.runtime.sendMessage(request, () => {
+      if (chrome.runtime.lastError) {
+        logErrorToSentry(chrome.runtime.lastError);
+      } else {
+        console.log("[background.ts] Message forwarded to UI:", request);
+      }
+    });
+  }
 }
 
 // Listen for messages from the content script and store data.
