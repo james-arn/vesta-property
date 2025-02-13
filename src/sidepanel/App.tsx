@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { STEPS } from "@/constants/steps";
+import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { logErrorToSentry } from '@/utils/sentry';
 import React, { useEffect, useState } from "react";
@@ -32,6 +33,7 @@ const emptyPropertyData: ExtractedPropertyData = {
   councilTax: null,
   size: null,
   propertyType: null,
+  propertyId: null,
   tenure: null,
   parking: null,
   heating: null,
@@ -93,6 +95,8 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
+
+  useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
 
   useEffect(() => {
     // **1. Add Message Listener First**

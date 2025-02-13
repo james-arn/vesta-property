@@ -1,3 +1,4 @@
+const Dotenv = require("dotenv-webpack");
 const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
 
 const path = require("path");
@@ -50,6 +51,7 @@ module.exports = {
         { from: "src/injectScript.js", to: "injectScript.js" },
       ],
     }),
+    new Dotenv(),
     sentryWebpackPlugin({
       authToken: process.env.SENTRY_AUTH_TOKEN,
       org: "vesta-ja",

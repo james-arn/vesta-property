@@ -1,3 +1,4 @@
+import { Toaster } from "@/components/ui/toaster";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -19,5 +20,6 @@ root.render(
         }
     >
         <App />
+        <Toaster />
     </ErrorBoundary>
 );

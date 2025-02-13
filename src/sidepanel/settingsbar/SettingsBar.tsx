@@ -1,9 +1,9 @@
 import { STEPS } from "@/constants/steps";
 import { AgentDetails } from "@/types/property";
 import React from "react";
-import AccordionControls from "./AccordionControls";
 import { FilterControls } from "./FilterControls";
 import NextStepButton from "./NextStepButton";
+import SettingsControls from "./SettingsControls";
 import TextInstructions from "./TextInstructions";
 
 interface SettingsBarProps {
@@ -36,12 +36,11 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
           currentStep={currentStep}
           filters={filters}
           toggleFilter={toggleFilter}
-        />
-        <AccordionControls
           openGroups={openGroups}
           setOpenGroups={setOpenGroups}
           propertyChecklistData={propertyChecklistData}
         />
+        <SettingsControls />
       </div>
     </div>
   );

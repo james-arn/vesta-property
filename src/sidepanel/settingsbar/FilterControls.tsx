@@ -1,56 +1,76 @@
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { STEPS } from "@/constants/steps";
 import React from "react";
-import { IoWarning, IoWarningOutline } from "react-icons/io5";
+import { VscFilter } from "react-icons/vsc";
+import AskAgentOnlyControl from "./AskAgentOnlyControl";
+import ExpandCollapseControl from "./ExpandCollapseControl";
 
-interface FilterControlsProps {
+export interface FilterControlsProps {
   currentStep: keyof typeof STEPS;
   filters: { showAskAgentOnly: boolean };
   toggleFilter: (filterName: keyof FilterControlsProps["filters"]) => void;
+  openGroups: { [key: string]: boolean };
+  setOpenGroups: (openGroups: { [key: string]: boolean }) => void;
+  propertyChecklistData: { group: string }[];
 }
 
 export const FilterControls = ({
   currentStep,
   filters,
   toggleFilter,
+  openGroups,
+  setOpenGroups,
+  propertyChecklistData,
 }: FilterControlsProps) => {
-  const showAllTitle = "Show all items";
-  const showAskAgentTitle = "Show ask agent items only";
   const isDisabled = currentStep !== STEPS.INITIAL_REVIEW;
 
-  const currentTitle = filters.showAskAgentOnly
-    ? showAllTitle
-    : showAskAgentTitle;
-  const CurrentIcon = filters.showAskAgentOnly ? (
-    <IoWarning size={20} color="orange" />
-  ) : (
-    <IoWarningOutline size={20} />
-  );
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <div
-            aria-disabled={isDisabled}
-            onClick={() =>
-              !isDisabled
-              && toggleFilter("showAskAgentOnly")
-            }
-            className={`bg-none ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer "}`}
-          >
-            {CurrentIcon}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{currentTitle}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <div className="group cursor-pointer">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <VscFilter size={20} />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Filter options</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-64">
+        <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem>
+            <ExpandCollapseControl
+              openGroups={openGroups}
+              setOpenGroups={setOpenGroups}
+              propertyChecklistData={propertyChecklistData}
+            />
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <AskAgentOnlyControl
+              isDisabled={isDisabled}
+              toggleFilter={toggleFilter}
+              filters={filters}
+            />
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
+
+export default FilterControls;
