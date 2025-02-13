@@ -8,7 +8,6 @@ const Feedback: React.FC = () => {
     const [writtenFeedback, setWrittenFeedback] = useState("");
     const [hoverRating, setHoverRating] = useState(0);
 
-    // Analytics function – replace with your actual implementation if needed
     const trackFeedbackAnalytics = (type: "happy" | "medium" | "sad") => {
         sendGA4Event("feedback_selected", {
             feedback_type: type,

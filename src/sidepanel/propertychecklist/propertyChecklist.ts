@@ -15,9 +15,26 @@ import {
   priceDiscrepancyMessages,
 } from "./helpers";
 
+export const agentMissingInfo = "not mentioned";
+const askAgentWrittenByAgent = "ask agent";
+
+// Helper to determine status for a string-based property
+export function getStatusFromString(
+  value: string | null,
+  additionalInvalids: string[] = []
+): DataStatus {
+  if (!value) return DataStatus.ASK_AGENT;
+  const lowerValue = value.trim().toLowerCase();
+  // Any value that is "not mentioned", "ask agent", or any others passed in is considered invalid
+  const invalidValues = [agentMissingInfo, askAgentWrittenByAgent, ...additionalInvalids];
+  if (invalidValues.includes(lowerValue)) {
+    return DataStatus.ASK_AGENT;
+  }
+  return DataStatus.FOUND_POSITIVE;
+}
+
 const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 
-export const agentMissingInfo = "not mentioned";
 export function generatePropertyChecklist(
   extractedData: ExtractedPropertyData
 ): PropertyDataList[] {
@@ -29,7 +46,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Price",
       key: "price",
-      status: extractedData.salePrice ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.salePrice),
       value: extractedData.salePrice,
       askAgentMessage: "What's the price?",
       toolTipExplainer:
@@ -40,7 +57,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Tenure",
       key: "tenure",
-      status: extractedData.tenure ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.tenure),
       value: capitaliseFirstLetterAndCleanString(extractedData.tenure ?? ""),
       askAgentMessage: "What's the tenure?",
       toolTipExplainer:
@@ -52,7 +69,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Location",
       key: "location",
-      status: extractedData.location ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.location),
       value: extractedData.location,
       askAgentMessage: "Where's the property located?",
       toolTipExplainer:
@@ -64,7 +81,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Property Type",
       key: "propertyType",
-      status: extractedData.propertyType ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.propertyType),
       value: extractedData.propertyType,
       askAgentMessage: "What's the property type?",
       toolTipExplainer:
@@ -76,10 +93,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Accessibility",
       key: "accessibility",
-      status:
-        extractedData.accessibility?.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.accessibility),
       value: extractedData.accessibility,
       askAgentMessage: "Is the property accessible-friendly?",
       toolTipExplainer:
@@ -207,11 +221,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Heating Type",
       key: "heatingType",
-      status:
-        typeof extractedData.heating === "string" &&
-        extractedData.heating.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.heating),
       value: extractedData.heating,
       askAgentMessage: "What's the heating type?",
       toolTipExplainer:
@@ -223,11 +233,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Size",
       key: "size",
-      status:
-        typeof extractedData.size === "string" &&
-        extractedData.size.toLowerCase() !== agentMissingInfo
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.size),
       value: extractedData.size,
       askAgentMessage: "What's the size?",
       toolTipExplainer:
@@ -239,7 +245,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Floor Plan",
       key: "floorPlan",
-      status: extractedData.floorPlan ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.floorPlan),
       value: DOMPurify.sanitize(extractedData.floorPlan ?? ""),
       askAgentMessage: "Do you have a floor plan?",
       toolTipExplainer:
@@ -414,12 +420,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.UTILITIES,
       label: "Council Tax Band",
       key: "councilTax",
-      status:
-        extractedData.councilTax &&
-        extractedData.councilTax !== agentMissingInfo &&
-        extractedData.councilTax?.toLowerCase() !== "tbc"
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
+      status: getStatusFromString(extractedData.councilTax, ["tbc"]),
       value: extractedData.councilTax,
       askAgentMessage: "What council tax band?",
       toolTipExplainer:
