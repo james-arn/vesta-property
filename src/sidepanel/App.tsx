@@ -82,6 +82,10 @@ const emptyPropertyData: ExtractedPropertyData = {
     status: null,
     reason: null,
   },
+  locationCoordinates: {
+    lat: null,
+    lng: null,
+  },
 };
 
 const App: React.FC = () => {
@@ -271,7 +275,7 @@ const App: React.FC = () => {
         </div>
         <div className="text-gray-800 ml-4">
           {(item.key === "epc" || item.key === "floorPlan") && item.value !== "Not mentioned" ? (
-            <span onClick={() => handleEpcClick(item.value ?? "")} className="cursor-pointer text-blue-500 underline">
+            <span onClick={() => handleEpcClick(String(item.value))} className="cursor-pointer text-blue-500 underline">
               Yes
             </span>
           ) : (

@@ -136,6 +136,10 @@ export async function extractPropertyDataFromDOM(
       pageModel?.propertyData?.address?.displayAddress ||
       locationElement?.textContent?.trim() ||
       null,
+    locationCoordinates: {
+      lat: pageModel?.propertyData?.location?.latitude ?? null,
+      lng: pageModel?.propertyData?.location?.longitude ?? null,
+    },
     miningImpact: miningImpactResultFromUnstructuredText,
     parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
     privateRightOfWayObligation:

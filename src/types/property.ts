@@ -1,3 +1,5 @@
+import React from "react";
+
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
   FOUND_NEGATIVE = "FOUND_NEGATIVE",
@@ -7,7 +9,7 @@ export enum DataStatus {
 export interface PropertyDataList {
   label: string;
   status: DataStatus;
-  value: string | null;
+  value: React.ReactNode;
   key: string;
   group: string;
   selected?: boolean;
@@ -64,6 +66,10 @@ export interface ExtractedPropertyData {
   size: string | null;
   tenure: string | null;
   windows: string | null;
+  locationCoordinates: {
+    lat: number | null;
+    lng: number | null;
+  };
 }
 
 export interface SaleHistoryEntry {

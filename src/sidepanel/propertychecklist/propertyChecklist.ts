@@ -1,6 +1,8 @@
+import CrimeScore from "@/components/CrimeScore";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import DOMPurify from "dompurify";
+import React from "react";
 import {
   DataStatus,
   ExtractedPropertyData,
@@ -445,6 +447,20 @@ export function generatePropertyChecklist(
         "Broadband speed refers to the speed of internet connection, measured in megabits per second (Mbps).\n\n" +
         "Faster speeds provide better internet connectivity, allowing for faster downloads, streaming, and online activities.\n\n" +
         "It's important to check the broadband speed to ensure it meets your needs, especially for work, streaming, and gaming.",
+    },
+    // Crime Score item added to asynchronously fetch and display the crime score without blocking the initial render
+    {
+      group: PropertyGroups.RISKS,
+      label: "Crime Score",
+      key: "crimeScore",
+      status: DataStatus.ASK_AGENT,
+      value: React.createElement(CrimeScore, {
+        lat: extractedData.locationCoordinates.lat?.toString() || "",
+        lng: extractedData.locationCoordinates.lng?.toString() || "",
+      }),
+      askAgentMessage: "Do you have any insights into the safety of the neighbourhood?",
+      toolTipExplainer:
+        "This metric provides insights into the safety of the neighbourhood, based on public crime data from official police sources and scored by our own proprietary algorithm.",
     },
     // TODO: ON ROADMAP...
     // construction type of the property

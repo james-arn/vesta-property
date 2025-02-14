@@ -51,7 +51,9 @@ module.exports = {
         { from: "src/injectScript.js", to: "injectScript.js" },
       ],
     }),
-    new Dotenv(),
+    new Dotenv({
+      path: `./.env.${process.env.NODE_ENV}`, // Loads .env.development or .env.production based on NODE_ENV
+    }),
     sentryWebpackPlugin({
       authToken: process.env.SENTRY_AUTH_TOKEN,
       org: "vesta-ja",

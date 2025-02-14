@@ -9,7 +9,7 @@
     "https://o4508799628738560.ingest.de.sentry.io/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io"
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://7diou06gtk.execute-api.eu-west-2.amazonaws.com"
   },
   "icons": {
     "16": "images/icon16.png",
