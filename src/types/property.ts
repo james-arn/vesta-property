@@ -4,6 +4,7 @@ export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
   FOUND_NEGATIVE = "FOUND_NEGATIVE",
   ASK_AGENT = "ASK_AGENT",
+  IS_LOADING = "IS_LOADING",
 }
 
 export interface PropertyDataList {
@@ -29,7 +30,7 @@ export interface PropertyItem {
   reason: string | null;
 }
 
-export interface ExtractedPropertyData {
+export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
   agent: AgentDetails | null;

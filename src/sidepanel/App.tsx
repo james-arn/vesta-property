@@ -6,26 +6,31 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
+import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { logErrorToSentry } from '@/utils/sentry';
+import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from "react";
 import { FaInfoCircle } from 'react-icons/fa';
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
-  ExtractedPropertyData,
+  ExtractedPropertyScrapingData,
   PropertyDataList,
 } from "../types/property";
 import {
+  extractPropertyIdFromUrl,
   filterChecklistToAllAskAgentOnlyItems,
   getStatusIcon
 } from "./helpers";
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 
-const emptyPropertyData: ExtractedPropertyData = {
+
+const emptyPropertyData: ExtractedPropertyScrapingData = {
   salePrice: null,
   location: null,
   bedrooms: null,
@@ -90,7 +95,7 @@ const emptyPropertyData: ExtractedPropertyData = {
 
 const App: React.FC = () => {
   const [propertyData, setPropertyData] =
-    useState<ExtractedPropertyData>(emptyPropertyData);
+    useState<ExtractedPropertyScrapingData>(emptyPropertyData);
   const [nonPropertyPageWarningMessage, setNoPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
@@ -103,14 +108,35 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
+  const crimeQuery = useCrimeScore(
+    propertyData.locationCoordinates.lat?.toString() || "",
+    propertyData.locationCoordinates.lng?.toString() || ""
+  );
+
 
   useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
+  const queryClient = useQueryClient();
+
 
   useEffect(() => {
     // **1. Add Message Listener First**
     const handleMessage = (message: { action: string; data?: any }) => {
       console.log("[Side Panel] Received message:", message);
+      if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+        const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
+        const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([REACT_QUERY_KEYS.PROPERTY_DATA, propertyIdFromTabUrl]);
+        if (cachedPropertyData) {
+          setPropertyData(cachedPropertyData);
+          setIsPropertyDataLoading(false);
+        } else {
+          setPropertyData(emptyPropertyData);
+          setIsPropertyDataLoading(true);
+        }
+      }
+
       if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+        // Cache the data when it's updated so it can be reused later
+        queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
         setPropertyData(message.data);
         setIsPropertyDataLoading(false);
         setNoPropertyPageWarningMessage(null);
@@ -154,9 +180,9 @@ const App: React.FC = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
-  }, []);
+  }, [queryClient]);
 
-  const propertyChecklistData = generatePropertyChecklist(propertyData);
+  const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery);
 
   const initialOpenGroups = propertyChecklistData.reduce(
     (acc, item) => {

@@ -28,10 +28,14 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 
 The project uses the following technologies:
 
+- **Chrome Extension Manifest V3:** For accessing the chrome API such as tabs.
 - **React:** A JavaScript library for building user interfaces, used to create the extension's UI.
 - **Tailwind CSS:** A utility-first CSS framework for styling the UI components.
+- **React Query** for caching and background updates.
 - **Shadcn:** A component library that provides pre-designed UI components to speed up development.
+- **AWS Lambda & API Gateway:** Not in this repo, but for handling API keys outside of client and providing crime API.
 - **Sentry** for error handling.
+- **Google Analytics** for reporting on how to improve the extension.
 
 This architecture allows for a modular and maintainable codebase, making it easier to develop and extend the extension's functionality.
 

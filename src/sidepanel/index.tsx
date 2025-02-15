@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -10,6 +11,9 @@ import App from "./App";
 initSentry();
 const container = document.getElementById("root");
 const root = createRoot(container!);
+
+const queryClient = new QueryClient()
+
 root.render(
     <ErrorBoundary
         fallback={
@@ -19,7 +23,9 @@ root.render(
             />
         }
     >
-        <App />
-        <Toaster />
+        <QueryClientProvider client={queryClient}>
+            <App />
+            <Toaster />
+        </QueryClientProvider>
     </ErrorBoundary>
 );
