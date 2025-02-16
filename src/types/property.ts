@@ -15,7 +15,7 @@ export interface PropertyDataList {
   group: string;
   selected?: boolean;
   askAgentMessage: string;
-  toolTipExplainer: string;
+  toolTipExplainer: string | React.ReactNode;
 }
 
 export interface AgentDetails {

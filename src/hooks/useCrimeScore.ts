@@ -9,6 +9,7 @@ export type CrimeScoreResponse = {
   crimeSummary: Record<string, number>;
   monthsAggregated: string[];
   totalCrimes: number;
+  trendingPercentageOver6Months: number;
 };
 
 export type CrimeScoreData = CrimeScoreResponse & {
@@ -66,6 +67,7 @@ export function useCrimeScore(lat: string, lng: string) {
     queryKey: [REACT_QUERY_KEYS.CRIME_SCORE, lat, lng],
     queryFn: () => fetchCrimeScore(lat, lng),
     staleTime: 24 * 60 * 60 * 1000, // Cache the data for 1 day
+    enabled: !!lat && !!lng,
     // Add status directly into the returned data.
     select: (data: CrimeScoreResponse): CrimeScoreData => {
       const crimeStatus =

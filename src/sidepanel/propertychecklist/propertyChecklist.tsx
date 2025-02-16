@@ -136,7 +136,7 @@ export function generatePropertyChecklist(
           ExtractedPropertyScrapingData.salesHistory.priceDiscrepancy.reason ?? ""
         ]?.toolTipExplainer ||
         "This metric shows the percentage change between the current listing price and the last sold price, " +
-          "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
+        "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
     },
     {
       group: PropertyGroups.SALES_HISTORY,
@@ -152,7 +152,7 @@ export function generatePropertyChecklist(
       })(),
       value:
         ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate !== null &&
-        typeof ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate === "number"
+          typeof ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate === "number"
           ? `${(ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate * 100).toFixed(2)}%`
           : "N/A",
       askAgentMessage: (() => {
@@ -283,7 +283,7 @@ export function generatePropertyChecklist(
       key: "windows",
       status:
         typeof ExtractedPropertyScrapingData.windows === "string" &&
-        ExtractedPropertyScrapingData.windows.toLowerCase() !== agentMissingInfo
+          ExtractedPropertyScrapingData.windows.toLowerCase() !== agentMissingInfo
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value: ExtractedPropertyScrapingData.windows,
@@ -360,10 +360,7 @@ export function generatePropertyChecklist(
       value: getCrimeScoreValue(isCrimeScoreLoading, crimeScoreData, crimeScoreError),
 
       askAgentMessage: "Do you have any insights into the safety of the neighbourhood?",
-      toolTipExplainer: `This metric provides insights into the safety of the location within a 1 mile radius within the last 6 months, based on public crime data from official police sources and scored by our own proprietary algorithm. Here's the crime summary:
-        
-      Total crimes: ${crimeScoreData?.totalCrimes}
-        ${crimeScoreData?.crimeSummary}`,
+      toolTipExplainer: "This metric provides insights into the safety of the location within a 1 mile radius over the last 6 months, based on public crime data from official sources and scored by our proprietary algorithm.",
     },
     {
       group: PropertyGroups.RISKS,
@@ -467,13 +464,13 @@ export function generatePropertyChecklist(
       key: "broadband",
       status: ExtractedPropertyScrapingData.broadband
         ? (() => {
-            const match = ExtractedPropertyScrapingData.broadband.match(
-              BROADBAND_SPEED_UNDER_10MBS_REGEX
-            );
-            return match && parseInt(match[1]) <= 10
-              ? DataStatus.ASK_AGENT
-              : DataStatus.FOUND_POSITIVE;
-          })()
+          const match = ExtractedPropertyScrapingData.broadband.match(
+            BROADBAND_SPEED_UNDER_10MBS_REGEX
+          );
+          return match && parseInt(match[1]) <= 10
+            ? DataStatus.ASK_AGENT
+            : DataStatus.FOUND_POSITIVE;
+        })()
         : DataStatus.ASK_AGENT,
       value: ExtractedPropertyScrapingData.broadband,
       askAgentMessage: "How's the broadband speed?",
