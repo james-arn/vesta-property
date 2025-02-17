@@ -294,11 +294,11 @@ const App: React.FC = () => {
     const itemCount = checklistToRender.filter(item => item.group === group).length;
     return (
       <li
-        className="mt-5 font-bold text-lg cursor-pointer flex justify-between items-center"
+        className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
         <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
-        <span>{openGroups[group] ? "▼" : "▲"}</span>
+        <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
   };
