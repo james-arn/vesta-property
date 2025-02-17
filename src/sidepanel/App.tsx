@@ -352,26 +352,28 @@ const App: React.FC = () => {
             return (
               <React.Fragment key={item.key}>
                 {showGroupHeading && renderGroupHeading(item.group)}
-                <ChecklistItem
-                  item={item}
-                  isSelected={
-                    currentStep === STEPS.SELECT_ISSUES
-                      ? selectedWarningItems.some((sel) => sel.key === item.key)
-                      : true
-                  }
-                  onItemClick={
-                    currentStep === STEPS.SELECT_ISSUES
-                      ? () => toggleSelection(item.key)
-                      : undefined
-                  }
-                  onValueClick={
-                    item.key === "epc" || item.key === "floorPlan"
-                      ? () => handleEpcClick(String(item.value))
-                      : item.key === "crimeScore"
-                        ? toggleCrimeChart
+                {openGroups[item.group] && (
+                  <ChecklistItem
+                    item={item}
+                    isSelected={
+                      currentStep === STEPS.SELECT_ISSUES
+                        ? selectedWarningItems.some((sel) => sel.key === item.key)
+                        : true
+                    }
+                    onItemClick={
+                      currentStep === STEPS.SELECT_ISSUES
+                        ? () => toggleSelection(item.key)
                         : undefined
-                  }
-                />
+                    }
+                    onValueClick={
+                      item.key === "epc" || item.key === "floorPlan"
+                        ? () => handleEpcClick(String(item.value))
+                        : item.key === "crimeScore"
+                          ? toggleCrimeChart
+                          : undefined
+                    }
+                  />
+                )}
                 {/* Dropdown crime piechart on crime score click */}
                 {item.key === "crimeScore" && (
                   <div
