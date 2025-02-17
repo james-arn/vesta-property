@@ -12,6 +12,8 @@ export const getStatusIcon = (status: DataStatus): string | React.ReactNode => {
       return "⚠️";
     case DataStatus.IS_LOADING:
       return <LoadingSpinner />
+    case DataStatus.NOT_APPLICABLE:
+      return "➖";
   }
 };
 
@@ -25,6 +27,8 @@ export const getStatusColor = (status: DataStatus): string => {
       return "orange";
     case DataStatus.IS_LOADING:
       return "gray";
+    case DataStatus.NOT_APPLICABLE:
+      return "black";
   }
 };
 

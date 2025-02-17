@@ -3,6 +3,7 @@ import React from "react";
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
   FOUND_NEGATIVE = "FOUND_NEGATIVE",
+  NOT_APPLICABLE = "NOT_APPLICABLE",
   ASK_AGENT = "ASK_AGENT",
   IS_LOADING = "IS_LOADING",
 }

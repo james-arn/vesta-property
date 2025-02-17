@@ -11,7 +11,9 @@ import {
 } from "../../types/property";
 import {
   calculateListingHistoryDetails,
+  getCAGRStatus,
   getStatusFromBoolean,
+  getVolatilityStatus,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
   priceDiscrepancyMessages,
@@ -142,14 +144,7 @@ export function generatePropertyChecklist(
       group: PropertyGroups.SALES_HISTORY,
       label: "Historical Compound Annual Growth Rate (CAGR)",
       key: "compoundAnnualGrowthRate",
-      status: (() => {
-        const historicalCAGR = ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate;
-        if (historicalCAGR === null || typeof historicalCAGR !== "number") {
-          return DataStatus.FOUND_POSITIVE; // this means no sales history, so is fine.
-        }
-        // Flag bag compound annual growth rate
-        return historicalCAGR < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
-      })(),
+      status: getCAGRStatus(ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate),
       value:
         ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate !== null &&
           typeof ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate === "number"
@@ -176,15 +171,10 @@ export function generatePropertyChecklist(
       group: PropertyGroups.SALES_HISTORY,
       label: "Volatility",
       key: "volatility",
-      status: (() => {
-        const volStr = ExtractedPropertyScrapingData.salesHistory.volatility;
-        if (!volStr) return DataStatus.ASK_AGENT;
-        const volatilityNumber = parseFloat(volStr.replace("%", ""));
-        return (!isNaN(volatilityNumber) && volatilityNumber <= volatilityThreshold) ||
-          volStr === "N/A"
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT;
-      })(),
+      status: getVolatilityStatus(
+        ExtractedPropertyScrapingData.salesHistory.volatility,
+        volatilityThreshold
+      ),
       value: ExtractedPropertyScrapingData.salesHistory.volatility,
       askAgentMessage: (() => {
         const volStr = ExtractedPropertyScrapingData.salesHistory.volatility;

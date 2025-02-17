@@ -124,7 +124,7 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
     // No previous sale data available
     const result = {
       priceDiscrepancyValue: NOT_APPLICABLE,
-      priceDiscrepancyStatus: DataStatus.FOUND_POSITIVE,
+      priceDiscrepancyStatus: DataStatus.NOT_APPLICABLE,
       priceDiscrepancyReason: PriceDiscrepancyReason.NO_PREVIOUS_SOLD_HISTORY,
       compoundAnnualGrowthRate: null,
       volatility: NOT_APPLICABLE,

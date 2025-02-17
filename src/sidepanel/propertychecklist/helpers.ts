@@ -26,9 +26,9 @@ export function getStatusFromBoolean(
     return DataStatus.ASK_AGENT;
   }
   if (value) {
-    return noIsPositive ? DataStatus.FOUND_NEGATIVE : DataStatus.FOUND_POSITIVE;
+    return noIsPositive ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
   }
-  return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+  return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
 }
 
 export function calculateListingHistoryDetails(listingHistory: string | null): {
@@ -129,3 +129,20 @@ export const priceDiscrepancyMessages: Record<
       "A negative price discrepancy indicates that the current listing price is below the previous sold price. This might mean the property is being offered at a discount or reflects a market adjustment. Please consult with the agent to clarify if this drop is deliberate or due to other factors.",
   },
 } as const;
+
+export function getVolatilityStatus(volStr: string | null, threshold: number): DataStatus {
+  if (!volStr) return DataStatus.ASK_AGENT;
+  if (volStr === "N/A") return DataStatus.NOT_APPLICABLE;
+  const volatilityNumber = parseFloat(volStr.replace("%", ""));
+  if (!isNaN(volatilityNumber) && volatilityNumber <= threshold) {
+    return DataStatus.FOUND_POSITIVE;
+  }
+  return DataStatus.ASK_AGENT;
+}
+
+export function getCAGRStatus(cagr: number | null): DataStatus {
+  if (cagr === null || typeof cagr !== "number") {
+    return DataStatus.NOT_APPLICABLE;
+  }
+  return cagr < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
+}
