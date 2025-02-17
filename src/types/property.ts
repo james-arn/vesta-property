@@ -1,18 +1,21 @@
+import React from "react";
+
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
   FOUND_NEGATIVE = "FOUND_NEGATIVE",
   ASK_AGENT = "ASK_AGENT",
+  IS_LOADING = "IS_LOADING",
 }
 
 export interface PropertyDataList {
   label: string;
   status: DataStatus;
-  value: string | null;
+  value: React.ReactNode;
   key: string;
   group: string;
   selected?: boolean;
   askAgentMessage: string;
-  toolTipExplainer: string;
+  toolTipExplainer: string | React.ReactNode;
 }
 
 export interface AgentDetails {
@@ -27,7 +30,7 @@ export interface PropertyItem {
   reason: string | null;
 }
 
-export interface ExtractedPropertyData {
+export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
   agent: AgentDetails | null;
@@ -64,6 +67,10 @@ export interface ExtractedPropertyData {
   size: string | null;
   tenure: string | null;
   windows: string | null;
+  locationCoordinates: {
+    lat: number | null;
+    lng: number | null;
+  };
 }
 
 export interface SaleHistoryEntry {

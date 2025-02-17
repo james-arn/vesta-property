@@ -1,6 +1,8 @@
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import React from 'react';
 import { DataStatus, PropertyDataList } from "../types/property";
 
-export const getStatusIcon = (status: DataStatus): string => {
+export const getStatusIcon = (status: DataStatus): string | React.ReactNode => {
   switch (status) {
     case DataStatus.FOUND_POSITIVE:
       return "✅";
@@ -8,6 +10,8 @@ export const getStatusIcon = (status: DataStatus): string => {
       return "❌";
     case DataStatus.ASK_AGENT:
       return "⚠️";
+    case DataStatus.IS_LOADING:
+      return <LoadingSpinner />
   }
 };
 
@@ -19,6 +23,8 @@ export const getStatusColor = (status: DataStatus): string => {
       return "red";
     case DataStatus.ASK_AGENT:
       return "orange";
+    case DataStatus.IS_LOADING:
+      return "gray";
   }
 };
 
@@ -27,3 +33,7 @@ export const filterChecklistToAllAskAgentOnlyItems = (
 ): PropertyDataList[] => {
   return checklist.filter((item) => item.status === DataStatus.ASK_AGENT);
 };
+
+export function extractPropertyIdFromUrl(url: string) {
+  return url.match(/\/properties\/(\d+)/)?.[1];
+}

@@ -4,13 +4,13 @@ import {
   getBroadbandInfo,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
-import { ExtractedPropertyData } from "@/types/property";
+import { ExtractedPropertyScrapingData } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
-): Promise<ExtractedPropertyData> {
+): Promise<ExtractedPropertyScrapingData> {
   if (!pageModel)
     logErrorToSentry("No page model available, attempting data only from DOM", "fatal");
 
@@ -136,6 +136,10 @@ export async function extractPropertyDataFromDOM(
       pageModel?.propertyData?.address?.displayAddress ||
       locationElement?.textContent?.trim() ||
       null,
+    locationCoordinates: {
+      lat: pageModel?.propertyData?.location?.latitude ?? null,
+      lng: pageModel?.propertyData?.location?.longitude ?? null,
+    },
     miningImpact: miningImpactResultFromUnstructuredText,
     parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
     privateRightOfWayObligation:
