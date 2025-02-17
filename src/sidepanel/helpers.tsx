@@ -1,4 +1,5 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';
 import { DataStatus, PropertyDataList } from "../types/property";
 
@@ -38,6 +39,26 @@ export const filterChecklistToAllAskAgentOnlyItems = (
   return checklist.filter((item) => item.status === DataStatus.ASK_AGENT);
 };
 
-export function extractPropertyIdFromUrl(url: string) {
-  return url.match(/\/properties\/(\d+)/)?.[1];
+export function extractPropertyIdFromUrl(url: string): string | undefined {
+  try {
+    const parsedUrl = new URL(url);
+    // Try to get propertyId from the query parameter
+    let propertyId = parsedUrl.searchParams.get("propertyId");
+    if (propertyId) return propertyId;
+
+    // Optionally, check a secondary parameter like backToPropertyURL
+    const backToPropertyURL = parsedUrl.searchParams.get("backToPropertyURL");
+    if (backToPropertyURL) {
+      const backUrl = new URL(backToPropertyURL, parsedUrl.origin);
+      propertyId = backUrl.pathname.split("/").pop() ?? null;
+      if (propertyId) return propertyId;
+    }
+
+    // Fallback: extract from the pathname (e.g. /properties/<id>)
+    const pathMatch = parsedUrl.pathname.match(/\/properties\/(\d+)/);
+    if (pathMatch) return pathMatch[1];
+  } catch (error) {
+    logErrorToSentry("Invalid URL in extractPropertyIdFromUrl" + error);
+  }
+  return undefined;
 }

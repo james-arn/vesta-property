@@ -194,7 +194,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (
     request.action === ActionEvents.SIDE_PANEL_OPENED ||
     request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
-    request.action === ActionEvents.SHOW_WARNING
+    request.action === ActionEvents.SHOW_WARNING ||
+    request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
+    request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED
   ) {
     handleToUIFromContentScriptMessage(request, sendResponse);
   }
