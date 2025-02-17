@@ -59,13 +59,11 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
   }
   // first comma is intentional, it stores 'Added on'
   const [, day, month, year] = dateMatch;
-  console.log("Parsed date:", { day, month, year });
 
   const listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   const currentDate = new Date();
   const timeDiff = currentDate.getTime() - listingDate.getTime();
   const daysOnMarket = timeDiff / (1000 * 3600 * 24);
-  console.log("Days on market:", daysOnMarket);
 
   let status = DataStatus.FOUND_POSITIVE;
   let value = listingHistory;
@@ -73,7 +71,7 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
   if (daysOnMarket > 90) {
     // More than 3 months
     const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarket);
-    value += `, this property has been on the market for ${timeOnMarket}. It's worth asking the agent why this is the case.`;
+    value += `, on the market for ${timeOnMarket}. It's worth asking the agent why.`;
     status = DataStatus.ASK_AGENT;
     console.log(
       `Property on market for more than 90 days (${timeOnMarket}), updating status to ASK_AGENT.`

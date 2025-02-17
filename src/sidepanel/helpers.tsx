@@ -1,6 +1,8 @@
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import React from 'react';
 import { DataStatus, PropertyDataList } from "../types/property";
 
-export const getStatusIcon = (status: DataStatus): string => {
+export const getStatusIcon = (status: DataStatus): string | React.ReactNode => {
   switch (status) {
     case DataStatus.FOUND_POSITIVE:
       return "✅";
@@ -9,7 +11,7 @@ export const getStatusIcon = (status: DataStatus): string => {
     case DataStatus.ASK_AGENT:
       return "⚠️";
     case DataStatus.IS_LOADING:
-      return "loading"; // this will show a loading spinner
+      return <LoadingSpinner />
   }
 };
 

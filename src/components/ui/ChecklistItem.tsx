@@ -19,7 +19,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 }) => {
     const isWarning = item.status === DataStatus.ASK_AGENT;
 
-    // Function to render the value content based on the item key.
     const renderValue = () => {
         if ((item.key === "epc" || item.key === "floorPlan") && item.value !== "Not mentioned") {
             return (
@@ -31,7 +30,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         // For crimeScore, we expect a clickable link that toggles inline expansion.
         if (item.key === "crimeScore") {
             return (
-                <span onClick={onValueClick} className="cursor-pointer text-blue-500 underline">
+                <span onClick={onValueClick} className={`${item.status !== DataStatus.IS_LOADING
+                    ? "cursor-pointer text-blue-500 underline" : ""}`}>
                     {item.value || "Not found"}
                 </span>
             );

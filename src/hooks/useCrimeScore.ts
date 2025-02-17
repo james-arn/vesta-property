@@ -32,7 +32,7 @@ export function getCrimeScoreValue(
   crimeScoreError?: Error | null
 ): string {
   if (isCrimeScoreLoading) {
-    return "Calculating crime score...";
+    return "Calculating...";
   }
   if (crimeScoreError) {
     return "Unable to find, check with agent";

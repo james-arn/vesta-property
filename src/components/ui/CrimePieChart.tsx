@@ -31,8 +31,8 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
         return (
             <Card className="flex flex-col">
                 <CardHeader className="items-center pb-0">
-                    <CardTitle className="text-lg font-bold">No crimes recorded</CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground">There have been no crimes committed in the last 6 months.</CardDescription>
+                    <CardTitle className="text-md font-bold">No crimes recorded</CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">There have been no crimes committed in the last 6 months.</CardDescription>
                 </CardHeader>
             </Card>
         );
@@ -76,8 +76,8 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
     return (
         <Card className="flex flex-col">
             <CardHeader className="items-center pb-0">
-                <CardTitle className="text-lg font-bold">Crime summary of top 5 crimes</CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">Over the last 6 months</CardDescription>
+                <CardTitle className="text-md font-bold">Top 5 crimes over last 6 months</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">Within 1 mile of this location</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-0">
                 <ChartContainer
@@ -87,7 +87,24 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
                     <PieChart>
                         <ChartTooltip
                             cursor={false}
-                            content={<ChartTooltipContent hideLabel />}
+                            content={
+                                <ChartTooltipContent
+                                    hideLabel
+                                    formatter={(value, name, item) => {
+                                        const percentage = ((value as number / totalCrimeCount) * 100).toFixed(1);
+                                        const color = item.payload.fill;
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className="inline-block w-2 h-2 rounded-full"
+                                                    style={{ backgroundColor: color }}
+                                                ></span> {/* Colour swab */}
+                                                <span>{name}</span>
+                                                <span className="ml-2">{percentage}%</span>
+                                            </div>
+                                        );
+                                    }} />
+                            }
                         />
                         <Pie
                             data={chartData}
@@ -104,12 +121,12 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
                                                 x={viewBox.cx}
                                                 y={viewBox.cy}
                                                 textAnchor="middle"
-                                                dominantBaseline="middle"
+                                                dominantBaseline="low"
                                             >
                                                 <tspan
                                                     x={viewBox.cx}
                                                     y={viewBox.cy}
-                                                    className="fill-foreground text-3xl font-bold"
+                                                    className="fill-foreground text-2xl font-bold"
                                                 >
                                                     {totalCrimes?.toLocaleString()}
                                                 </tspan>
@@ -129,9 +146,9 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
                     </PieChart>
                 </ChartContainer>
             </CardContent>
-            <CardFooter className="flex-col gap-2 text-sm">
-                <div className="flex items-center gap-2 font-medium leading-none text-sm">
-                    Trending {trendDirectionUpOrDownText} {trendPercentage}% in the last 6 months <TrendIcon className="h-4 w-4" />
+            <CardFooter className="flex-col gap-2 text-xs">
+                <div className="flex items-center gap-2 font-medium leading-none text-xs">
+                    Trending {trendDirectionUpOrDownText} by {trendPercentage}%<TrendIcon className="h-4 w-4" />
                 </div>
             </CardFooter>
         </Card>

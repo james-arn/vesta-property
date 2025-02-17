@@ -372,6 +372,7 @@ const App: React.FC = () => {
                         : undefined
                   }
                 />
+                {/* Dropdown crime piechart on crime score click */}
                 {item.key === "crimeScore" && (
                   <div
                     ref={crimeContentRef}
