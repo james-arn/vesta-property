@@ -36,7 +36,7 @@ const Feedback: React.FC = () => {
     };
 
     const submitReview = () => {
-        chrome.tabs.create({ url: CHROME_EXTENSION_STORE_REVIEW_URL }); // TODO: when published, update url
+        chrome.tabs.create({ url: CHROME_EXTENSION_STORE_REVIEW_URL });
         setFeedback("reviewingInChromeStore");
     };
 
