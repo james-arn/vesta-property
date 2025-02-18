@@ -117,7 +117,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // **1. Add Message Listener First**
-    const handleMessage = (message: { action: string; data?: any }) => {
+    const handleMessage = (message: { action: string; data?: any }, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
       console.log("[Side Panel] Received message:", message);
       if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
         const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
@@ -153,6 +153,9 @@ const App: React.FC = () => {
         console.log("[Side Panel] AGENT_CONTACT_FORM_SUBMITTED message received");
         setCurrentStep(STEPS.EMAIL_SENT);
       }
+
+      // Send response back to the sender for every message received
+      sendResponse({ status: "acknowledged", action: message.action });
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);

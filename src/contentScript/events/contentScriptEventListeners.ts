@@ -26,6 +26,7 @@ export function setupContentScriptEventListeners() {
       console.log("Content Script: Current URL:", currentUrl);
       if (currentUrl.startsWith("https://www.rightmove.co.uk/property-for-sale/contactBranch")) {
         // No action needed, as the sidebar can use the step directly
+        sendResponse({ status: "ok", message: "No action taken for contactBranch URL" });
       } else if (currentUrl.includes("rightmove.co.uk/properties/")) {
         const propertyData = await extractPropertyDataFromDOM(pageModel);
         console.log("Content Script: Extracted property data:", propertyData);
@@ -34,6 +35,7 @@ export function setupContentScriptEventListeners() {
           action: ActionEvents.UPDATE_PROPERTY_DATA,
           data: propertyData,
         });
+        sendResponse({ status: "ok", message: "tab changed/extension opened, sent property data" });
       } else {
         console.log(
           "Content Script: URL does not match the desired pattern. Sending warning message."
@@ -42,7 +44,9 @@ export function setupContentScriptEventListeners() {
           action: ActionEvents.SHOW_WARNING,
           data: "Please open a property page on rightmove.co.uk.",
         });
+        sendResponse({ status: "error", message: "URL not matching pattern" });
       }
+      return true;
     }
     if (request.action === ActionEvents.NAVIGATE_TO_CONTACT_AGENT_PAGE) {
       const selectedWarningItems: PropertyDataList[] = request.data.selectedWarningItems;
@@ -52,11 +56,14 @@ export function setupContentScriptEventListeners() {
 
         // Navigate to the new URL
         window.location.href = request.data.url;
+        sendResponse({ status: "ok", message: "Navigating to contact agent page." });
       });
+      return true;
     }
 
     if (request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING) {
       window.location.href = request.data.url;
+      sendResponse({ status: "ok", message: "Navigating back to property listing" });
     }
   });
 

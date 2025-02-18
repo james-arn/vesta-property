@@ -31,10 +31,11 @@ function sendWarningMessage(logMessage: string) {
 }
 
 // Function to update the stored URL and send a message
-function handleInitialLoadOrTabChange() {
+function handleInitialLoadOrTabChange(sendResponse: (response: ResponseType) => void) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].url) {
       logErrorToSentry("No active tab found or tab has no URL.", "warning");
+      sendResponse({ status: "No active tab found or tab has no URL" });
       return;
     }
 
@@ -43,11 +44,13 @@ function handleInitialLoadOrTabChange() {
 
     if (typeof tabId !== "number") {
       console.warn("Tab has no valid ID.");
+      sendResponse({ status: "Tab has no valid ID" });
       return;
     }
 
     if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
       sendWarningMessage("Internal Chrome page detected. Sending warning directly.");
+      sendResponse({ status: "Internal Chrome page detected" });
       return;
     }
 
@@ -62,20 +65,25 @@ function handleInitialLoadOrTabChange() {
         if (chrome.runtime.lastError?.message?.includes("Could not establish connection")) {
           sendWarningMessage("Content script not loaded. Sending warning directly.");
         }
+        sendResponse({ status: "Error sending message to tab" });
       } else {
         console.log("[background.ts] Message sent successfully:", response);
+        sendResponse({ status: "Message sent successfully" });
       }
     });
   });
 }
 
 // Tab activation changes
-chrome.tabs.onActivated.addListener(handleInitialLoadOrTabChange);
-
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  handleInitialLoadOrTabChange(() => {});
+});
 // Tab updates (e.g., when the URL changes)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.active) {
-    handleInitialLoadOrTabChange();
+    handleInitialLoadOrTabChange((response) => {
+      console.log("[background.ts] Tab updated response:", response);
+    });
   }
 });
 
@@ -83,7 +91,9 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.tabs.onCreated.addListener((tab) => {
   console.log("[background.ts] New tab created:", tab);
   // Handle initial load or tab change for the new tab
-  handleInitialLoadOrTabChange();
+  handleInitialLoadOrTabChange((response) => {
+    console.log("[background.ts] New tab response:", response);
+  });
 });
 
 // Set panel behavior and update URL when the panel is opened
@@ -91,11 +101,15 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => logErrorToSentry(error));
 
-function handleToContentScriptFromUIMessage(request: MessageRequest) {
+function handleToContentScriptFromUIMessage(
+  request: MessageRequest,
+  sendResponse: (response: ResponseType) => void
+) {
   const { action, data } = request;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].id) {
       logErrorToSentry("background.ts: No active tab found.", "warning");
+      sendResponse({ status: "No active tab found" });
       return;
     }
     const tabId = tabs[0].id;
@@ -125,6 +139,7 @@ function handleToContentScriptFromUIMessage(request: MessageRequest) {
       default:
         console.warn("Unhandled action type:", action);
     }
+    sendResponse({ status: "Message recieved in background.ts" });
   });
 }
 
@@ -134,7 +149,9 @@ function handleToUIFromContentScriptMessage(
 ) {
   if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
     console.log("[background.ts] Side panel opened");
-    handleInitialLoadOrTabChange();
+    handleInitialLoadOrTabChange((response) => {
+      console.log("[background.ts] Side panel response:", response);
+    });
     sendResponse({ status: "Handled side panel opened" });
   }
 
@@ -145,10 +162,10 @@ function handleToUIFromContentScriptMessage(
       (response) => {
         if (chrome.runtime.lastError) {
           logErrorToSentry(chrome.runtime.lastError);
-        } else {
-          console.log("[background.ts] Message forwarded to UI:", request);
-          console.log("[background.ts] Response:", response);
         }
+        console.log("[background.ts] Message forwarded to UI:", request);
+        console.log("[background.ts] Response:", response);
+        sendResponse({ status: "Property data update handled" });
       }
     );
   }
@@ -165,6 +182,7 @@ function handleToUIFromContentScriptMessage(
         }
       }
     );
+    sendResponse({ status: "Warning message handled" });
   }
   if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
     console.log("[background.ts] Rightmove sign in message received");
@@ -175,6 +193,7 @@ function handleToUIFromContentScriptMessage(
         console.log("[background.ts] Message forwarded to UI:", request);
       }
     });
+    sendResponse({ status: "Rightmove sign in page opened handled" });
   }
   if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
     console.log("[background.ts] Rightmove sign in completed message received");
@@ -185,6 +204,7 @@ function handleToUIFromContentScriptMessage(
         console.log("[background.ts] Message forwarded to UI:", request);
       }
     });
+    sendResponse({ status: "Rightmove sign in completed handled" });
   }
 }
 
@@ -206,7 +226,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM ||
     request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING
   ) {
-    handleToContentScriptFromUIMessage(request);
+    handleToContentScriptFromUIMessage(request, sendResponse);
   }
 
   // Listen for form submission messages from the content script
@@ -216,6 +236,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.runtime.sendMessage({
       action: ActionEvents.AGENT_CONTACT_FORM_SUBMITTED,
     });
+    sendResponse({ status: "Agent contact form submitted handled" });
   }
 });
 
