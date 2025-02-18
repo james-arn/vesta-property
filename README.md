@@ -10,7 +10,7 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 
 1. Clone the repository
 2. Run `npm install`
-3. Run `npm run build`
+3. Run `npm run build:dev` or `npm run build:prod` depending on which enviornment you want. Note: production strips out all console.logs
 4. Open chrome and go to `chrome://extensions/`
 5. Click on `Load unpacked`
 6. Select the `dist` folder
@@ -19,7 +19,7 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 
 ## Running the project ongoing
 
-1. Run `npm run watch` -this will watch for changes and rebuild the project
+1. Run `npm run watch:dev or npm run watch:prod` -this will watch for changes and rebuild the project
 2. Open chrome and go to `chrome://extensions/`
 3. Click on `Update`
 4. You can now see the update.
@@ -28,9 +28,14 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 
 The project uses the following technologies:
 
+- **Chrome Extension Manifest V3:** For accessing the chrome API such as tabs.
 - **React:** A JavaScript library for building user interfaces, used to create the extension's UI.
 - **Tailwind CSS:** A utility-first CSS framework for styling the UI components.
+- **React Query** for caching and background updates.
 - **Shadcn:** A component library that provides pre-designed UI components to speed up development.
+- **AWS Lambda & API Gateway:** Not in this repo, but for handling API keys outside of client and providing crime API.
+- **Sentry** for error handling.
+- **Google Analytics** for reporting on how to improve the extension.
 
 This architecture allows for a modular and maintainable codebase, making it easier to develop and extend the extension's functionality.
 
@@ -48,3 +53,12 @@ Chrome extensions (Manifest V3) are composed of different components that work t
   Debug by: right clicking on the webpage (not sidebar) and clicking inspect.
 
 These components communicate with each other using message passing, allowing the extension to perform complex tasks by coordinating actions between the UI, background script, and content script.
+
+## Publishing the extension to chrome web store
+
+When publishing your extension to the Chrome Web Store, you only need to upload the production build – not your entire project. Typically, this means you should:
+
+1. Run your production build (using `npm run build:prod`) to generate the `dist` folder.
+2. Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
+3. Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
+4. Upload that zip file during the extension submission process.

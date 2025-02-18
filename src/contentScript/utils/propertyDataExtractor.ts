@@ -4,24 +4,27 @@ import {
   getBroadbandInfo,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
-import { ExtractedPropertyData } from "@/types/property";
+import { ExtractedPropertyScrapingData } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
+import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
-
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
-): Promise<ExtractedPropertyData> {
-  if (!pageModel) console.error("No page model available, attempting data only from DOM");
+): Promise<ExtractedPropertyScrapingData> {
+  if (!pageModel)
+    logErrorToSentry("No page model available, attempting data only from DOM", "fatal");
 
   // Page model extraction
   const {
     heating: heatingFromUnstructuredText,
     windows: windowsFromUnstructuredText,
     garden: gardenFromUnstructuredText,
+    bathroom: bathroomFromUnstructuredText,
     accessibility: accessibilityFromUnstructuredText,
     buildingSafety: buildingSafetyResultFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
     miningImpact: miningImpactResultFromUnstructuredText,
+    listedProperty: listedPropertyFromUnstructuredText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
   const epc =
@@ -86,6 +89,7 @@ export async function extractPropertyDataFromDOM(
   const isRental = isRentalProperty(pageModel);
 
   return {
+    propertyId: pageModel?.propertyData?.id ?? null,
     accessibility:
       pageModel?.propertyData?.features?.accessibility &&
       pageModel?.propertyData?.features?.accessibility?.length > 0
@@ -100,7 +104,11 @@ export async function extractPropertyDataFromDOM(
       contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
       phoneNumber: phoneNumber,
     },
-    bathrooms: pageModel?.propertyData?.bathrooms?.toString() || bathroomsElement || null,
+    bathrooms:
+      pageModel?.propertyData?.bathrooms?.toString() ||
+      bathroomsElement ||
+      bathroomFromUnstructuredText ||
+      null,
     bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
     broadband: getBroadbandInfo(pageModel),
     buildingSafety: buildingSafetyResultFromUnstructuredText,
@@ -122,12 +130,16 @@ export async function extractPropertyDataFromDOM(
       heatingFromUnstructuredText ||
       "Not mentioned",
     isRental,
-    listedProperty: pageModel?.propertyData?.features?.obligations?.listed ?? null,
+    listedProperty: listedPropertyFromUnstructuredText ?? null,
     listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
     location:
       pageModel?.propertyData?.address?.displayAddress ||
       locationElement?.textContent?.trim() ||
       null,
+    locationCoordinates: {
+      lat: pageModel?.propertyData?.location?.latitude ?? null,
+      lng: pageModel?.propertyData?.location?.longitude ?? null,
+    },
     miningImpact: miningImpactResultFromUnstructuredText,
     parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
     privateRightOfWayObligation:

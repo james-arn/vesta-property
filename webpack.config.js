@@ -1,10 +1,14 @@
+const Dotenv = require("dotenv-webpack");
+const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
+
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
-  mode: "development",
+  mode: process.env.NODE_ENV || "development",
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
     background: "./src/background.ts",
@@ -47,6 +51,25 @@ module.exports = {
         { from: "src/injectScript.js", to: "injectScript.js" },
       ],
     }),
+    new Dotenv({
+      path: `./.env.${process.env.NODE_ENV}`, // Loads .env.development or .env.production based on NODE_ENV
+    }),
+    sentryWebpackPlugin({
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      org: "vesta-ja",
+      project: "vesta",
+    }),
   ],
   devtool: "source-map",
+  optimization: {
+    minimizer: [
+      new TerserPlugin({
+        terserOptions: {
+          compress: {
+            drop_console: true,
+          },
+        },
+      }),
+    ],
+  },
 };

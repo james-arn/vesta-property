@@ -26,9 +26,9 @@ export function getStatusFromBoolean(
     return DataStatus.ASK_AGENT;
   }
   if (value) {
-    return noIsPositive ? DataStatus.FOUND_NEGATIVE : DataStatus.FOUND_POSITIVE;
+    return noIsPositive ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
   }
-  return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+  return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
 }
 
 export function calculateListingHistoryDetails(listingHistory: string | null): {
@@ -59,13 +59,11 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
   }
   // first comma is intentional, it stores 'Added on'
   const [, day, month, year] = dateMatch;
-  console.log("Parsed date:", { day, month, year });
 
   const listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   const currentDate = new Date();
   const timeDiff = currentDate.getTime() - listingDate.getTime();
   const daysOnMarket = timeDiff / (1000 * 3600 * 24);
-  console.log("Days on market:", daysOnMarket);
 
   let status = DataStatus.FOUND_POSITIVE;
   let value = listingHistory;
@@ -73,7 +71,7 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
   if (daysOnMarket > 90) {
     // More than 3 months
     const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarket);
-    value += `, this property has been on the market for ${timeOnMarket}. It's worth asking the agent why this is the case.`;
+    value += `, on the market for ${timeOnMarket}. It's worth asking the agent why.`;
     status = DataStatus.ASK_AGENT;
     console.log(
       `Property on market for more than 90 days (${timeOnMarket}), updating status to ASK_AGENT.`
@@ -131,3 +129,20 @@ export const priceDiscrepancyMessages: Record<
       "A negative price discrepancy indicates that the current listing price is below the previous sold price. This might mean the property is being offered at a discount or reflects a market adjustment. Please consult with the agent to clarify if this drop is deliberate or due to other factors.",
   },
 } as const;
+
+export function getVolatilityStatus(volStr: string | null, threshold: number): DataStatus {
+  if (!volStr) return DataStatus.ASK_AGENT;
+  if (volStr === "N/A") return DataStatus.NOT_APPLICABLE;
+  const volatilityNumber = parseFloat(volStr.replace("%", ""));
+  if (!isNaN(volatilityNumber) && volatilityNumber <= threshold) {
+    return DataStatus.FOUND_POSITIVE;
+  }
+  return DataStatus.ASK_AGENT;
+}
+
+export function getCAGRStatus(cagr: number | null): DataStatus {
+  if (cagr === null || typeof cagr !== "number") {
+    return DataStatus.NOT_APPLICABLE;
+  }
+  return cagr < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
+}

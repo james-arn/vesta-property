@@ -1,28 +1,29 @@
+import Alert from '@/components/ui/Alert';
+import { ChecklistItem } from "@/components/ui/ChecklistItem";
+import { CrimePieChart } from "@/components/ui/CrimePieChart";
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
+import { useCrimeScore } from '@/hooks/useCrimeScore';
+import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
-import React, { useEffect, useState } from "react";
-import { FaInfoCircle } from 'react-icons/fa';
+import { useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
-  ExtractedPropertyData,
+  ExtractedPropertyScrapingData,
   PropertyDataList,
 } from "../types/property";
 import {
-  filterChecklistToAllAskAgentOnlyItems,
-  getStatusIcon
+  extractPropertyIdFromUrl,
+  filterChecklistToAllAskAgentOnlyItems
 } from "./helpers";
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 
-const emptyPropertyData: ExtractedPropertyData = {
+
+const emptyPropertyData: ExtractedPropertyScrapingData = {
   salePrice: null,
   location: null,
   bedrooms: null,
@@ -30,6 +31,7 @@ const emptyPropertyData: ExtractedPropertyData = {
   councilTax: null,
   size: null,
   propertyType: null,
+  propertyId: null,
   tenure: null,
   parking: null,
   heating: null,
@@ -41,7 +43,11 @@ const emptyPropertyData: ExtractedPropertyData = {
   windows: null,
   publicRightOfWayObligation: null,
   privateRightOfWayObligation: null,
-  listedProperty: null,
+  listedProperty: {
+    value: null,
+    status: null,
+    reason: null,
+  },
   restrictions: null,
   floodDefences: null,
   floodSources: null,
@@ -74,12 +80,16 @@ const emptyPropertyData: ExtractedPropertyData = {
     status: null,
     reason: null,
   },
+  locationCoordinates: {
+    lat: null,
+    lng: null,
+  },
 };
 
 const App: React.FC = () => {
   const [propertyData, setPropertyData] =
-    useState<ExtractedPropertyData>(emptyPropertyData);
-  const [nonPropertyPageWarningMessage, setNoPropertyPageWarningMessage] = useState<string | null>(null);
+    useState<ExtractedPropertyScrapingData>(emptyPropertyData);
+  const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
     // Add more filters here
@@ -91,52 +101,100 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
+  const crimeQuery = useCrimeScore(
+    propertyData.locationCoordinates.lat?.toString() || "",
+    propertyData.locationCoordinates.lng?.toString() || ""
+  );
+
+  const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
+  const crimeContentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
+  const queryClient = useQueryClient();
+
+
+  useEffect(function tellBackgroundSideBarOpened() {
+    chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
+      console.log('SIDE_PANEL_OPENED response:', response);
+    });
+  }, [])
 
   useEffect(() => {
-    // **1. Add Message Listener First**
-    const handleMessage = (message: { action: string; data?: any }) => {
+    const handleMessage = (
+      message: { action: string; data?: any },
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response: any) => void
+    ) => {
       console.log("[Side Panel] Received message:", message);
-      if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+
+      if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+        console.log('TAB_CHANGED_OR_EXTENSION_OPENED hit')
+        const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
+        // If no valid property ID is found, show the warning message.
+        if (!propertyIdFromTabUrl) {
+          console.log('!propertyIdFromTabUrl')
+          setNonPropertyPageWarningMessage("Please open a property page on rightmove.co.uk.");
+          setIsPropertyDataLoading(false);
+          setPropertyData(emptyPropertyData);
+        } else {
+          console.log('urlvalid')
+          // URL is valid – clear any existing warning and try to load cached data.
+          setNonPropertyPageWarningMessage(null);
+          setIsPropertyDataLoading(true);
+          const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
+            REACT_QUERY_KEYS.PROPERTY_DATA,
+            propertyIdFromTabUrl,
+          ]);
+          if (cachedPropertyData) {
+            console.log('cached')
+
+            setPropertyData(cachedPropertyData);
+            setIsPropertyDataLoading(false);
+          } else {
+            console.log('not-cached')
+            setPropertyData(emptyPropertyData);
+          }
+        }
+      } else if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+        // Once data is updated, update cache
+        queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
         setPropertyData(message.data);
         setIsPropertyDataLoading(false);
-        setNoPropertyPageWarningMessage(null);
+        setNonPropertyPageWarningMessage(null);
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
-        setNoPropertyPageWarningMessage(message.data || null);
+        console.log('showing warning')
+
+        setNonPropertyPageWarningMessage(message.data || null);
+        setIsPropertyDataLoading(false);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);
+      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
+        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_PAGE_OPENED message received");
+        setCurrentStep(STEPS.RIGHTMOVE_SIGN_IN);
+      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
+        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_COMPLETED message received");
+        setCurrentStep(STEPS.REVIEW_MESSAGE);
       } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
         console.log("[Side Panel] AGENT_CONTACT_FORM_SUBMITTED message received");
         setCurrentStep(STEPS.EMAIL_SENT);
       }
+
+      sendResponse({ status: "acknowledged", action: message.action });
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [queryClient]);
 
-    // **2. Send 'SIDE_PANEL_OPENED' Message After Listener is Set Up**
-    console.log(
-      "[Side Panel] Component mounted. Sending SIDE_PANEL_OPENED message."
-    );
-    chrome.runtime.sendMessage(
-      { action: ActionEvents.SIDE_PANEL_OPENED },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            "[Side Panel] Error sending SIDE_PANEL_OPENED message:",
-            chrome.runtime.lastError
-          );
-        } else {
-          console.log("[Side Panel] Background response:", response);
-        }
-      }
-    );
+  useEffect(() => {
+    if (crimeContentRef.current) {
+      setContentHeight(crimeContentRef.current.scrollHeight);
+    }
+  }, [crimeChartExpanded, crimeQuery.data]);
 
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, []);
-
-  const propertyChecklistData = generatePropertyChecklist(propertyData);
+  const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery);
 
   const initialOpenGroups = propertyChecklistData.reduce(
     (acc, item) => {
@@ -208,8 +266,8 @@ const App: React.FC = () => {
             });
           }
           return STEPS.REVIEW_MESSAGE;
-        // no review message button - it's handled with user submission in rightmove itself 
-        // & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
+        // No review message button - it's handled with user submission in rightmove itself & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
+        // No sign in step button - it's handled with user submission in rightmove itself & through the message actionevents.RIGHTMOVE_SIGN_IN
         case STEPS.EMAIL_SENT:
           const propertyListingUrl = propertyData.copyLinkUrl
             ? propertyData.copyLinkUrl.split("?")[0]
@@ -236,82 +294,51 @@ const App: React.FC = () => {
     });
   };
 
-  const renderChecklistItem = (item: PropertyDataList) => {
-    const isSelected = selectedWarningItems.some(
-      (selectedItem) => selectedItem.key === item.key
-    );
-    const isWarning = item.status === DataStatus.ASK_AGENT;
-    return (
-      <li
-        key={item.key}
-        className={`grid grid-cols-[1rem_90px_1fr_2rem] items-center p-2 bg-gray-100 rounded-md my-1 ${currentStep === STEPS.SELECT_ISSUES && !isSelected ? 'opacity-30' : ''} ${isWarning ? 'border border-yellow-400' : ''}`}
-        onClick={() => currentStep === STEPS.SELECT_ISSUES && toggleSelection(item.key)}
-      >
-        <div className="flex items-center justify-start">
-          {getStatusIcon(item.status)}
-        </div>
-        <div className="flex items-center ml-2">
-          <span>{item.label}</span>
-        </div>
-        <div className="text-gray-800 ml-4">
-          {(item.key === "epc" || item.key === "floorPlan") && item.value !== "Not mentioned" ? (
-            <span onClick={() => handleEpcClick(item.value ?? "")} className="cursor-pointer text-blue-500 underline">
-              Yes
-            </span>
-          ) : (
-            <span>{item.value || "Not found"}</span>
-          )}
-        </div>
-        <div className="flex items-center justify-center ml-4">
-          <TooltipProvider>
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <FaInfoCircle className="cursor-pointer" />
-              </TooltipTrigger>
-              <TooltipContent side="right" align="center" className="w-[200px] whitespace-pre-line">
-                {item.toolTipExplainer}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </li>
-    );
+  const toggleCrimeChart = () => {
+    setCrimeChartExpanded((prev) => !prev);
   };
+
 
   const renderGroupHeading = (group: string) => {
     const itemCount = checklistToRender.filter(item => item.group === group).length;
     return (
       <li
-        className="mt-5 font-bold text-lg cursor-pointer flex justify-between items-center"
+        className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
         <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
-        <span>{openGroups[group] ? "▼" : "▲"}</span>
+        <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
   };
+
+
+  if (nonPropertyPageWarningMessage) {
+    return (
+      <Alert
+        type="warning"
+        message={nonPropertyPageWarningMessage}
+      />
+    );
+  }
 
   if (isPropertyDataLoading) {
     return <SideBarLoading />;
   }
 
-  if (nonPropertyPageWarningMessage) {
-    return (
-      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
-        {nonPropertyPageWarningMessage}
-      </div>
-    );
-  }
-
   return (
     <>
+      {nonPropertyPageWarningMessage && (
+        <Alert
+          type="warning"
+          message={nonPropertyPageWarningMessage}
+        />
+      )}
       {propertyData.isRental && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md shadow-md">
-          <p>
-            Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent.<br /><br />
-            You can still use the tool but some features may not work as expected.
-          </p>
-        </div>
+        <Alert
+          type="warning"
+          message="Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent. You can still use the tool but some features may not work as expected."
+        />
       )}
       <div className="p-4">
         <SettingsBar
@@ -332,16 +359,50 @@ const App: React.FC = () => {
             return (
               <React.Fragment key={item.key}>
                 {showGroupHeading && renderGroupHeading(item.group)}
-                <div
-                  style={{
-                    maxHeight: openGroups[item.group] ? "1000px" : "0",
-                    overflow: "hidden",
-                    transition: "max-height 0.3s ease, opacity 0.3s ease",
-                    opacity: openGroups[item.group] ? 1 : 0,
-                  }}
-                >
-                  {renderChecklistItem(item)}
-                </div>
+                {openGroups[item.group] && (
+                  <ChecklistItem
+                    item={item}
+                    isSelected={
+                      currentStep === STEPS.SELECT_ISSUES
+                        ? selectedWarningItems.some((sel) => sel.key === item.key)
+                        : true
+                    }
+                    onItemClick={
+                      currentStep === STEPS.SELECT_ISSUES
+                        ? () => toggleSelection(item.key)
+                        : undefined
+                    }
+                    onValueClick={
+                      item.key === "epc" || item.key === "floorPlan"
+                        ? () => handleEpcClick(String(item.value))
+                        : item.key === "crimeScore"
+                          ? toggleCrimeChart
+                          : undefined
+                    }
+                  />
+                )}
+                {/* Dropdown crime piechart on crime score click */}
+                {item.key === "crimeScore" && (
+                  <div
+                    ref={crimeContentRef}
+                    style={{
+                      maxHeight: crimeChartExpanded ? `${contentHeight}px` : "0",
+                      opacity: crimeChartExpanded ? 1 : 0,
+                      overflow: "hidden",
+                      transition: "max-height 0.3s ease, opacity 0.3s ease",
+                    }}
+                  >
+                    {crimeQuery.data && (
+                      <CrimePieChart
+                        crimeSummary={crimeQuery.data.crimeSummary}
+                        totalCrimes={crimeQuery.data.totalCrimes}
+                        trendingPercentageOver6Months={
+                          crimeQuery.data.trendingPercentageOver6Months
+                        }
+                      />
+                    )}
+                  </div>
+                )}
               </React.Fragment>
             );
           })}

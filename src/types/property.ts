@@ -1,18 +1,22 @@
+import React from "react";
+
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
   FOUND_NEGATIVE = "FOUND_NEGATIVE",
+  NOT_APPLICABLE = "NOT_APPLICABLE",
   ASK_AGENT = "ASK_AGENT",
+  IS_LOADING = "IS_LOADING",
 }
 
 export interface PropertyDataList {
   label: string;
   status: DataStatus;
-  value: string | null;
+  value: React.ReactNode;
   key: string;
   group: string;
   selected?: boolean;
   askAgentMessage: string;
-  toolTipExplainer: string;
+  toolTipExplainer: string | React.ReactNode;
 }
 
 export interface AgentDetails {
@@ -21,20 +25,21 @@ export interface AgentDetails {
   phoneNumber: string | null;
 }
 
-interface TermResult {
+export interface PropertyItem {
   value: string | null;
   status: DataStatus | null;
   reason: string | null;
 }
 
-export interface ExtractedPropertyData {
+export interface ExtractedPropertyScrapingData {
+  propertyId: string | null;
   accessibility: string | null;
   agent: AgentDetails | null;
   bathrooms: string | null;
   bedrooms: string | null;
   broadband: string | null;
-  buildingSafety: TermResult;
-  coastalErosion: TermResult;
+  buildingSafety: PropertyItem;
+  coastalErosion: PropertyItem;
   copyLinkUrl: string | null;
   councilTax: string | null;
   epc: string | null;
@@ -45,10 +50,10 @@ export interface ExtractedPropertyData {
   garden: string | null;
   heating: string | null;
   isRental: boolean;
-  listedProperty: boolean | null;
+  listedProperty: PropertyItem;
   listingHistory: string | null;
   location: string | null;
-  miningImpact: TermResult;
+  miningImpact: PropertyItem;
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
   propertyType: string | null;
@@ -56,13 +61,17 @@ export interface ExtractedPropertyData {
   restrictions: boolean | null;
   salePrice: string | null;
   salesHistory: {
-    priceDiscrepancy: TermResult;
+    priceDiscrepancy: PropertyItem;
     compoundAnnualGrowthRate: number | null;
     volatility: string | null;
   };
   size: string | null;
   tenure: string | null;
   windows: string | null;
+  locationCoordinates: {
+    lat: number | null;
+    lng: number | null;
+  };
 }
 
 export interface SaleHistoryEntry {
