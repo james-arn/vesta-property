@@ -26,7 +26,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": ["https://www.rightmove.co.uk/*"],
       "js": ["contentScript.js"],
       "run_at": "document_end"
     }
@@ -38,7 +38,7 @@
   "web_accessible_resources": [
     {
       "resources": ["injectScript.js"],
-      "matches": ["<all_urls>"]
+      "matches": ["https://www.rightmove.co.uk/*"]
     }
   ],
   "side_panel": {

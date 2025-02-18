@@ -7,7 +7,6 @@ import { STEPS } from "@/constants/steps";
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
-import { logErrorToSentry } from '@/utils/sentry';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
@@ -116,23 +115,30 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    // **1. Add Message Listener First**
-    const handleMessage = (message: { action: string; data?: any }, sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+    const handleMessage = (
+      message: { action: string; data?: any },
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response: any) => void
+    ) => {
       console.log("[Side Panel] Received message:", message);
       if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+        setNoPropertyPageWarningMessage(null);
+        setIsPropertyDataLoading(true);
+
+        // Try to load cached data.
         const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
-        const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([REACT_QUERY_KEYS.PROPERTY_DATA, propertyIdFromTabUrl]);
+        const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
+          REACT_QUERY_KEYS.PROPERTY_DATA,
+          propertyIdFromTabUrl,
+        ]);
         if (cachedPropertyData) {
           setPropertyData(cachedPropertyData);
           setIsPropertyDataLoading(false);
         } else {
           setPropertyData(emptyPropertyData);
-          setIsPropertyDataLoading(true);
         }
-      }
-
-      if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
-        // Cache the data when it's updated so it can be reused later
+      } else if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
+        // Once data is updated, update cache
         queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
         setPropertyData(message.data);
         setIsPropertyDataLoading(false);
@@ -154,32 +160,11 @@ const App: React.FC = () => {
         setCurrentStep(STEPS.EMAIL_SENT);
       }
 
-      // Send response back to the sender for every message received
       sendResponse({ status: "acknowledged", action: message.action });
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
-
-    // **2. Send 'SIDE_PANEL_OPENED' Message After Listener is Set Up**
-    console.log(
-      "[Side Panel] Component mounted. Sending SIDE_PANEL_OPENED message."
-    );
-    chrome.runtime.sendMessage(
-      { action: ActionEvents.SIDE_PANEL_OPENED },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          logErrorToSentry(
-            chrome.runtime.lastError
-          );
-        } else {
-          console.log("[Side Panel] Background response:", response);
-        }
-      }
-    );
-
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, [queryClient]);
 
   useEffect(() => {
@@ -326,14 +311,12 @@ const App: React.FC = () => {
         <Alert
           type="warning"
           message={nonPropertyPageWarningMessage}
-          onClose={() => setNoPropertyPageWarningMessage(null)}
         />
       )}
       {propertyData.isRental && (
         <Alert
           type="warning"
           message="Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent. You can still use the tool but some features may not work as expected."
-          onClose={() => setNoPropertyPageWarningMessage(null)}
         />
       )}
       <div className="p-4">

@@ -31,69 +31,114 @@ function sendWarningMessage(logMessage: string) {
 }
 
 // Function to update the stored URL and send a message
-function handleInitialLoadOrTabChange(sendResponse: (response: ResponseType) => void) {
+function handleInitialLoadOrTabChange(
+  sendResponse: (response: ResponseType) => void,
+  retry: number = 6,
+  specificTab?: chrome.tabs.Tab
+) {
+  if (specificTab) {
+    processTab(specificTab, sendResponse);
+    return;
+  }
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length === 0 || !tabs[0].url) {
+      if (retry > 0) {
+        // Try again after a short delay (e.g. 500ms)
+        setTimeout(() => {
+          handleInitialLoadOrTabChange(sendResponse, retry - 1);
+        }, 500);
+        return;
+      }
+
       logErrorToSentry("No active tab found or tab has no URL.", "warning");
       sendResponse({ status: "No active tab found or tab has no URL" });
       return;
     }
-
-    const currentUrl = tabs[0].url;
-    const tabId = tabs[0]?.id;
-
-    if (typeof tabId !== "number") {
-      console.warn("Tab has no valid ID.");
-      sendResponse({ status: "Tab has no valid ID" });
-      return;
-    }
-
-    if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
-      sendWarningMessage("Internal Chrome page detected. Sending warning directly.");
-      sendResponse({ status: "Internal Chrome page detected" });
-      return;
-    }
-
-    const message: NavigatedUrlOrTabChangedOrExtensionOpenedMessage = {
-      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
-      data: currentUrl,
-    };
-    console.log("[background.ts] Sending message to tab:", tabId, message);
-    chrome.tabs.sendMessage(tabId, message, (response) => {
-      if (chrome.runtime.lastError) {
-        logErrorToSentry(chrome.runtime.lastError);
-        if (chrome.runtime.lastError?.message?.includes("Could not establish connection")) {
-          sendWarningMessage("Content script not loaded. Sending warning directly.");
-        }
-        sendResponse({ status: "Error sending message to tab" });
-      } else {
-        console.log("[background.ts] Message sent successfully:", response);
-        sendResponse({ status: "Message sent successfully" });
-      }
-    });
+    processTab(tabs[0], sendResponse);
   });
 }
 
-// Tab activation changes
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  handleInitialLoadOrTabChange(() => {});
-});
-// Tab updates (e.g., when the URL changes)
+// This helper validates the given tab's URL and sends the message if all checks pass.
+function processTab(tab: chrome.tabs.Tab, sendResponse: (response: ResponseType) => void) {
+  const currentUrl = tab.url!;
+  const tabId = tab.id;
+
+  if (typeof tabId !== "number") {
+    console.warn("Tab has no valid ID.");
+    sendResponse({ status: "Tab has no valid ID" });
+    return;
+  }
+
+  // Check if the URL is one of the disallowed types
+  if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
+    sendWarningMessage("Internal Chrome page detected. Sending warning directly.");
+    sendResponse({ status: "Internal Chrome page detected" });
+    return;
+  }
+
+  // Check if the URL matches a valid Rightmove property page.
+  // Adjust the regex as needed if your extension should support additional patterns.
+  const validRightmoveRegex =
+    /^https:\/\/www\.rightmove\.co\.uk\/(properties\/|property-for-sale\/|property-to-rent\/)/;
+  if (!validRightmoveRegex.test(currentUrl)) {
+    sendWarningMessage("Please open a property page on rightmove.co.uk.");
+    sendResponse({ status: "URL not matching target domain" });
+    return;
+  }
+
+  const message: NavigatedUrlOrTabChangedOrExtensionOpenedMessage = {
+    action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
+    data: currentUrl,
+  };
+
+  console.log("[background.ts] Sending message to tab:", tabId, message);
+  chrome.tabs.sendMessage(tabId, message, (response) => {
+    if (chrome.runtime.lastError) {
+      logErrorToSentry(chrome.runtime.lastError);
+      if (chrome.runtime.lastError?.message?.includes("Could not establish connection")) {
+        sendWarningMessage("Content script not loaded. Sending warning directly.");
+      }
+      sendResponse({ status: "Error sending message to tab" });
+    } else {
+      console.log("[background.ts] Message sent successfully:", response);
+      sendResponse({ status: "Message sent successfully" });
+    }
+  });
+}
+
+// Unified listener for tab updates – when the URL changes, use the provided tab object.
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab.active) {
-    handleInitialLoadOrTabChange((response) => {
-      console.log("[background.ts] Tab updated response:", response);
-    });
+  if (changeInfo.status === "complete" && tab.active && tab.url) {
+    handleInitialLoadOrTabChange(
+      (response) => {
+        console.log("[background.ts] Tab updated response:", response);
+      },
+      6,
+      tab
+    );
   }
 });
 
-// Tab Creation
-chrome.tabs.onCreated.addListener((tab) => {
-  console.log("[background.ts] New tab created:", tab);
-  // Handle initial load or tab change for the new tab
-  handleInitialLoadOrTabChange((response) => {
-    console.log("[background.ts] New tab response:", response);
+// Listener for tab activation – get the tab details then pass them to the updated handler.
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (tab.url) {
+      handleInitialLoadOrTabChange(() => {}, 6, tab);
+    }
   });
+});
+
+// Listener for tab creation – if a new tab has a URL, process it immediately.
+chrome.tabs.onCreated.addListener((tab) => {
+  if (tab.url) {
+    handleInitialLoadOrTabChange(
+      (response) => {
+        console.log("[background.ts] New tab response:", response);
+      },
+      6,
+      tab
+    );
+  }
 });
 
 // Set panel behavior and update URL when the panel is opened
