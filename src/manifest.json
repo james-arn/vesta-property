@@ -3,7 +3,7 @@
   "name": "Vesta Property Checklist",
   "version": "1.1",
   "description": "Evaluate property listings with ease using automated checklists.",
-  "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
+  "permissions": ["activeTab", "sidePanel", "storage", "tabs"],
   "host_permissions": [
     "https://www.rightmove.co.uk/*",
     "https://o4508799628738560.ingest.de.sentry.io/*",
