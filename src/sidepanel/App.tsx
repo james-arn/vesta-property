@@ -89,7 +89,7 @@ const emptyPropertyData: ExtractedPropertyScrapingData = {
 const App: React.FC = () => {
   const [propertyData, setPropertyData] =
     useState<ExtractedPropertyScrapingData>(emptyPropertyData);
-  const [nonPropertyPageWarningMessage, setNoPropertyPageWarningMessage] = useState<string | null>(null);
+  const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
     // Add more filters here
@@ -114,6 +114,12 @@ const App: React.FC = () => {
   const queryClient = useQueryClient();
 
 
+  useEffect(function tellBackgroundSideBarOpened() {
+    chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
+      console.log('SIDE_PANEL_OPENED response:', response);
+    });
+  }, [])
+
   useEffect(() => {
     const handleMessage = (
       message: { action: string; data?: any },
@@ -121,31 +127,46 @@ const App: React.FC = () => {
       sendResponse: (response: any) => void
     ) => {
       console.log("[Side Panel] Received message:", message);
-      if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
-        setNoPropertyPageWarningMessage(null);
-        setIsPropertyDataLoading(true);
 
-        // Try to load cached data.
+      if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
+        console.log('TAB_CHANGED_OR_EXTENSION_OPENED hit')
         const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
-        const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
-          REACT_QUERY_KEYS.PROPERTY_DATA,
-          propertyIdFromTabUrl,
-        ]);
-        if (cachedPropertyData) {
-          setPropertyData(cachedPropertyData);
+        // If no valid property ID is found, show the warning message.
+        if (!propertyIdFromTabUrl) {
+          console.log('!propertyIdFromTabUrl')
+          setNonPropertyPageWarningMessage("Please open a property page on rightmove.co.uk.");
           setIsPropertyDataLoading(false);
-        } else {
           setPropertyData(emptyPropertyData);
+        } else {
+          console.log('urlvalid')
+          // URL is valid – clear any existing warning and try to load cached data.
+          setNonPropertyPageWarningMessage(null);
+          setIsPropertyDataLoading(true);
+          const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
+            REACT_QUERY_KEYS.PROPERTY_DATA,
+            propertyIdFromTabUrl,
+          ]);
+          if (cachedPropertyData) {
+            console.log('cached')
+
+            setPropertyData(cachedPropertyData);
+            setIsPropertyDataLoading(false);
+          } else {
+            console.log('not-cached')
+            setPropertyData(emptyPropertyData);
+          }
         }
       } else if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
         // Once data is updated, update cache
         queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
         setPropertyData(message.data);
         setIsPropertyDataLoading(false);
-        setNoPropertyPageWarningMessage(null);
+        setNonPropertyPageWarningMessage(null);
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
-        setNoPropertyPageWarningMessage(message.data || null);
+        console.log('showing warning')
+
+        setNonPropertyPageWarningMessage(message.data || null);
         setIsPropertyDataLoading(false);
         setPropertyData(emptyPropertyData);
         console.log("[Side Panel] Warning message set:", message.data);

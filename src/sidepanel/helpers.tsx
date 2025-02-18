@@ -42,11 +42,19 @@ export const filterChecklistToAllAskAgentOnlyItems = (
 export function extractPropertyIdFromUrl(url: string): string | undefined {
   try {
     const parsedUrl = new URL(url);
-    // Try to get propertyId from the query parameter
+
+    // Only process URLs that belong to a Rightmove domain.
+    // This check ensures that even if there is a 'backToPropertyURL' query parameter,
+    // we ignore it if the main URL is not from rightmove.
+    if (!parsedUrl.hostname.endsWith("rightmove.co.uk")) {
+      return undefined;
+    }
+
+    // Try to get propertyId from the query parameter.
     let propertyId = parsedUrl.searchParams.get("propertyId");
     if (propertyId) return propertyId;
 
-    // Optionally, check a secondary parameter like backToPropertyURL
+    // Optionally, check a secondary parameter like backToPropertyURL.
     const backToPropertyURL = parsedUrl.searchParams.get("backToPropertyURL");
     if (backToPropertyURL) {
       const backUrl = new URL(backToPropertyURL, parsedUrl.origin);
@@ -54,11 +62,11 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
       if (propertyId) return propertyId;
     }
 
-    // Fallback: extract from the pathname (e.g. /properties/<id>)
+    // Fallback: extract from the pathname (e.g. /properties/<id>).
     const pathMatch = parsedUrl.pathname.match(/\/properties\/(\d+)/);
     if (pathMatch) return pathMatch[1];
   } catch (error) {
-    logErrorToSentry("Invalid URL in extractPropertyIdFromUrl" + error);
+    logErrorToSentry("Invalid URL in extractPropertyIdFromUrl: " + error);
   }
   return undefined;
 }

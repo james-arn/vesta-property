@@ -30,54 +30,23 @@ function sendWarningMessage(logMessage: string) {
   });
 }
 
-// Function to update the stored URL and send a message
-function handleInitialLoadOrTabChange(
-  sendResponse: (response: ResponseType) => void,
-  retry: number = 6,
-  specificTab?: chrome.tabs.Tab
-) {
-  if (specificTab) {
-    processTab(specificTab, sendResponse);
-    return;
-  }
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs.length === 0 || !tabs[0].url) {
-      if (retry > 0) {
-        // Try again after a short delay (e.g. 500ms)
-        setTimeout(() => {
-          handleInitialLoadOrTabChange(sendResponse, retry - 1);
-        }, 500);
-        return;
-      }
-
-      logErrorToSentry("No active tab found or tab has no URL.", "warning");
-      sendResponse({ status: "No active tab found or tab has no URL" });
-      return;
-    }
-    processTab(tabs[0], sendResponse);
-  });
-}
-
-// This helper validates the given tab's URL and sends the message if all checks pass.
 function processTab(tab: chrome.tabs.Tab, sendResponse: (response: ResponseType) => void) {
-  const currentUrl = tab.url!;
+  const currentUrl = tab.url;
   const tabId = tab.id;
-
-  if (typeof tabId !== "number") {
-    console.warn("Tab has no valid ID.");
-    sendResponse({ status: "Tab has no valid ID" });
+  if (!currentUrl || typeof tabId !== "number") {
+    console.warn("Tab has no valid URL or ID");
+    sendResponse({ status: "Tab has no valid URL or ID" });
     return;
   }
 
-  // Check if the URL is one of the disallowed types
+  // If the URL is one of the disallowed types, send a warning immediately.
   if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
     sendWarningMessage("Internal Chrome page detected. Sending warning directly.");
     sendResponse({ status: "Internal Chrome page detected" });
     return;
   }
 
-  // Check if the URL matches a valid Rightmove property page.
-  // Adjust the regex as needed if your extension should support additional patterns.
+  // Validate if the URL matches a Rightmove property page.
   const validRightmoveRegex =
     /^https:\/\/www\.rightmove\.co\.uk\/(properties\/|property-for-sale\/|property-to-rent\/)/;
   if (!validRightmoveRegex.test(currentUrl)) {
@@ -86,6 +55,7 @@ function processTab(tab: chrome.tabs.Tab, sendResponse: (response: ResponseType)
     return;
   }
 
+  // If the URL is valid, forward a message to the content script.
   const message: NavigatedUrlOrTabChangedOrExtensionOpenedMessage = {
     action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
     data: currentUrl,
@@ -106,45 +76,38 @@ function processTab(tab: chrome.tabs.Tab, sendResponse: (response: ResponseType)
   });
 }
 
-// Unified listener for tab updates – when the URL changes, use the provided tab object.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab.active && tab.url) {
-    handleInitialLoadOrTabChange(
-      (response) => {
-        console.log("[background.ts] Tab updated response:", response);
-      },
-      6,
-      tab
-    );
-  }
-});
-
-// Listener for tab activation – get the tab details then pass them to the updated handler.
+// This event handles when the user switches to a different tab.
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.tabs.get(activeInfo.tabId, (tab) => {
-    if (tab.url) {
-      handleInitialLoadOrTabChange(() => {}, 6, tab);
-    }
+    processTab(tab, (response) => {
+      console.log("[background.ts] onActivated response:", response);
+    });
   });
 });
 
-// Listener for tab creation – if a new tab has a URL, process it immediately.
-chrome.tabs.onCreated.addListener((tab) => {
-  if (tab.url) {
-    handleInitialLoadOrTabChange(
-      (response) => {
-        console.log("[background.ts] New tab response:", response);
-      },
-      6,
-      tab
-    );
+// This event handles URL changes (e.g. when navigating within a tab).
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && tab.active) {
+    processTab(tab, (response) => {
+      console.log("[background.ts] onUpdated response:", response);
+    });
   }
 });
 
-// Set panel behavior and update URL when the panel is opened
-chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((error) => logErrorToSentry(error));
+// When the side panel is opened, query for the active tab and process it.
+chrome.runtime.onMessage.addListener((request: MessageRequest, sender, sendResponse) => {
+  if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
+    console.log("[background.ts] Side panel opened");
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        processTab(tabs[0], (response) => {
+          console.log("[background.ts] SIDE_PANEL_OPENED response:", response);
+        });
+      }
+    });
+    sendResponse({ status: "Handled side panel opened" });
+  }
+});
 
 function handleToContentScriptFromUIMessage(
   request: MessageRequest,
@@ -192,14 +155,6 @@ function handleToUIFromContentScriptMessage(
   request: MessageRequest,
   sendResponse: (response: ResponseType) => void
 ) {
-  if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
-    console.log("[background.ts] Side panel opened");
-    handleInitialLoadOrTabChange((response) => {
-      console.log("[background.ts] Side panel response:", response);
-    });
-    sendResponse({ status: "Handled side panel opened" });
-  }
-
   if (request.action === ActionEvents.UPDATE_PROPERTY_DATA) {
     console.log("[background.ts] Property Data:", request.data);
     chrome.runtime.sendMessage<UpdatePropertyDataMessage, ResponseType>(
@@ -257,7 +212,6 @@ function handleToUIFromContentScriptMessage(
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Messages for the UI
   if (
-    request.action === ActionEvents.SIDE_PANEL_OPENED ||
     request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
     request.action === ActionEvents.SHOW_WARNING ||
     request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
