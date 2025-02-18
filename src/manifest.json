@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vesta Property Checklist",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Evaluate property listings with ease using automated checklists.",
   "permissions": ["activeTab", "scripting", "sidePanel", "storage", "tabs"],
   "host_permissions": [
