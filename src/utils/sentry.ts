@@ -1,15 +1,24 @@
-import * as Sentry from "@sentry/browser";
+import {
+  breadcrumbsIntegration,
+  browserApiErrorsIntegration,
+  defaultStackParser,
+  globalHandlersIntegration,
+  init,
+  makeFetchTransport,
+  withScope,
+} from "@sentry/browser";
 
 export function initSentry() {
-  const integrations = Sentry.getDefaultIntegrations({}).filter(
-    (integration) =>
-      !["BrowserApiErrors", "Breadcrumbs", "GlobalHandlers"].includes(integration.name)
-  );
+  const integrations = [
+    browserApiErrorsIntegration(),
+    breadcrumbsIntegration(),
+    globalHandlersIntegration(),
+  ];
 
-  Sentry.init({
+  init({
     dsn: "https://9c0289d0cde277911bca9891aec3d518@o4508799628738560.ingest.de.sentry.io/4508799635161168",
-    transport: Sentry.makeFetchTransport,
-    stackParser: Sentry.defaultStackParser,
+    transport: makeFetchTransport,
+    stackParser: defaultStackParser,
     integrations,
     tracesSampleRate: 1.0,
     replaysSessionSampleRate: 0.1,
@@ -22,7 +31,7 @@ export function logErrorToSentry(
   error: unknown,
   level: "fatal" | "error" | "warning" | "info" | "debug" = "error"
 ) {
-  Sentry.withScope((scope) => {
+  withScope((scope) => {
     scope.setLevel(level);
     scope.captureException(error);
   });
