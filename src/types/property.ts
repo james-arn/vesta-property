@@ -52,7 +52,10 @@ export interface ExtractedPropertyScrapingData {
   isRental: boolean;
   listedProperty: PropertyItem;
   listingHistory: string | null;
-  location: string | null;
+  address: {
+    displayAddress: string | null;
+    postcode: string | null;
+  };
   miningImpact: PropertyItem;
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
@@ -92,6 +95,7 @@ export const PropertyGroups = {
   RISKS: "Risks",
   MISC: "Miscellaneous",
   RIGHTS_AND_RESTRICTIONS: "Rights and Restrictions",
+  PREMIUM: "Premium",
 } as const;
 
 export const PriceDiscrepancyReason = {

@@ -132,10 +132,13 @@ export async function extractPropertyDataFromDOM(
     isRental,
     listedProperty: listedPropertyFromUnstructuredText ?? null,
     listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
-    location:
-      pageModel?.propertyData?.address?.displayAddress ||
-      locationElement?.textContent?.trim() ||
-      null,
+    address: {
+      displayAddress:
+        pageModel?.propertyData?.address?.displayAddress ||
+        locationElement?.textContent?.trim() ||
+        null,
+      postcode: `${pageModel?.propertyData?.address?.incode ?? ""} ${pageModel?.propertyData?.address?.outcode ?? ""}`,
+    },
     locationCoordinates: {
       lat: pageModel?.propertyData?.location?.latitude ?? null,
       lng: pageModel?.propertyData?.location?.longitude ?? null,

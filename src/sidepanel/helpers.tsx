@@ -70,3 +70,22 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
   }
   return undefined;
 }
+
+export const getValueClickHandler = (
+  key: string,
+  value: any,
+  handleEpcClick: (url: string) => void,
+  toggleCrimeChart: () => void,
+  togglePlanningPermissionCard: () => void): (() => void) | undefined => {
+  switch (key) {
+    case "epc":
+    case "floorPlan":
+      return () => handleEpcClick(String(value));
+    case "crimeScore":
+      return toggleCrimeChart;
+    case "planningPermissions":
+      return togglePlanningPermissionCard;
+    default:
+      return undefined;
+  }
+};

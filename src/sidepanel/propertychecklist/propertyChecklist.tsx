@@ -1,5 +1,7 @@
+import { getPlanningApplicationsStatus, getPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
+import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -18,7 +20,6 @@ import {
   getYesNoOrMissingStatus,
   priceDiscrepancyMessages,
 } from "./helpers";
-
 export const agentMissingInfo = "not mentioned";
 const askAgentWrittenByAgent = "ask agent";
 
@@ -41,7 +42,8 @@ const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 
 export function generatePropertyChecklist(
   ExtractedPropertyScrapingData: ExtractedPropertyScrapingData,
-  crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined
+  crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
+  premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(ExtractedPropertyScrapingData.listingHistory);
@@ -49,6 +51,10 @@ export function generatePropertyChecklist(
   const crimeScoreData = crimeScoreQuery?.data;
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
   const crimeScoreError = crimeScoreQuery?.error;
+
+  const premiumStreetData = premiumStreetDataQuery?.data?.data;
+  const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
+  const premiumStreetDataError = premiumStreetDataQuery?.error;
 
   const checklist: PropertyDataList[] = [
     {
@@ -78,8 +84,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Location",
       key: "location",
-      status: getStatusFromString(ExtractedPropertyScrapingData.location),
-      value: ExtractedPropertyScrapingData.location,
+      status: getStatusFromString(ExtractedPropertyScrapingData.address.displayAddress),
+      value: ExtractedPropertyScrapingData.address.displayAddress,
       askAgentMessage: "Where's the property located?",
       toolTipExplainer:
         "Location is a critical factor in property valuation and desirability.\n\n" +
@@ -294,6 +300,18 @@ export function generatePropertyChecklist(
         "Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
     },
     {
+      group: PropertyGroups.LEGAL,
+      label: "Planning Permissions",
+      key: "planningPermissions",
+      status: getPlanningPermissionStatus(isPlanningPermissionLoading, planningPermissionData),
+      value: getPlanningPermissionValue(isPlanningPermissionLoading, planningPermissionData, planningPermissionError),
+      askAgentMessage: "I noticed there are quite a few planning permissions on this property area. Do you have more information on this?",
+      toolTipExplainer:
+        "Planning permission is a key aspect of property regulation in the UK.\n\n" +
+        "It typically applies to the specific property and its immediate surroundings, ensuring that any proposed alterations or developments align with local council guidelines.\n\n" +
+        "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. "
+    },
+    {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed property",
       key: "listedProperty",
@@ -469,10 +487,19 @@ export function generatePropertyChecklist(
         "Faster speeds provide better internet connectivity, allowing for faster downloads, streaming, and online activities.\n\n" +
         "It's important to check the broadband speed to ensure it meets your needs, especially for work, streaming, and gaming.",
     },
-    // TODO: ON ROADMAP...
-    // construction type of the property
-    // Neighbourhood and Environment - noise levels
-    // Planning permissions
+    // Premium
+    {
+      group: PropertyGroups.PREMIUM,
+      label: "Planning Permissions",
+      key: "planningPermissions",
+      status: getPlanningApplicationsStatus(isPremiumStreetDataLoading, premiumStreetData?.attributes.planning_applications, premiumStreetData?.attributes.nearby_planning_applications),
+      value: getPlanningApplicationsValue(isPremiumStreetDataLoading, premiumStreetData?.attributes.planning_applications, premiumStreetData?.attributes.nearby_planning_applications, premiumStreetDataError),
+      askAgentMessage: "I noticed there are quite a few planning permissions on this property area. Do you have more information on this?",
+      toolTipExplainer:
+        "Planning permission is a key aspect of property regulation in the UK.\n\n" +
+        "It typically applies to the specific property and its immediate surroundings, ensuring that any proposed alterations or developments align with local council guidelines.\n\n" +
+        "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. "
+    },
   ];
 
   return checklist;

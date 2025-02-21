@@ -10,12 +10,18 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 
 1. Clone the repository
 2. Run `npm install`
-3. Run `npm run build:dev` or `npm run build:prod` depending on which enviornment you want. Note: production strips out all console.logs
-4. Open chrome and go to `chrome://extensions/`
-5. Click on `Load unpacked`
-6. Select the `dist` folder
-7. Go to a rightmove property listing page.
-8. Click the extension icon and the sidebar will open.
+3. make .env.development and .env.production file in the root of the project containing the following
+   MEASUREMENT_ID
+   API_SECRET
+   GA_ENDPOINT
+   VESTA_AWS_ENDPOINT
+   USE_PREMIUM_DATA_MOCK
+4. Run `npm run build:dev` or `npm run build:prod` depending on which enviornment you want. Note: production strips out all console.logs
+5. Open chrome and go to `chrome://extensions/`
+6. Click on `Load unpacked`
+7. Select the `dist` folder
+8. Go to a rightmove property listing page.
+9. Click the extension icon and the sidebar will open.
 
 ## Running the project ongoing
 

@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+---
+Use es6+ syntax
+prefer immutable code over mutable code.

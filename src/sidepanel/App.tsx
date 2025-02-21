@@ -1,14 +1,16 @@
 import Alert from '@/components/ui/Alert';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import { CrimePieChart } from "@/components/ui/CrimePieChart";
+import PlanningPermissionCard from '@/components/ui/Premium/PlanningPermissionCard';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
+import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
@@ -17,15 +19,18 @@ import {
 } from "../types/property";
 import {
   extractPropertyIdFromUrl,
-  filterChecklistToAllAskAgentOnlyItems
+  filterChecklistToAllAskAgentOnlyItems,
+  getValueClickHandler
 } from "./helpers";
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 
-
 const emptyPropertyData: ExtractedPropertyScrapingData = {
   salePrice: null,
-  location: null,
+  address: {
+    displayAddress: null,
+    postcode: null,
+  },
   bedrooms: null,
   bathrooms: null,
   councilTax: null,
@@ -101,14 +106,27 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
+
+  const { lat, lng } = propertyData.locationCoordinates;
+
+  const latStr = useMemo(() => lat?.toString() ?? '', [lat]);
+  const lngStr = useMemo(() => lng?.toString() ?? '', [lng]);
+  const address = useMemo(() => propertyData.address?.displayAddress ?? '', [propertyData.address?.displayAddress]);
+  const postcode = useMemo(() => propertyData.address?.postcode ?? '', [propertyData.address?.postcode]);
+
   const crimeQuery = useCrimeScore(
-    propertyData.locationCoordinates.lat?.toString() || "",
-    propertyData.locationCoordinates.lng?.toString() || ""
+    latStr,
+    lngStr
   );
+  const premiumStreetDataQuery = usePremiumStreetData(address, postcode)
 
   const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
   const crimeContentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState(0);
+  const [crimeContentHeight, setCrimeContentHeight] = useState(0);
+
+  const [planningPermissionCardExpanded, setPlanningPermissionCardExpanded] = useState(false);
+  const planningPermissionContentRef = useRef<HTMLDivElement>(null);
+  const [planningPermissionContentHeight, setPlanningPermissionContentHeight] = useState(0);
 
   useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
   const queryClient = useQueryClient();
@@ -120,7 +138,7 @@ const App: React.FC = () => {
     });
   }, [])
 
-  useEffect(() => {
+  useEffect(function handleMessages() {
     const handleMessage = (
       message: { action: string; data?: any },
       sender: chrome.runtime.MessageSender,
@@ -188,13 +206,19 @@ const App: React.FC = () => {
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, [queryClient]);
 
-  useEffect(() => {
+  useEffect(function updateCrimeContentHeight() {
     if (crimeContentRef.current) {
-      setContentHeight(crimeContentRef.current.scrollHeight);
+      setCrimeContentHeight(crimeContentRef.current.scrollHeight);
     }
   }, [crimeChartExpanded, crimeQuery.data]);
 
-  const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery);
+  useEffect(function updatePlanningPermissionContentHeight() {
+    if (planningPermissionContentRef.current) {
+      setPlanningPermissionContentHeight(planningPermissionContentRef.current.scrollHeight);
+    }
+  }, [planningPermissionCardExpanded, premiumStreetDataQuery.data]);
+
+  const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery, premiumStreetDataQuery);
 
   const initialOpenGroups = propertyChecklistData.reduce(
     (acc, item) => {
@@ -298,6 +322,10 @@ const App: React.FC = () => {
     setCrimeChartExpanded((prev) => !prev);
   };
 
+  const togglePlanningPermissionCard = () => {
+    setPlanningPermissionCardExpanded((prev) => !prev);
+  };
+
 
   const renderGroupHeading = (group: string) => {
     const itemCount = checklistToRender.filter(item => item.group === group).length;
@@ -372,13 +400,7 @@ const App: React.FC = () => {
                         ? () => toggleSelection(item.key)
                         : undefined
                     }
-                    onValueClick={
-                      item.key === "epc" || item.key === "floorPlan"
-                        ? () => handleEpcClick(String(item.value))
-                        : item.key === "crimeScore"
-                          ? toggleCrimeChart
-                          : undefined
-                    }
+                    onValueClick={getValueClickHandler(item.key, item.value, handleEpcClick, toggleCrimeChart, togglePlanningPermissionCard)}
                   />
                 )}
                 {/* Dropdown crime piechart on crime score click */}
@@ -386,7 +408,7 @@ const App: React.FC = () => {
                   <div
                     ref={crimeContentRef}
                     style={{
-                      maxHeight: crimeChartExpanded ? `${contentHeight}px` : "0",
+                      maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0",
                       opacity: crimeChartExpanded ? 1 : 0,
                       overflow: "hidden",
                       transition: "max-height 0.3s ease, opacity 0.3s ease",
@@ -399,6 +421,24 @@ const App: React.FC = () => {
                         trendingPercentageOver6Months={
                           crimeQuery.data.trendingPercentageOver6Months
                         }
+                      />
+                    )}
+                  </div>
+                )}
+                {/* Dropdown planning permission card on planning permission click */}
+                {item.key === "planningPermissions" && (
+                  <div
+                    ref={planningPermissionContentRef}
+                    style={{
+                      maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0",
+                      opacity: planningPermissionCardExpanded ? 1 : 0,
+                      overflow: "hidden",
+                      transition: "max-height 0.3s ease, opacity 0.3s ease",
+                    }}
+                  >
+                    {premiumStreetDataQuery.data && (
+                      <PlanningPermissionCard
+                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
                       />
                     )}
                   </div>
