@@ -2,7 +2,6 @@ const Dotenv = require("dotenv-webpack");
 const { sentryWebpackPlugin } = require("@sentry/webpack-plugin");
 
 const path = require("path");
-const ReplaceInFileWebpackPlugin = require("replace-in-file-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
@@ -60,19 +59,6 @@ module.exports = {
       org: "vesta-ja",
       project: "vesta",
     }),
-    // stops remote code being loaded in sentry for lazy loading modules that are not used https://browser.sentry-cdn.com - otherwise, rejected from chrome store submission
-    new ReplaceInFileWebpackPlugin([
-      {
-        dir: path.resolve(__dirname, "dist"),
-        files: ["sidepanel.js", "sidepanel.js.map", "background.js", "background.js.map"],
-        rules: [
-          {
-            search: /https:\/\/browser\.sentry-cdn\.com/g,
-            replace: "",
-          },
-        ],
-      },
-    ]),
   ],
   devtool: "source-map",
   optimization: {

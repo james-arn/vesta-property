@@ -1,11 +1,11 @@
 import {
   breadcrumbsIntegration,
   browserApiErrorsIntegration,
+  captureEvent,
   defaultStackParser,
   globalHandlersIntegration,
   init,
   makeFetchTransport,
-  withScope,
 } from "@sentry/browser";
 
 export function initSentry() {
@@ -31,10 +31,21 @@ export function logErrorToSentry(
   error: unknown,
   level: "fatal" | "error" | "warning" | "info" | "debug" = "error"
 ) {
-  withScope((scope) => {
-    scope.setLevel(level);
-    scope.captureException(error);
-  });
+  const event = {
+    exception: {
+      values: [
+        {
+          type: error instanceof Error ? error.name : "Error",
+          value: error instanceof Error ? error.message : String(error),
+          stacktrace: error instanceof Error && error.stack ? { frames: [] } : undefined,
+        },
+      ],
+    },
+    level,
+  };
+
+  captureEvent(event);
+
   if (process.env.NODE_ENV === "development") {
     console.error(error);
   }
