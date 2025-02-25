@@ -5,57 +5,81 @@ import {
     DialogDescription,
     DialogFooter,
     DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+    DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 interface BuildingConfirmationDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     suggestedBuildingNameOrNumber: string;
-    onConfirm: (value: string) => void;
+    handleConfirm: (value: string) => void;
 }
 
 export function BuildingConfirmationDialog({
+    open,
+    onOpenChange,
     suggestedBuildingNameOrNumber,
-    onConfirm,
+    handleConfirm
 }: BuildingConfirmationDialogProps) {
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualValue, setManualValue] = useState(suggestedBuildingNameOrNumber);
 
+    useEffect(() => {
+        setManualValue(suggestedBuildingNameOrNumber);
+    }, [suggestedBuildingNameOrNumber]);
+
+    const onConfirm = (value: string) => {
+        handleConfirm(value);
+        onOpenChange(false);
+    }
     return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline">Confirm Building Name/Number</Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>
-                        Please double check the building name / number
-                    </DialogTitle>
-                    <DialogDescription>
-                        From the coordinates the agent provided, we believe it's{" "}
-                        {suggestedBuildingNameOrNumber} – is this correct? You can confirm via the exterior
-                        image and street map. This is so we can deep search the property correctly.
-                    </DialogDescription>
+                    {!showManualInput ? (
+                        <>
+                            <DialogTitle className="text-lg font-bold">
+                                Is this <span>{suggestedBuildingNameOrNumber}</span>?
+                            </DialogTitle>
+                            <DialogDescription>
+                                <p className="text-xs">
+                                    Please check by looking at the property's exterior image (e.g. near the door or bins) and via Street View on the map.
+                                </p>
+                                <p className="text-xs mt-2">
+                                    We obtained this address using the co-ordinates provided by the agent. For an accurate deep search, double-check this detail carefully.
+                                </p>
+                            </DialogDescription>
+                        </>
+                    ) : (
+                        <DialogTitle className="text-lg font-bold">
+                            Enter the correct building name or number
+                        </DialogTitle>
+                    )}
                 </DialogHeader>
                 {!showManualInput ? (
-                    <DialogFooter>
-                        <Button onClick={() => onConfirm(suggestedBuildingNameOrNumber)}>Yes</Button>
-                        <Button variant="destructive" onClick={() => setShowManualInput(true)}>
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => onConfirm(suggestedBuildingNameOrNumber)}>
+                            Yes
+                        </Button>
+                        <Button
+                            onClick={() => setShowManualInput(true)}>
                             No
                         </Button>
                     </DialogFooter>
                 ) : (
                     <div className="space-y-2">
-                        <p>Please provide the correct building name/number:</p>
                         <Input
                             value={manualValue}
                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setManualValue(e.target.value)}
                             placeholder="Building name/number"
+                            className="text-xs"
                         />
                         <DialogFooter>
-                            <Button onClick={() => onConfirm(manualValue)}>Submit</Button>
+                            <Button onClick={() => onConfirm(manualValue)} disabled={!manualValue.trim()}>Submit</Button>
                         </DialogFooter>
                     </div>
                 )}

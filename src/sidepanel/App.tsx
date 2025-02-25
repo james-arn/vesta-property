@@ -1,4 +1,5 @@
 import Alert from '@/components/ui/Alert';
+import { Button } from '@/components/ui/button';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import { CrimePieChart } from "@/components/ui/CrimePieChart";
 import { BuildingConfirmationDialog } from '@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal';
@@ -300,7 +301,6 @@ const App: React.FC = () => {
   };
 
   const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
-    setShowBuildingValidationModal(false);
     dispatch({
       type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
       payload: { displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true },
@@ -356,12 +356,11 @@ const App: React.FC = () => {
                 <React.Fragment key="premium-toggle">
                   {renderGroupHeading(PropertyGroups.PREMIUM)}
                   <div className="p-4">
-                    <button
-                      className="btn btn-primary"
+                    <Button
                       onClick={() => setShowBuildingValidationModal(true)}
                     >
                       Load Premium Data
-                    </button>
+                    </Button>
                   </div>
                 </React.Fragment>
               );
@@ -428,16 +427,16 @@ const App: React.FC = () => {
                     )}
                   </div>
                 )}
-                {showBuildingValidationModal && (
-                  <BuildingConfirmationDialog
-                    suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
-                    onConfirm={handleBuildingNameOrNumberConfirmation}
-                  />
-                )}
               </React.Fragment>
             );
           })}
         </ul>
+        <BuildingConfirmationDialog
+          open={showBuildingValidationModal}
+          onOpenChange={setShowBuildingValidationModal}
+          suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
+          handleConfirm={handleBuildingNameOrNumberConfirmation}
+        />
       </div>
     </>
   );
