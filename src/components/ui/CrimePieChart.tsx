@@ -24,7 +24,7 @@ export interface CrimePieChartProps {
     trendingPercentageOver6Months: number;
 }
 
-export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOver6Months }: CrimePieChartProps) {
+function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOver6Months }: CrimePieChartProps) {
     // Check if there are no crimes based on totalCrimes or the sum of crimeSummary values
     const totalCrimeCount = totalCrimes ?? Object.values(crimeSummary).reduce((sum, count) => sum + count, 0);
     if (totalCrimeCount === 0) {
@@ -154,3 +154,5 @@ export function CrimePieChart({ crimeSummary, totalCrimes, trendingPercentageOve
         </Card>
     );
 }
+
+export default CrimePieChart;

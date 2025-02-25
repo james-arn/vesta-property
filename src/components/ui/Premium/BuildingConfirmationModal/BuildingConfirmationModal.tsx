@@ -87,3 +87,5 @@ export function BuildingConfirmationDialog({
         </Dialog>
     );
 }
+
+export default BuildingConfirmationDialog;

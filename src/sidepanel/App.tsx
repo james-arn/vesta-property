@@ -1,9 +1,7 @@
 import Alert from '@/components/ui/Alert';
 import { Button } from '@/components/ui/button';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
-import { CrimePieChart } from "@/components/ui/CrimePieChart";
-import { BuildingConfirmationDialog } from '@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal';
-import PlanningPermissionCard from '@/components/ui/Premium/PlanningPermission/PlanningPermissionCard';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { emptyPropertyData } from "@/constants/emptyPropertyData";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
@@ -16,7 +14,7 @@ import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeo
 import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
@@ -31,6 +29,11 @@ import {
 } from "./helpers";
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
+const LazyBuildingConfirmationDialog = lazy(() =>
+  import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
+);
+const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
+const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
 const App: React.FC = () => {
   // 1. Property data starts empty and is updated via rightmove scrape
@@ -397,13 +400,15 @@ const App: React.FC = () => {
                     }}
                   >
                     {crimeQuery.data && (
-                      <CrimePieChart
-                        crimeSummary={crimeQuery.data.crimeSummary}
-                        totalCrimes={crimeQuery.data.totalCrimes}
-                        trendingPercentageOver6Months={
-                          crimeQuery.data.trendingPercentageOver6Months
-                        }
-                      />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <LazyCrimePieChart
+                          crimeSummary={crimeQuery.data.crimeSummary}
+                          totalCrimes={crimeQuery.data.totalCrimes}
+                          trendingPercentageOver6Months={
+                            crimeQuery.data.trendingPercentageOver6Months
+                          }
+                        />
+                      </Suspense>
                     )}
                   </div>
                 )}
@@ -419,11 +424,13 @@ const App: React.FC = () => {
                     }}
                   >
                     {premiumStreetDataQuery.data && (
-                      <PlanningPermissionCard
-                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                        isLoading={premiumStreetDataQuery.isLoading}
-                      />
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <LazyPlanningPermissionCard
+                          planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                          nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                          isLoading={premiumStreetDataQuery.isLoading}
+                        />
+                      </Suspense>
                     )}
                   </div>
                 )}
@@ -431,12 +438,16 @@ const App: React.FC = () => {
             );
           })}
         </ul>
-        <BuildingConfirmationDialog
-          open={showBuildingValidationModal}
-          onOpenChange={setShowBuildingValidationModal}
-          suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
-          handleConfirm={handleBuildingNameOrNumberConfirmation}
-        />
+        {showBuildingValidationModal && (
+          <Suspense fallback={null}>
+            <LazyBuildingConfirmationDialog
+              open={showBuildingValidationModal}
+              onOpenChange={setShowBuildingValidationModal}
+              suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
+              handleConfirm={handleBuildingNameOrNumberConfirmation}
+            />
+          </Suspense>
+        )}
       </div>
     </>
   );
