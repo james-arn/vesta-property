@@ -47,6 +47,7 @@ export function generatePropertyChecklist(
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(ExtractedPropertyScrapingData.listingHistory);
+  console.log("premiumStreetDataQuery", premiumStreetDataQuery);
 
   const crimeScoreData = crimeScoreQuery?.data;
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
@@ -55,6 +56,7 @@ export function generatePropertyChecklist(
   const premiumStreetData = premiumStreetDataQuery?.data?.data;
   const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
   const premiumStreetDataError = premiumStreetDataQuery?.error;
+
 
   const checklist: PropertyDataList[] = [
     {
@@ -298,18 +300,6 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "Parking can refer to how and where vehicles can be parked, and any associated costs.\n\n" +
         "Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
-    },
-    {
-      group: PropertyGroups.LEGAL,
-      label: "Planning Permissions",
-      key: "planningPermissions",
-      status: getPlanningPermissionStatus(isPlanningPermissionLoading, planningPermissionData),
-      value: getPlanningPermissionValue(isPlanningPermissionLoading, planningPermissionData, planningPermissionError),
-      askAgentMessage: "I noticed there are quite a few planning permissions on this property area. Do you have more information on this?",
-      toolTipExplainer:
-        "Planning permission is a key aspect of property regulation in the UK.\n\n" +
-        "It typically applies to the specific property and its immediate surroundings, ensuring that any proposed alterations or developments align with local council guidelines.\n\n" +
-        "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. "
     },
     {
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,

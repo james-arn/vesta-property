@@ -7,10 +7,11 @@
   "host_permissions": [
     "https://www.rightmove.co.uk/*",
     "https://o4508799628738560.ingest.de.sentry.io/*",
-    "https://api.vestapropertychecker.com/*"
+    "https://api.vestapropertychecker.com/*",
+    "https://nominatim.openstreetmap.org/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com"
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com https://nominatim.openstreetmap.org"
   },
   "icons": {
     "16": "images/icon16.png",

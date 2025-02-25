@@ -137,7 +137,7 @@ export async function extractPropertyDataFromDOM(
         pageModel?.propertyData?.address?.displayAddress ||
         locationElement?.textContent?.trim() ||
         null,
-      postcode: `${pageModel?.propertyData?.address?.incode ?? ""} ${pageModel?.propertyData?.address?.outcode ?? ""}`,
+      postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
     },
     locationCoordinates: {
       lat: pageModel?.propertyData?.location?.latitude ?? null,

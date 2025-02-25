@@ -1,13 +1,14 @@
 import Alert from '@/components/ui/Alert';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import { CrimePieChart } from "@/components/ui/CrimePieChart";
-import PlanningPermissionCard from '@/components/ui/Premium/PlanningPermissionCard';
+import PlanningPermissionCard from '@/components/ui/Premium/PlanningPermission/PlanningPermissionCard';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
+import { useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import {
   DataStatus,
   ExtractedPropertyScrapingData,
   PropertyDataList,
+  PropertyGroups,
 } from "../types/property";
 import {
   extractPropertyIdFromUrl,
@@ -106,19 +108,18 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
+  const [showPremium, setShowPremium] = useState(false);
 
   const { lat, lng } = propertyData.locationCoordinates;
 
   const latStr = useMemo(() => lat?.toString() ?? '', [lat]);
   const lngStr = useMemo(() => lng?.toString() ?? '', [lng]);
-  const address = useMemo(() => propertyData.address?.displayAddress ?? '', [propertyData.address?.displayAddress]);
-  const postcode = useMemo(() => propertyData.address?.postcode ?? '', [propertyData.address?.postcode]);
-
+  const { data: reverseData, error: reverseError } = useReverseGeocode(latStr, lngStr);
+  const premiumStreetDataQuery = usePremiumStreetData(showPremium, reverseData?.address, reverseData?.postcode)
   const crimeQuery = useCrimeScore(
     latStr,
     lngStr
   );
-  const premiumStreetDataQuery = usePremiumStreetData(address, postcode)
 
   const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
   const crimeContentRef = useRef<HTMLDivElement>(null);
@@ -384,6 +385,22 @@ const App: React.FC = () => {
             const showGroupHeading = item.group !== lastGroup;
             lastGroup = item.group;
 
+            if (item.group === PropertyGroups.PREMIUM && !showPremium) {
+              return (
+                <React.Fragment key="premium-toggle">
+                  {renderGroupHeading(PropertyGroups.PREMIUM)}
+                  <div className="p-4">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setShowPremium(true)}
+                    >
+                      Load Premium Data
+                    </button>
+                  </div>
+                </React.Fragment>
+              );
+            }
+
             return (
               <React.Fragment key={item.key}>
                 {showGroupHeading && renderGroupHeading(item.group)}
@@ -439,6 +456,8 @@ const App: React.FC = () => {
                     {premiumStreetDataQuery.data && (
                       <PlanningPermissionCard
                         planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                        isLoading={premiumStreetDataQuery.isLoading}
                       />
                     )}
                   </div>
