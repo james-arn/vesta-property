@@ -2,9 +2,9 @@ import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { logErrorToSentry } from "@/utils/sentry";
 import { useQuery } from "@tanstack/react-query";
 import _isEqual from "lodash/isEqual";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
-type ReverseGeocodeResponse = {
+export type ReverseGeocodeResponse = {
   address: string;
   postcode: string;
 };
@@ -32,7 +32,11 @@ const fetchReverseGeocode = async (
   }
 };
 
-export function useReverseGeocode(lat: string, lng: string) {
+export function useReverseGeocode(
+  lat: string,
+  lng: string,
+  onSuccess: (data: ReverseGeocodeResponse) => void
+) {
   // Create a stable query key
   const currentKey = useMemo(() => [REACT_QUERY_KEYS.REVERSE_GEOCODE, lat, lng], [lat, lng]);
 
@@ -55,7 +59,7 @@ export function useReverseGeocode(lat: string, lng: string) {
     lng
   );
 
-  return useQuery({
+  const query = useQuery({
     queryKey: stableKeyRef.current,
     queryFn: () => fetchReverseGeocode(lat, lng),
     staleTime: 24 * 60 * 60 * 1000, // Cache the data for 1 day
@@ -64,4 +68,15 @@ export function useReverseGeocode(lat: string, lng: string) {
     refetchOnMount: false,
     refetchOnReconnect: false,
   });
+
+  useEffect(
+    function onSuccessCallback() {
+      if (query.data && onSuccess) {
+        onSuccess(query.data);
+      }
+    },
+    [query.data, onSuccess]
+  );
+
+  return query;
 }

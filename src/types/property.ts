@@ -55,6 +55,7 @@ export interface ExtractedPropertyScrapingData {
   address: {
     displayAddress: string | null;
     postcode: string | null;
+    isAddressConfirmedByUser: boolean;
   };
   miningImpact: PropertyItem;
   parking: string | null;

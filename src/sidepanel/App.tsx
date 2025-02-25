@@ -1,17 +1,21 @@
 import Alert from '@/components/ui/Alert';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import { CrimePieChart } from "@/components/ui/CrimePieChart";
+import { BuildingConfirmationDialog } from '@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal';
 import PlanningPermissionCard from '@/components/ui/Premium/PlanningPermission/PlanningPermissionCard';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
+import { emptyPropertyData } from "@/constants/emptyPropertyData";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
+import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
-import { useReverseGeocode } from '@/hooks/useReverseGeocode';
+import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
+import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
@@ -27,79 +31,12 @@ import {
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 
-const emptyPropertyData: ExtractedPropertyScrapingData = {
-  salePrice: null,
-  address: {
-    displayAddress: null,
-    postcode: null,
-  },
-  bedrooms: null,
-  bathrooms: null,
-  councilTax: null,
-  size: null,
-  propertyType: null,
-  propertyId: null,
-  tenure: null,
-  parking: null,
-  heating: null,
-  floorPlan: null,
-  garden: null,
-  epc: null,
-  broadband: null,
-  listingHistory: null,
-  windows: null,
-  publicRightOfWayObligation: null,
-  privateRightOfWayObligation: null,
-  listedProperty: {
-    value: null,
-    status: null,
-    reason: null,
-  },
-  restrictions: null,
-  floodDefences: null,
-  floodSources: null,
-  floodedInLastFiveYears: null,
-  accessibility: null,
-  agent: null,
-  copyLinkUrl: null,
-  isRental: false,
-  salesHistory: {
-    priceDiscrepancy: {
-      value: null,
-      status: null,
-      reason: null,
-    },
-    compoundAnnualGrowthRate: null,
-    volatility: null,
-  },
-  buildingSafety: {
-    value: null,
-    status: null,
-    reason: null,
-  },
-  coastalErosion: {
-    value: null,
-    status: null,
-    reason: null,
-  },
-  miningImpact: {
-    value: null,
-    status: null,
-    reason: null,
-  },
-  locationCoordinates: {
-    lat: null,
-    lng: null,
-  },
-};
-
 const App: React.FC = () => {
-  const [propertyData, setPropertyData] =
-    useState<ExtractedPropertyScrapingData>(emptyPropertyData);
+  // 1. Property data starts empty and is updated via rightmove scrape
+  const { propertyData, dispatch } = usePropertyData()
   const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
-    // Add more filters here
   });
   const [currentStep, setCurrentStep] = useState<keyof typeof STEPS>(
     STEPS.INITIAL_REVIEW
@@ -108,14 +45,37 @@ const App: React.FC = () => {
     PropertyDataList[]
   >([]);
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
-  const [showPremium, setShowPremium] = useState(false);
 
   const { lat, lng } = propertyData.locationCoordinates;
 
   const latStr = useMemo(() => lat?.toString() ?? '', [lat]);
   const lngStr = useMemo(() => lng?.toString() ?? '', [lng]);
-  const { data: reverseData, error: reverseError } = useReverseGeocode(latStr, lngStr);
-  const premiumStreetDataQuery = usePremiumStreetData(showPremium, reverseData?.address, reverseData?.postcode)
+
+  // 2. Reverse geocode is used to get building name/number of the property based on agents co-ordinates
+  const handleReverseGeocodeSuccess = useCallback(
+    (data: ReverseGeocodeResponse) => {
+      dispatch({
+        type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
+        payload: {
+          displayAddress: data.address,
+          isAddressConfirmedByUser: false,
+        },
+      });
+    },
+    [dispatch]
+  );
+
+  useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
+
+  // 3. On premium click, building validation modal is used to confirm the building name/number of the property
+  const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
+
+  // 4. Once confirmed address state is updated, Premium (paid) street data uses confirmed address to get the enhanced data of the property
+  const premiumStreetDataQuery = usePremiumStreetData(
+    propertyData.address.isAddressConfirmedByUser,
+    propertyData.address.displayAddress ?? '',
+    propertyData.address.postcode ?? ''
+  );
   const crimeQuery = useCrimeScore(
     latStr,
     lngStr
@@ -155,7 +115,7 @@ const App: React.FC = () => {
           console.log('!propertyIdFromTabUrl')
           setNonPropertyPageWarningMessage("Please open a property page on rightmove.co.uk.");
           setIsPropertyDataLoading(false);
-          setPropertyData(emptyPropertyData);
+          dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
         } else {
           console.log('urlvalid')
           // URL is valid – clear any existing warning and try to load cached data.
@@ -167,27 +127,25 @@ const App: React.FC = () => {
           ]);
           if (cachedPropertyData) {
             console.log('cached')
-
-            setPropertyData(cachedPropertyData);
+            dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: cachedPropertyData });
             setIsPropertyDataLoading(false);
           } else {
             console.log('not-cached')
-            setPropertyData(emptyPropertyData);
+            dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
           }
         }
       } else if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
         // Once data is updated, update cache
         queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
-        setPropertyData(message.data);
+        dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: message.data });
         setIsPropertyDataLoading(false);
         setNonPropertyPageWarningMessage(null);
         console.log("[Side Panel] Property data updated:", message.data);
       } else if (message.action === ActionEvents.SHOW_WARNING) {
         console.log('showing warning')
-
         setNonPropertyPageWarningMessage(message.data || null);
         setIsPropertyDataLoading(false);
-        setPropertyData(emptyPropertyData);
+        dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
         console.log("[Side Panel] Warning message set:", message.data);
       } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
         console.log("[Side Panel] RIGHTMOVE_SIGN_IN_PAGE_OPENED message received");
@@ -341,6 +299,14 @@ const App: React.FC = () => {
     );
   };
 
+  const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
+    setShowBuildingValidationModal(false);
+    dispatch({
+      type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
+      payload: { displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true },
+    });
+  }
+
 
   if (nonPropertyPageWarningMessage) {
     return (
@@ -385,14 +351,14 @@ const App: React.FC = () => {
             const showGroupHeading = item.group !== lastGroup;
             lastGroup = item.group;
 
-            if (item.group === PropertyGroups.PREMIUM && !showPremium) {
+            if (item.group === PropertyGroups.PREMIUM && !propertyData.address.isAddressConfirmedByUser) {
               return (
                 <React.Fragment key="premium-toggle">
                   {renderGroupHeading(PropertyGroups.PREMIUM)}
                   <div className="p-4">
                     <button
                       className="btn btn-primary"
-                      onClick={() => setShowPremium(true)}
+                      onClick={() => setShowBuildingValidationModal(true)}
                     >
                       Load Premium Data
                     </button>
@@ -461,6 +427,12 @@ const App: React.FC = () => {
                       />
                     )}
                   </div>
+                )}
+                {showBuildingValidationModal && (
+                  <BuildingConfirmationDialog
+                    suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
+                    onConfirm={handleBuildingNameOrNumberConfirmation}
+                  />
                 )}
               </React.Fragment>
             );

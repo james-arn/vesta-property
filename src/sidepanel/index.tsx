@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { PropertyDataProvider } from "@/context/propertyDataContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -24,8 +25,10 @@ root.render(
         }
     >
         <QueryClientProvider client={queryClient}>
-            <App />
-            <Toaster />
+            <PropertyDataProvider>
+                <App />
+                <Toaster />
+            </PropertyDataProvider>
         </QueryClientProvider>
     </ErrorBoundary>
 );

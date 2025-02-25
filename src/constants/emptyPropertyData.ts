@@ -1,0 +1,68 @@
+import { ExtractedPropertyScrapingData } from "@/types/property";
+
+export const emptyPropertyData: ExtractedPropertyScrapingData = {
+  salePrice: null,
+  address: {
+    displayAddress: null,
+    postcode: null,
+    isAddressConfirmedByUser: false,
+  },
+  bedrooms: null,
+  bathrooms: null,
+  councilTax: null,
+  size: null,
+  propertyType: null,
+  propertyId: null,
+  tenure: null,
+  parking: null,
+  heating: null,
+  floorPlan: null,
+  garden: null,
+  epc: null,
+  broadband: null,
+  listingHistory: null,
+  windows: null,
+  publicRightOfWayObligation: null,
+  privateRightOfWayObligation: null,
+  listedProperty: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  restrictions: null,
+  floodDefences: null,
+  floodSources: null,
+  floodedInLastFiveYears: null,
+  accessibility: null,
+  agent: null,
+  copyLinkUrl: null,
+  isRental: false,
+  salesHistory: {
+    priceDiscrepancy: {
+      value: null,
+      status: null,
+      reason: null,
+    },
+    compoundAnnualGrowthRate: null,
+    volatility: null,
+  },
+  buildingSafety: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  coastalErosion: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  miningImpact: {
+    value: null,
+    status: null,
+    reason: null,
+  },
+  locationCoordinates: {
+    lat: null,
+    lng: null,
+  },
+};

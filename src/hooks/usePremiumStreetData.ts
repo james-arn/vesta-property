@@ -46,11 +46,15 @@ const fetchPremiumStreetData = async (
   return response.json();
 };
 
-export function usePremiumStreetData(showPremium: boolean, address?: string, postcode?: string) {
+export function usePremiumStreetData(
+  isAddressConfirmedByUser: boolean,
+  address?: string,
+  postcode?: string
+) {
   return useQuery({
     queryKey: [REACT_QUERY_KEYS.PREMIUM_STREET_DATA, address, postcode],
     queryFn: () => fetchPremiumStreetData(address ?? "", postcode ?? ""),
-    enabled: !!address && !!postcode && showPremium,
+    enabled: !!address && !!postcode && isAddressConfirmedByUser,
     staleTime: 24 * 60 * 60 * 1000, // cache for 1 day
     refetchOnWindowFocus: false,
     refetchOnMount: false,
