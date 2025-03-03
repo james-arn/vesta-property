@@ -1,4 +1,4 @@
-# Vesta property search
+# Vesta Property Search
 
 ## About
 
@@ -39,26 +39,36 @@ The project uses the following technologies:
 - **Tailwind CSS:** A utility-first CSS framework for styling the UI components.
 - **React Query** for caching and background updates.
 - **Shadcn:** A component library that provides pre-designed UI components to speed up development.
-- **AWS Lambda & API Gateway:** Not in this repo, but for handling API keys outside of client and providing crime API.
 - **Sentry** for error handling.
 - **Google Analytics** for reporting on how to improve the extension.
+- **ExtensionPay** to manage payments, authentication, and subscription-based premium features. ExtensionPay's integration with Stripe allows us to:
 
-This architecture allows for a modular and maintainable codebase, making it easier to develop and extend the extension's functionality.
+  - Handle transactions securely.
+  - Provide multi-device authentication and licensing without the need for building an in-house system.
+  - Enable premium features (such as enhanced data for property searches) for paid users.
 
-## How Chrome Extensions Work & debugging
+- **AWS Lambda, DynamoDB, API Gateway:** Not in this repo, but we have a serverless backend that is used to:
+  - Handle API keys outside of client and providing crime API.
+  - Track and decrement user credits securely.
 
-Chrome extensions (Manifest V3) are composed of different components that work together to provide functionality. In this project, the main components are:
+New developers joining the project should note:
 
-- **UI (App.tsx):** This is the user interface of the extension, built using React. It is responsible for rendering the sidebar that users interact with when they click the extension icon.
-  Debug by: right clicking on the sidebar - not the webpage and clicking inspect.
+## How Chrome Extensions Work & Debugging
 
-- **Background Script (background.ts):** This script runs in the background and manages the extension's lifecycle. Here, we access the chrome API such as tabs. It can listen for events, manage state, and communicate with other parts of the extension. Think of it as the middleman between the UI and the content script.
-  Debug by: going to `chrome://extensions/` - finding the extension and clicking on 'errors'
+Chrome extensions (Manifest V3) consist of several key components:
 
-- **Content Script (contentScript.ts):** This script is injected into web pages and can interact with the page's DOM. It acts as a bridge between the web page and the extension, allowing the extension to read and modify the content of the page.
-  Debug by: right clicking on the webpage (not sidebar) and clicking inspect.
+- **UI (App.tsx):** The React-based interface that renders the sidebar for user interaction.
 
-These components communicate with each other using message passing, allowing the extension to perform complex tasks by coordinating actions between the UI, background script, and content script.
+  - _Debug by:_ Right-clicking on the sidebar (not the webpage) and selecting **Inspect**.
+
+- **Background Script (background.ts):** Manages the extension lifecycle and mediates between the UI and content scripts via the Chrome API.
+
+  - _Debug by:_ Navigating to `chrome://extensions/`, locating the extension, and checking the **Errors**.
+
+- **Content Script (contentScript.ts):** Injected into web pages, this script interacts with the page's DOM and communicates with the extension framework.
+  - _Debug by:_ Right-clicking on the webpage (not the sidebar) and selecting **Inspect**.
+
+These components communicate using message passing, which enables complex interactivity between the UI, background, and content scripts.
 
 ## Publishing the extension to chrome web store
 
