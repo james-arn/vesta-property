@@ -11,6 +11,7 @@ import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
+import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
 import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
@@ -38,6 +39,7 @@ const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/Pl
 const App: React.FC = () => {
   // 1. Property data starts empty and is updated via rightmove scrape
   const { propertyData, dispatch } = usePropertyData()
+  const { isAuthenticated } = useSecureAuthentication();
   const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
@@ -338,7 +340,7 @@ const App: React.FC = () => {
           message="Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent. You can still use the tool but some features may not work as expected."
         />
       )}
-      <div className="p-4">
+      <div className={`p-4 ${!isAuthenticated ? 'pb-16' : 'pb-4'}`}>
         <SettingsBar
           openGroups={openGroups}
           setOpenGroups={setOpenGroups}

@@ -10,6 +10,10 @@ export const ActionEvents = {
   RIGHTMOVE_SIGN_IN_COMPLETED: "rightmoveSignInCompleted",
   NAVIGATE_BACK_TO_PROPERTY_LISTING: "navigateBackToPropertyListing",
   AGENT_CONTACT_FORM_SUBMITTED: "agentContactFormSubmitted",
+  // Authentication events
+  AUTH_CODE_RECEIVED: "authCodeReceived",
+  AUTH_TOKEN_EXCHANGE_SUCCESS: "authTokenExchangeSuccess",
+  AUTH_TOKEN_EXCHANGE_FAILURE: "authTokenExchangeFailure",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

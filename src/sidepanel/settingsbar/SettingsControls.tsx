@@ -9,8 +9,12 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AUTH_CONFIG } from "@/constants/authConfig";
 import { useToast } from "@/hooks/use-toast";
+import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import React from "react";
+import { FiLogIn, FiLogOut } from "react-icons/fi";
+import { GoCreditCard, GoStar } from "react-icons/go";
 import { IoSettingsOutline } from "react-icons/io5";
 import { VscFeedback } from "react-icons/vsc";
 
@@ -28,9 +32,31 @@ const SettingsIconWithTooltip = () => (
     </TooltipProvider>
 );
 
+// Premium upgrade footer component
+const PremiumFooterCTA = ({ onClick }: { onClick: () => void }) => (
+    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-amber-400 to-amber-600 text-white p-3 shadow-md flex items-center justify-center cursor-pointer z-10" onClick={onClick}>
+        <GoStar className="mr-2 text-amber-100" size={18} />
+        <span className="font-medium">Upgrade to Premium</span>
+    </div>
+);
+
+/**
+ * Authentication-related functionality has been moved to src/hooks/useSecureAuthentication.ts
+ * for better code organization and reusability.
+ */
+
 const SettingsControls = () => {
     const { toast } = useToast();
 
+    const {
+        isAuthenticated,
+        isCheckingAuth,
+        isSigningIn: isAuthenticating,
+        signInRedirect,
+        signOut
+    } = useSecureAuthentication();
+
+    // Handle feedback function
     const handleFeedback = () => {
         toast({
             description: <Feedback />,
@@ -39,28 +65,67 @@ const SettingsControls = () => {
         });
     };
 
+    const handleUpgrade = () => {
+        // Open the external site for purchasing/registration in a new tab
+        chrome.tabs.create({ url: AUTH_CONFIG.PRICING_URL });
+    };
+
+    if (isAuthenticating || isCheckingAuth) {
+        return (
+            <div className="flex items-center justify-center">
+                <div className="animate-spin h-5 w-5 border-2 border-primary rounded-full border-t-transparent" />
+            </div>
+        );
+    }
+
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <div className="group">
-                    <SettingsIconWithTooltip />
-                </div>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Settings</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={handleFeedback} className="cursor-pointer">
-                        <VscFeedback className="mr-2" />
-                        <span>Give feedback</span>
-                    </DropdownMenuItem>
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <div className="group">
+                        <SettingsIconWithTooltip />
+                    </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                    <DropdownMenuLabel>Settings</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled>
-                        <span>More features coming soon! 😊</span>
-                    </DropdownMenuItem>
-                </DropdownMenuGroup>
-            </DropdownMenuContent>
-        </DropdownMenu >
+                    <DropdownMenuGroup>
+                        {isAuthenticated ? (
+                            <>
+                                <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                                    <FiLogOut className="mr-2" />
+                                    <span>Sign out</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                            </>
+                        ) : (
+                            <>
+                                <DropdownMenuItem onClick={signInRedirect} className="cursor-pointer">
+                                    <FiLogIn className="mr-2" />
+                                    <span>Sign in</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleUpgrade} className="cursor-pointer text-primary font-semibold">
+                                    <GoCreditCard className="mr-2" />
+                                    <span>Upgrade</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                            </>
+                        )}
+                        <DropdownMenuItem onClick={handleFeedback} className="cursor-pointer">
+                            <VscFeedback className="mr-2" />
+                            <span>Give feedback</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled>
+                            <span>More features coming soon! 😊</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Only show premium footer CTA when not authenticated */}
+            {!isAuthenticated && <PremiumFooterCTA onClick={handleUpgrade} />}
+        </>
     );
 };
 

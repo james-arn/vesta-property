@@ -3,15 +3,20 @@
   "name": "Vesta Property Checklist",
   "version": "1.1",
   "description": "Evaluate property listings with ease using automated checklists.",
-  "permissions": ["activeTab", "sidePanel", "storage", "tabs"],
+  "permissions": ["activeTab", "sidePanel", "storage", "tabs", "identity", "notifications"],
   "host_permissions": [
     "https://www.rightmove.co.uk/*",
     "https://o4508799628738560.ingest.de.sentry.io/*",
     "https://api.vestapropertychecker.com/*",
-    "https://nominatim.openstreetmap.org/*"
+    "https://nominatim.openstreetmap.org/*",
+    "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_eHh7H32th/.well-known/*",
+    "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_eHh7H32th/oauth2/*",
+    "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_eHh7H32th/login",
+    "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/*",
+    "https://d84l1y8p4kdic.cloudfront.net/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com https://nominatim.openstreetmap.org"
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com;"
   },
   "icons": {
     "16": "images/icon16.png",

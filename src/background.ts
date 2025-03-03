@@ -1,4 +1,6 @@
+import { AUTH_CONFIG } from "@/constants/authConfig";
 import { ActionEvents } from "./constants/actionEvents";
+import { StorageKeys } from "./constants/storage";
 import {
   MessageRequest,
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
@@ -14,6 +16,21 @@ console.log("[background.ts] Background script loaded");
 // Sends commands to the content script to scrape data.
 // Relays data between the content script and sidebar.
 initSentry();
+
+/**
+ * Creates a system notification for important background events
+ *
+ * Used for cross-tab notifications that need to be visible
+ * even when the extension UI isn't focused
+ */
+function showSystemNotification(title: string, message: string) {
+  chrome.notifications.create({
+    type: "basic",
+    iconUrl: "/images/icon128.png",
+    title,
+    message,
+  });
+}
 
 function sendWarningMessage(logMessage: string) {
   console.warn(logMessage);
@@ -262,3 +279,127 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     });
   }
 });
+
+// Handle authentication code exchange
+
+interface TokenResponse {
+  id_token: string;
+  access_token: string;
+  refresh_token?: string;
+  token_type: string;
+  expires_in: number;
+}
+
+// Listen for when a tab is updated (including when a page loads)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // Check if the tab URL is our redirect URI
+  if (changeInfo.status === "complete" && tab.url && tab.url.startsWith(AUTH_CONFIG.LOGOUT_URI)) {
+    const url = new URL(tab.url);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+
+    // Handle sign-in redirect with code
+    if (code) {
+      console.log("Authorization code received:", code);
+
+      // Check if we have an in-progress auth flow
+      chrome.storage.local.get(
+        [StorageKeys.AUTH_IN_PROGRESS, StorageKeys.CODE_VERIFIER],
+        async (result) => {
+          if (result[StorageKeys.AUTH_IN_PROGRESS] && result[StorageKeys.CODE_VERIFIER]) {
+            try {
+              // Exchange code for tokens
+              const tokenResponse = await exchangeCodeForTokens(
+                code,
+                result[StorageKeys.CODE_VERIFIER]
+              );
+
+              // Store tokens in Chrome storage
+              chrome.storage.local.set(
+                {
+                  [StorageKeys.ID_TOKEN]: tokenResponse.id_token,
+                  [StorageKeys.ACCESS_TOKEN]: tokenResponse.access_token,
+                  [StorageKeys.REFRESH_TOKEN]: tokenResponse.refresh_token,
+                  [StorageKeys.AUTH_SUCCESS]: true,
+                  [StorageKeys.AUTH_IN_PROGRESS]: false,
+                },
+                () => {
+                  console.log("Authentication successful, tokens stored");
+
+                  // Show a system notification for cross-tab awareness
+                  showSystemNotification(
+                    "Successfully Signed In",
+                    "You are now signed in to the Vesta Property Inspector"
+                  );
+
+                  // Close the auth tab after a short delay
+                  setTimeout(() => {
+                    chrome.tabs.remove(tabId);
+                  }, 2000);
+                }
+              );
+            } catch (error) {
+              logErrorToSentry(error, "error");
+
+              chrome.storage.local.set({
+                [StorageKeys.AUTH_ERROR]: `Failed to exchange code for tokens: ${error instanceof Error ? error.message : String(error)}`,
+                [StorageKeys.AUTH_IN_PROGRESS]: false,
+              });
+            }
+          }
+        }
+      );
+    }
+    // Handle sign-out redirect
+    else if (url.searchParams.has("error")) {
+      // Handle authentication errors
+      const error = url.searchParams.get("error");
+      const errorDescription = url.searchParams.get("error_description");
+
+      logErrorToSentry(`Authentication error: ${error} - ${errorDescription}`, "error");
+
+      chrome.storage.local.set({
+        [StorageKeys.AUTH_ERROR]: `Authentication failed: ${errorDescription || error}`,
+        [StorageKeys.AUTH_IN_PROGRESS]: false,
+      });
+    }
+    // Handle post-logout redirect
+    else if (url.search === "") {
+      // This is likely a post-logout redirect
+      console.log("Detected post-logout redirect");
+
+      // No additional action needed - the logout has been completed by Cognito
+      // and the tokens have been cleared by our app
+
+      // Tab will be closed automatically by the signOut function
+    }
+  }
+});
+
+async function exchangeCodeForTokens(code: string, codeVerifier: string): Promise<TokenResponse> {
+  const tokenEndpoint = `${AUTH_CONFIG.COGNITO_DOMAIN}/oauth2/token`;
+
+  const params = new URLSearchParams();
+  params.append("grant_type", "authorization_code");
+  params.append("client_id", AUTH_CONFIG.CLIENT_ID);
+  params.append("redirect_uri", AUTH_CONFIG.LOGOUT_URI);
+  params.append("code", code);
+  params.append("code_verifier", codeVerifier);
+
+  const response = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(
+      errorData.error_description || errorData.error || "Failed to exchange code for tokens"
+    );
+  }
+
+  return await response.json();
+}
