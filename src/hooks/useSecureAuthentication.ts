@@ -42,14 +42,14 @@ export const useSecureAuthentication = () => {
 
     // Get all tokens in a single storage call for efficiency
     chrome.storage.local.get(
-      [StorageKeys.ID_TOKEN, StorageKeys.ACCESS_TOKEN, StorageKeys.REFRESH_TOKEN],
+      [StorageKeys.AUTH_ID_TOKEN, StorageKeys.AUTH_ACCESS_TOKEN, StorageKeys.AUTH_REFRESH_TOKEN],
       (result) => {
         clearTimeout(timeoutId);
 
-        if (result[StorageKeys.ID_TOKEN] && result[StorageKeys.ACCESS_TOKEN]) {
+        if (result[StorageKeys.AUTH_ID_TOKEN] && result[StorageKeys.AUTH_ACCESS_TOKEN]) {
           try {
             // Parse and validate the token
-            const payload = validateAndParseJwtToken(result[StorageKeys.ID_TOKEN]);
+            const payload = validateAndParseJwtToken(result[StorageKeys.AUTH_ID_TOKEN]);
             const now = Math.floor(Date.now() / 1000);
 
             if (payload.exp && payload.exp > now) {
@@ -59,9 +59,9 @@ export const useSecureAuthentication = () => {
             } else {
               // Token is expired, clean up
               chrome.storage.local.remove([
-                StorageKeys.ID_TOKEN,
-                StorageKeys.ACCESS_TOKEN,
-                StorageKeys.REFRESH_TOKEN,
+                StorageKeys.AUTH_ID_TOKEN,
+                StorageKeys.AUTH_ACCESS_TOKEN,
+                StorageKeys.AUTH_REFRESH_TOKEN,
               ]);
               setIsAuthenticated(false);
               setUserEmail(null);
@@ -83,7 +83,7 @@ export const useSecureAuthentication = () => {
   // Function to handle storage changes and keep auth state in sync
   const handleStorageChanges = useCallback(
     (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes[StorageKeys.ID_TOKEN] || changes[StorageKeys.ACCESS_TOKEN]) {
+      if (changes[StorageKeys.AUTH_ID_TOKEN] || changes[StorageKeys.AUTH_ACCESS_TOKEN]) {
         checkAuthentication();
       }
     },
@@ -109,17 +109,15 @@ export const useSecureAuthentication = () => {
     // First, remove all auth tokens from storage
     chrome.storage.local.remove(
       [
-        StorageKeys.ID_TOKEN,
-        StorageKeys.ACCESS_TOKEN,
-        StorageKeys.REFRESH_TOKEN,
-        StorageKeys.CODE_VERIFIER,
+        StorageKeys.AUTH_ID_TOKEN,
+        StorageKeys.AUTH_ACCESS_TOKEN,
+        StorageKeys.AUTH_REFRESH_TOKEN,
+        StorageKeys.AUTH_CODE_VERIFIER,
       ],
       () => {
-        // Update local state
         setIsAuthenticated(false);
         setUserEmail(null);
 
-        // Show a toast notification about successful sign-out
         toast({
           description: "You have been signed out successfully.",
           variant: "default",
@@ -127,23 +125,26 @@ export const useSecureAuthentication = () => {
         });
 
         // Construct logout URL to properly terminate the Cognito session
-        const logoutUrl = new URL(`${AUTH_CONFIG.COGNITO_DOMAIN}/logout`);
-        logoutUrl.searchParams.append("client_id", AUTH_CONFIG.CLIENT_ID);
+        // Per AWS docs: https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html
+        const logoutUrl = new URL(AUTH_CONFIG.AUTH_COGNITO_DOMAIN);
+        logoutUrl.pathname = "/logout";
+        logoutUrl.searchParams.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
         logoutUrl.searchParams.append("logout_uri", AUTH_CONFIG.LOGOUT_URI);
 
         // Open a tab to complete the Cognito logout process
         chrome.tabs.create({ url: logoutUrl.toString() }, (tab) => {
+          console.log("logoutUrl", logoutUrl.toString());
           // Close the tab after a short delay
           setTimeout(() => {
             if (tab.id) {
               chrome.tabs.remove(tab.id);
             }
-          }, 3000); // Increased to 3 seconds to allow more time for the logout to complete
+          }, 3000);
 
           // Set a safety timeout in case logout takes too long or gets stuck
           chrome.storage.local.set({
-            [StorageKeys.LOGOUT_TAB_ID]: tab.id,
-            [StorageKeys.LOGOUT_START_TIME]: Date.now(),
+            [StorageKeys.AUTH_LOGOUT_TAB_ID]: tab.id,
+            [StorageKeys.AUTH_LOGOUT_START_TIME]: Date.now(),
           });
         });
       }
@@ -212,7 +213,7 @@ export const useSecureAuthentication = () => {
       // Store code verifier in chrome.storage.local for persistence
       chrome.storage.local.set(
         {
-          [StorageKeys.CODE_VERIFIER]: codeVerifier,
+          [StorageKeys.AUTH_CODE_VERIFIER]: codeVerifier,
           [StorageKeys.AUTH_IN_PROGRESS]: true,
           [StorageKeys.AUTH_START_TIME]: Date.now(),
         },
@@ -220,12 +221,12 @@ export const useSecureAuthentication = () => {
           generateCodeChallenge(codeVerifier)
             .then((codeChallenge) => {
               // Construct the authorization URL for hosted UI
-              const authUrl = new URL(AUTH_CONFIG.COGNITO_DOMAIN);
+              const authUrl = new URL(AUTH_CONFIG.AUTH_COGNITO_DOMAIN);
               authUrl.pathname = "/oauth2/authorize";
-              authUrl.searchParams.append("client_id", AUTH_CONFIG.CLIENT_ID);
+              authUrl.searchParams.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
               authUrl.searchParams.append("response_type", "code");
               authUrl.searchParams.append("scope", "phone openid email");
-              authUrl.searchParams.append("redirect_uri", AUTH_CONFIG.LOGOUT_URI);
+              authUrl.searchParams.append("redirect_uri", AUTH_CONFIG.REDIRECT_URI);
               authUrl.searchParams.append("state", state);
               authUrl.searchParams.append("code_challenge", codeChallenge);
               authUrl.searchParams.append("code_challenge_method", "S256");

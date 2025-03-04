@@ -67,7 +67,7 @@ const SettingsControls = () => {
 
     const handleUpgrade = () => {
         // Open the external site for purchasing/registration in a new tab
-        chrome.tabs.create({ url: AUTH_CONFIG.PRICING_URL });
+        chrome.tabs.create({ url: AUTH_CONFIG.AUTH_PRICING_URL });
     };
 
     if (isAuthenticating || isCheckingAuth) {

@@ -6,17 +6,17 @@ export const StorageKeys = {
   HAS_FEEDBACK_PROMPT_ALREADY_SHOWN: "vesta_hasFeedbackPromptAlreadyShown",
 
   // AUTHENTICATION RELATED KEYS
-  ID_TOKEN: "id_token",
-  ACCESS_TOKEN: "access_token",
-  REFRESH_TOKEN: "refresh_token",
-  CODE_VERIFIER: "code_verifier",
-  AUTH_IN_PROGRESS: "auth_in_progress",
-  AUTH_SUCCESS: "auth_success",
-  AUTH_ERROR: "auth_error",
-  AUTH_START_TIME: "auth_start_time",
-  CLIENT_ID: "clientId",
+  AUTH_ID_TOKEN: "vesta_auth_id_token",
+  AUTH_ACCESS_TOKEN: "vesta_auth_access_token",
+  AUTH_REFRESH_TOKEN: "vesta_auth_refresh_token",
+  AUTH_CODE_VERIFIER: "vesta_auth_code_verifier",
+  AUTH_IN_PROGRESS: "vesta_auth_in_progress",
+  AUTH_SUCCESS: "vesta_auth_success",
+  AUTH_ERROR: "vesta_auth_error",
+  AUTH_START_TIME: "vesta_auth_start_time",
+  AUTH_CLIENT_ID: "vesta_auth_clientId",
 
   // LOGOUT RELATED KEYS
-  LOGOUT_TAB_ID: "logout_tab_id",
-  LOGOUT_START_TIME: "logout_start_time",
+  AUTH_LOGOUT_TAB_ID: "vesta_auth_logout_tab_id",
+  AUTH_LOGOUT_START_TIME: "vesta_auth_logout_start_time",
 } as const;

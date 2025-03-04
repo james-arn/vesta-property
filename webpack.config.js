@@ -49,6 +49,8 @@ module.exports = {
         { from: "src/manifest.json" },
         { from: "src/assets/images", to: "images" },
         { from: "src/injectScript.js", to: "injectScript.js" },
+        { from: "public/*.html", to: "[name][ext]" },
+        { from: "public/*.js", to: "[name][ext]" },
       ],
     }),
     new Dotenv({

@@ -13,6 +13,7 @@
     "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_eHh7H32th/oauth2/*",
     "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_eHh7H32th/login",
     "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/*",
+    "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/oauth2/idpresponse",
     "https://d84l1y8p4kdic.cloudfront.net/*"
   ],
   "content_security_policy": {
@@ -44,8 +45,11 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["injectScript.js"],
-      "matches": ["https://www.rightmove.co.uk/*"]
+      "resources": ["injectScript.js", "login-success.html", "logout-success.html"],
+      "matches": [
+        "https://www.rightmove.co.uk/*",
+        "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/*"
+      ]
     }
   ],
   "side_panel": {
