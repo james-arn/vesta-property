@@ -134,13 +134,6 @@ export const useSecureAuthentication = () => {
         // Open a tab to complete the Cognito logout process
         chrome.tabs.create({ url: logoutUrl.toString() }, (tab) => {
           console.log("logoutUrl", logoutUrl.toString());
-          // Close the tab after a short delay
-          setTimeout(() => {
-            if (tab.id) {
-              chrome.tabs.remove(tab.id);
-            }
-          }, 3000);
-
           // Set a safety timeout in case logout takes too long or gets stuck
           chrome.storage.local.set({
             [StorageKeys.AUTH_LOGOUT_TAB_ID]: tab.id,

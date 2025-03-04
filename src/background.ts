@@ -315,6 +315,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     sendResponse({ status: "Auth success handled" });
   }
+
+  // Handle LOGOUT_SUCCESS message from logout-success.js
+  if (request.type === ActionEvents.LOGOUT_SUCCESS) {
+    console.log("[background.ts] Received LOGOUT_SUCCESS message from logout page");
+
+    // The page will close itself, so we don't need to close it explicitly
+
+    // If we have a tab ID in sender, let's track it for debugging
+    if (sender.tab && sender.tab.id) {
+      console.log("[background.ts] Logout completed in tab:", sender.tab.id);
+    }
+
+    sendResponse({ status: "Logout success handled" });
+  }
 });
 
 // Listen for tab switches
@@ -386,11 +400,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                       "Successfully Signed In",
                       "You are now signed in to the Vesta Property Checker"
                     );
-
-                    // Close the auth tab after a short delay
-                    setTimeout(() => {
-                      chrome.tabs.remove(tabId);
-                    }, 2000);
                   }
                 );
               } catch (error) {
@@ -413,8 +422,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       // This is a post-logout redirect
       // No additional action needed - the logout has been completed by Cognito
       // and the tokens have been cleared by our app
-
-      // Tab will be closed automatically by the signOut function
+      // Tab will be closed automatically by the page itself
     }
     // Handle authentication errors (could happen in either flow)
     else if (tab.url.includes("error=")) {

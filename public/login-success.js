@@ -17,10 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
   // Function to close the tab
   function closeTab() {
     console.log("Closing tab...");
-    chrome.runtime.sendMessage({ type: "AUTH_SUCCESS" }, function (response) {
+    chrome.runtime.sendMessage({ type: "authSuccess" }, function (response) {
       console.log("Response from close message:", response);
-      // Force close after a brief delay if the tab doesn't close automatically
-      setTimeout(() => window.close(), 500);
+      window.close();
     });
   }
 
