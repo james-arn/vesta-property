@@ -16,6 +16,7 @@ export const ActionEvents = {
   AUTH_TOKEN_EXCHANGE_FAILURE: "authTokenExchangeFailure",
   AUTH_SUCCESS: "authSuccess", // NOTE - used as magic string in login-success.html & logout-success.html as can't import constants into html files
   LOGOUT_SUCCESS: "logoutSuccess", // Used as magic string in logout-success.js
+  REFRESH_TOKENS: "refreshTokens",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

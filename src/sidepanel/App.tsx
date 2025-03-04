@@ -1,3 +1,4 @@
+import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
 import { Button } from '@/components/ui/button';
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
@@ -450,6 +451,9 @@ const App: React.FC = () => {
             />
           </Suspense>
         )}
+
+        {/* DevTools component - only visible in development mode */}
+        <DevTools />
       </div>
     </>
   );

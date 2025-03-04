@@ -1,3 +1,4 @@
+import { ActionEvents } from "@/constants/actionEvents";
 import { AUTH_CONFIG } from "@/constants/authConfig";
 import { StorageKeys } from "@/constants/storage";
 import { toast } from "@/hooks/use-toast";
@@ -13,15 +14,17 @@ import { useCallback, useEffect, useState } from "react";
  * 3. Provides loading state and user information
  * 4. Handles sign in/sign out with proper token management
  * 5. Manages the PKCE authentication flow with OAuth 2.0 and PKCE
+ * 6. Automatically refreshes tokens before they expire
  */
 export const useSecureAuthentication = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
 
   // Helper function to validate and parse JWT token
-  const validateAndParseJwtToken = (token: string) => {
+  const validateAndParseJwtToken = useCallback((token: string) => {
     const tokenParts = token.split(".");
     if (tokenParts.length !== 3) {
       throw new Error("Invalid token format");
@@ -29,82 +32,9 @@ export const useSecureAuthentication = () => {
 
     // Only decode the payload (middle part)
     return JSON.parse(atob(tokenParts[1].replace(/-/g, "+").replace(/_/g, "/")));
-  };
-
-  // Function to verify token validity - optimized for speed
-  const checkAuthentication = useCallback(() => {
-    // Set a timeout to make sure we don't show the spinner forever
-    let timeoutId = setTimeout(() => {
-      setIsCheckingAuth(false);
-    }, 2000); // Max 2 seconds for auth check
-
-    setIsCheckingAuth(true);
-
-    // Get all tokens in a single storage call for efficiency
-    chrome.storage.local.get(
-      [StorageKeys.AUTH_ID_TOKEN, StorageKeys.AUTH_ACCESS_TOKEN, StorageKeys.AUTH_REFRESH_TOKEN],
-      (result) => {
-        clearTimeout(timeoutId);
-
-        if (result[StorageKeys.AUTH_ID_TOKEN] && result[StorageKeys.AUTH_ACCESS_TOKEN]) {
-          try {
-            // Parse and validate the token
-            const payload = validateAndParseJwtToken(result[StorageKeys.AUTH_ID_TOKEN]);
-            const now = Math.floor(Date.now() / 1000);
-
-            if (payload.exp && payload.exp > now) {
-              // Token is valid and not expired
-              setIsAuthenticated(true);
-              setUserEmail(payload.email || null);
-            } else {
-              // Token is expired, clean up
-              chrome.storage.local.remove([
-                StorageKeys.AUTH_ID_TOKEN,
-                StorageKeys.AUTH_ACCESS_TOKEN,
-                StorageKeys.AUTH_REFRESH_TOKEN,
-              ]);
-              setIsAuthenticated(false);
-              setUserEmail(null);
-            }
-          } catch (error) {
-            logErrorToSentry(error, "error");
-            setIsAuthenticated(false);
-            setUserEmail(null);
-          }
-        } else {
-          setIsAuthenticated(false);
-          setUserEmail(null);
-        }
-        setIsCheckingAuth(false);
-      }
-    );
   }, []);
 
-  // Function to handle storage changes and keep auth state in sync
-  const handleStorageChanges = useCallback(
-    (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes[StorageKeys.AUTH_ID_TOKEN] || changes[StorageKeys.AUTH_ACCESS_TOKEN]) {
-        checkAuthentication();
-      }
-    },
-    [checkAuthentication]
-  );
-
-  // Check authentication on mount and set up a listener for storage changes
-  useEffect(() => {
-    // Initial check
-    checkAuthentication();
-
-    // Listen for storage changes
-    chrome.storage.onChanged.addListener(handleStorageChanges);
-
-    // Clean up listener on unmount
-    return () => {
-      chrome.storage.onChanged.removeListener(handleStorageChanges);
-    };
-  }, [checkAuthentication, handleStorageChanges]);
-
-  // Function to securely sign out
+  // Function to securely sign out - defined early to avoid circular dependencies
   const signOut = useCallback(() => {
     // First, remove all auth tokens from storage
     chrome.storage.local.remove(
@@ -143,6 +73,164 @@ export const useSecureAuthentication = () => {
       }
     );
   }, []);
+
+  // Function to refresh tokens if they're about to expire - depends on signOut
+  const refreshTokenIfNeeded = useCallback(async (): Promise<boolean> => {
+    // Prevent multiple simultaneous refresh attempts
+    if (isRefreshingToken) {
+      return false;
+    }
+
+    setIsRefreshingToken(true);
+
+    try {
+      // Get the current tokens
+      const tokens = await new Promise<Record<string, any>>((resolve) => {
+        chrome.storage.local.get(
+          [
+            StorageKeys.AUTH_ID_TOKEN,
+            StorageKeys.AUTH_ACCESS_TOKEN,
+            StorageKeys.AUTH_REFRESH_TOKEN,
+          ],
+          (result) => resolve(result)
+        );
+      });
+
+      if (!tokens[StorageKeys.AUTH_ID_TOKEN] || !tokens[StorageKeys.AUTH_REFRESH_TOKEN]) {
+        setIsRefreshingToken(false);
+        return false;
+      }
+
+      // Parse token to check expiration
+      const payload = validateAndParseJwtToken(tokens[StorageKeys.AUTH_ID_TOKEN]);
+      const now = Math.floor(Date.now() / 1000);
+
+      // If token is still valid for more than 5 minutes, no need to refresh
+      if (payload.exp && payload.exp - now >= 300) {
+        setIsRefreshingToken(false);
+        return true;
+      }
+
+      // Send message to background script to refresh tokens
+      const response = await chrome.runtime.sendMessage({
+        action: ActionEvents.REFRESH_TOKENS,
+        refreshToken: tokens[StorageKeys.AUTH_REFRESH_TOKEN],
+      });
+
+      setIsRefreshingToken(false);
+
+      if (response && response.success) {
+        // We'll call checkAuthentication separately
+        return true;
+      }
+
+      // If token is expired and refresh failed, sign out
+      if (payload.exp <= now) {
+        signOut();
+      }
+
+      return false;
+    } catch (error) {
+      logErrorToSentry(error, "error");
+      setIsRefreshingToken(false);
+      return false;
+    }
+  }, [isRefreshingToken, validateAndParseJwtToken, signOut]);
+
+  // Function to verify token validity - depends on refreshTokenIfNeeded
+  const checkAuthentication = useCallback(() => {
+    // Set a timeout to make sure we don't show the spinner forever
+    let timeoutId = setTimeout(() => {
+      setIsCheckingAuth(false);
+    }, 2000); // Max 2 seconds for auth check
+
+    setIsCheckingAuth(true);
+
+    // Get all tokens in a single storage call for efficiency
+    chrome.storage.local.get(
+      [StorageKeys.AUTH_ID_TOKEN, StorageKeys.AUTH_ACCESS_TOKEN, StorageKeys.AUTH_REFRESH_TOKEN],
+      (result) => {
+        clearTimeout(timeoutId);
+
+        if (result[StorageKeys.AUTH_ID_TOKEN] && result[StorageKeys.AUTH_ACCESS_TOKEN]) {
+          try {
+            // Parse and validate the token
+            const payload = validateAndParseJwtToken(result[StorageKeys.AUTH_ID_TOKEN]);
+            const now = Math.floor(Date.now() / 1000);
+
+            if (payload.exp && payload.exp > now) {
+              // Token is valid and not expired
+              setIsAuthenticated(true);
+              setUserEmail(payload.email || null);
+
+              // Proactively refresh token if it's about to expire
+              if (payload.exp - now < 300) {
+                // Less than 5 minutes remaining
+                refreshTokenIfNeeded();
+              }
+            } else {
+              // Token is expired, try to refresh if we have a refresh token
+              if (result[StorageKeys.AUTH_REFRESH_TOKEN]) {
+                refreshTokenIfNeeded();
+              } else {
+                // No refresh token available, clean up
+                chrome.storage.local.remove([
+                  StorageKeys.AUTH_ID_TOKEN,
+                  StorageKeys.AUTH_ACCESS_TOKEN,
+                  StorageKeys.AUTH_REFRESH_TOKEN,
+                ]);
+                setIsAuthenticated(false);
+                setUserEmail(null);
+              }
+            }
+          } catch (error) {
+            logErrorToSentry(error, "error");
+            setIsAuthenticated(false);
+            setUserEmail(null);
+          }
+        } else {
+          setIsAuthenticated(false);
+          setUserEmail(null);
+        }
+        setIsCheckingAuth(false);
+      }
+    );
+  }, [validateAndParseJwtToken, refreshTokenIfNeeded]);
+
+  // Function to handle storage changes and keep auth state in sync
+  const handleStorageChanges = useCallback(
+    (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes[StorageKeys.AUTH_ID_TOKEN] || changes[StorageKeys.AUTH_ACCESS_TOKEN]) {
+        checkAuthentication();
+      }
+    },
+    [checkAuthentication]
+  );
+
+  // Check authentication on mount and set up a listener for storage changes
+  useEffect(() => {
+    // Initial check
+    checkAuthentication();
+
+    // Listen for storage changes
+    chrome.storage.onChanged.addListener(handleStorageChanges);
+
+    // Set up a timer to refresh tokens every 30 minutes
+    const tokenRefreshInterval = setInterval(
+      () => {
+        if (isAuthenticated) {
+          refreshTokenIfNeeded();
+        }
+      },
+      30 * 60 * 1000
+    ); // 30 minutes
+
+    // Clean up listeners on unmount
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChanges);
+      clearInterval(tokenRefreshInterval);
+    };
+  }, [checkAuthentication, handleStorageChanges, isAuthenticated, refreshTokenIfNeeded]);
 
   // Helper functions for PKCE authentication flow
   const generateCodeVerifier = useCallback(() => {
@@ -275,10 +363,12 @@ export const useSecureAuthentication = () => {
     isAuthenticated,
     isCheckingAuth,
     isSigningIn,
+    isRefreshingToken,
     userEmail,
     checkAuthentication,
     signInRedirect,
     signOut,
+    refreshTokenIfNeeded,
   };
 };
 
