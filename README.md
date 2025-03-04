@@ -30,6 +30,94 @@ In doing so, it enhancees transparency and assists buyers in making more informe
 3. Click on `Update`
 4. You can now see the update.
 
+## Authentication with AWS Cognito
+
+This extension uses AWS Cognito for secure authentication and user management. Here's how it works:
+
+### Authentication Flow
+
+1. **PKCE Authentication Flow**: We implement the OAuth 2.0 Authorization Code Flow with PKCE (Proof Key for Code Exchange) for maximum security:
+
+   - The extension generates a random code verifier
+   - A code challenge is derived from the verifier using SHA-256
+   - The user is redirected to the Cognito Hosted UI with the code challenge
+   - After successful authentication, Cognito returns an authorization code
+   - The extension exchanges this code for ID, access, and refresh tokens
+
+2. **Token Management**:
+   - **ID Token**: Contains user identity information (email, user attributes)
+   - **Access Token**: Used for API authorization
+   - **Refresh Token**: Used to obtain new tokens without user re-authentication
+
+### Token Storage and Security
+
+We follow these security best practices for token storage:
+
+1. **Secure Storage**: Tokens are stored in `chrome.storage.local`, which is:
+
+   - Isolated from websites
+   - Not accessible by other extensions
+   - Protected by Chrome's security model
+
+2. **Token Validation**:
+
+   - Tokens are verified for proper JWT format
+   - Expiration times are checked before tokens are used
+   - Payloads are properly parsed and validated
+
+3. **Token Refresh Mechanism**:
+
+   - ID and access tokens expire after 1 hour
+   - The refresh token is valid for 30 days
+   - The extension automatically refreshes tokens when:
+     - A token is within 5 minutes of expiry
+     - A periodic refresh check runs (every 30 minutes)
+     - An expired token is encountered but a refresh token is available
+
+4. **Automatic Sign-Out**:
+   - If token refresh fails (e.g., refresh token expired after 30 days)
+   - The user is automatically signed out
+   - Tokens are securely removed from storage
+   - User must re-authenticate via Cognito
+
+### Development and Testing Tools
+
+When running in development mode, the extension includes a DevTools panel for testing authentication:
+
+1. **Authentication Status**: View token expiry times and user information
+2. **Testing Functions**:
+   - Force token refresh
+   - Artificially modify token expiry times
+   - Simulate different auth scenarios
+
+To use DevTools:
+
+- Run the extension in development mode
+- The panel appears at the bottom of the sidebar
+- Use the provided buttons to test various auth scenarios
+
+### Security Best Practices
+
+- **Immutable Data Patterns**: We use immutable patterns when handling authentication data
+- **PKCE Flow**: Protects against authorization code interception attacks
+- **Secure Token Transport**: All token exchanges happen over HTTPS
+- **Minimal Token Exposure**: Tokens are never exposed to web pages
+- **Token Sanitization**: Tokens are properly validated before use
+- **Error Handling**: Comprehensive error handling with Sentry integration
+
+### Debugging Authentication
+
+Common authentication issues can be debugged by:
+
+1. Using the DevTools panel in development mode
+2. Checking Chrome Extension background logs at `chrome://extensions/`
+3. Monitoring token expiry and refresh events in the console
+
+For production debugging:
+
+- Check the Sentry dashboard for auth-related errors
+- Use the Chrome DevTools storage inspector to verify token presence
+
 ## Architecture
 
 The project uses the following technologies:

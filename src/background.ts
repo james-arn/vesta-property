@@ -1,4 +1,7 @@
+import { exchangeCodeForTokens, refreshTokens, storeAuthTokens } from "@/background/authHelpers";
+import { AUTH_CONFIG } from "@/constants/authConfig";
 import { ActionEvents } from "./constants/actionEvents";
+import { StorageKeys } from "./constants/storage";
 import {
   MessageRequest,
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
@@ -14,6 +17,21 @@ console.log("[background.ts] Background script loaded");
 // Sends commands to the content script to scrape data.
 // Relays data between the content script and sidebar.
 initSentry();
+
+/**
+ * Creates a system notification for important background events
+ *
+ * Used for cross-tab notifications that need to be visible
+ * even when the extension UI isn't focused
+ */
+function showSystemNotification(title: string, message: string) {
+  chrome.notifications.create({
+    type: "basic",
+    iconUrl: "/images/icon128.png",
+    title,
+    message,
+  });
+}
 
 function sendWarningMessage(logMessage: string) {
   console.warn(logMessage);
@@ -237,6 +255,97 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     sendResponse({ status: "Agent contact form submitted handled" });
   }
+
+  // Handle token refresh requests from the useSecureAuthentication hook
+  if (request.action === ActionEvents.REFRESH_TOKENS && request.refreshToken) {
+    console.log("[background.ts] Received token refresh request");
+
+    // Refresh the tokens asynchronously
+    (async () => {
+      try {
+        // Get new tokens using the refresh token
+        const tokenResponse = await refreshTokens(request.refreshToken);
+
+        // Store the new tokens
+        await storeAuthTokens(tokenResponse);
+
+        console.log("[background.ts] Token refresh successful");
+        sendResponse({ success: true });
+      } catch (error) {
+        logErrorToSentry(error, "error");
+        console.error("[background.ts] Token refresh failed:", error);
+        sendResponse({ success: false, error: String(error) });
+      }
+    })();
+
+    // Keep the message channel open for the async response
+    return true;
+  }
+
+  // Handle AUTH_CODE_RECEIVED message from login-success.html
+  if (request.type === ActionEvents.AUTH_CODE_RECEIVED && request.code) {
+    console.log("[background.ts] Received auth code from login-success.html:", request.code);
+
+    // Get the code verifier
+    chrome.storage.local.get([StorageKeys.AUTH_CODE_VERIFIER], async (result) => {
+      if (result[StorageKeys.AUTH_CODE_VERIFIER]) {
+        try {
+          // Exchange code for tokens
+          const tokenResponse = await exchangeCodeForTokens(
+            request.code,
+            result[StorageKeys.AUTH_CODE_VERIFIER]
+          );
+
+          // Store tokens using the helper function
+          await storeAuthTokens(tokenResponse);
+
+          showSystemNotification(
+            "Successfully Signed In",
+            "You are now signed in to the Vesta Property Checker. You can start using all premium features."
+          );
+        } catch (error) {
+          logErrorToSentry(error, "error");
+          chrome.storage.local.set({
+            [StorageKeys.AUTH_ERROR]: `Failed to exchange code for tokens: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            [StorageKeys.AUTH_IN_PROGRESS]: false,
+          });
+        }
+      }
+    });
+
+    // Keep the message channel open for the async response
+    return true;
+  }
+
+  // Handle AUTH_SUCCESS message from login-success.html or logout-success.html
+  if (request.type === ActionEvents.AUTH_SUCCESS) {
+    console.log("[background.ts] Received AUTH_SUCCESS message from redirect page");
+
+    // The page will close itself, so we don't need to close it explicitly
+
+    // If we have a tab ID in sender, let's track it for debugging
+    if (sender.tab && sender.tab.id) {
+      console.log("[background.ts] Authentication completed in tab:", sender.tab.id);
+    }
+
+    sendResponse({ status: "Auth success handled" });
+  }
+
+  // Handle LOGOUT_SUCCESS message from logout-success.js
+  if (request.type === ActionEvents.LOGOUT_SUCCESS) {
+    console.log("[background.ts] Received LOGOUT_SUCCESS message from logout page");
+
+    // The page will close itself, so we don't need to close it explicitly
+
+    // If we have a tab ID in sender, let's track it for debugging
+    if (sender.tab && sender.tab.id) {
+      console.log("[background.ts] Logout completed in tab:", sender.tab.id);
+    }
+
+    sendResponse({ status: "Logout success handled" });
+  }
 });
 
 // Listen for tab switches
@@ -260,5 +369,86 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
       data: tab.url ?? "",
     });
+  }
+});
+
+// Handle additional token exchange code in the tab change event
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Only proceed if we have a complete URL change
+  if (changeInfo.status === "complete" && tab.url) {
+    try {
+      // Check if this is a Cognito redirect with an auth code
+      if (tab.url.includes(AUTH_CONFIG.REDIRECT_URI) && tab.url.includes("code=")) {
+        console.log("[background.ts] Caught Cognito redirect with auth code in tab update");
+
+        // Extract the authorization code from the URL
+        const urlObj = new URL(tab.url);
+        const code = urlObj.searchParams.get("code");
+        const error = urlObj.searchParams.get("error");
+        const errorDescription = urlObj.searchParams.get("error_description");
+
+        if (code) {
+          // Verify we're in the authentication flow and have a code verifier
+          chrome.storage.local.get(
+            [StorageKeys.AUTH_IN_PROGRESS, StorageKeys.AUTH_CODE_VERIFIER],
+            async (result) => {
+              if (result[StorageKeys.AUTH_IN_PROGRESS] && result[StorageKeys.AUTH_CODE_VERIFIER]) {
+                try {
+                  // Exchange code for tokens
+                  const tokenResponse = await exchangeCodeForTokens(
+                    code,
+                    result[StorageKeys.AUTH_CODE_VERIFIER]
+                  );
+
+                  // Store tokens using the helper function
+                  await storeAuthTokens(tokenResponse);
+
+                  console.log("Authentication successful, tokens stored");
+                  showSystemNotification(
+                    "Successfully Signed In",
+                    "You are now signed in to the Vesta Property Checker. You can start using all premium features."
+                  );
+
+                  // Close the tab once authentication is complete
+                  setTimeout(() => {
+                    chrome.tabs.remove(tabId);
+                  }, 1000);
+                } catch (error) {
+                  logErrorToSentry(error, "error");
+                  chrome.storage.local.set({
+                    [StorageKeys.AUTH_ERROR]: `Failed to exchange code for tokens: ${error instanceof Error ? error.message : String(error)}`,
+                    [StorageKeys.AUTH_IN_PROGRESS]: false,
+                  });
+                }
+              }
+            }
+          );
+        }
+        // Separate handling for logout redirects
+        else if (tab.url.includes(AUTH_CONFIG.LOGOUT_URI)) {
+          console.log("Detected logout redirect");
+
+          // This is a post-logout redirect
+          // No additional action needed - the logout has been completed by Cognito
+          // and the tokens have been cleared by our app
+          // Tab will be closed automatically by the page itself
+        }
+        // Handle authentication errors (could happen in either flow)
+        else if (tab.url.includes("error=")) {
+          const url = new URL(tab.url);
+          const error = url.searchParams.get("error");
+          const errorDescription = url.searchParams.get("error_description");
+
+          logErrorToSentry(`Authentication error: ${error} - ${errorDescription}`, "error");
+
+          chrome.storage.local.set({
+            [StorageKeys.AUTH_ERROR]: `Authentication failed: ${errorDescription || error}`,
+            [StorageKeys.AUTH_IN_PROGRESS]: false,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("[background.ts] Error handling tab update:", error);
+    }
   }
 });

@@ -10,6 +10,13 @@ export const ActionEvents = {
   RIGHTMOVE_SIGN_IN_COMPLETED: "rightmoveSignInCompleted",
   NAVIGATE_BACK_TO_PROPERTY_LISTING: "navigateBackToPropertyListing",
   AGENT_CONTACT_FORM_SUBMITTED: "agentContactFormSubmitted",
+  // Authentication events
+  AUTH_CODE_RECEIVED: "authCodeReceived",
+  AUTH_TOKEN_EXCHANGE_SUCCESS: "authTokenExchangeSuccess",
+  AUTH_TOKEN_EXCHANGE_FAILURE: "authTokenExchangeFailure",
+  AUTH_SUCCESS: "authSuccess", // NOTE - used as magic string in login-success.html & logout-success.html as can't import constants into html files
+  LOGOUT_SUCCESS: "logoutSuccess", // Used as magic string in logout-success.js
+  REFRESH_TOKENS: "refreshTokens",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];
