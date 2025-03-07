@@ -11,7 +11,15 @@ export async function exchangeCodeForTokens(
   code: string,
   codeVerifier: string
 ): Promise<TokenResponse> {
-  const tokenEndpoint = `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
+  // Determine the token endpoint based on the domain format
+  let tokenEndpoint: string;
+  if (ENV_CONFIG.AUTH_COGNITO_DOMAIN.includes("cognito-idp")) {
+    // If using the API endpoint format (for production)
+    tokenEndpoint = `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/${ENV_CONFIG.AUTH_USER_POOL_ID}/oauth2/token`;
+  } else {
+    // If using the domain format (for development)
+    tokenEndpoint = `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
+  }
 
   const params = new URLSearchParams();
   params.append("grant_type", "authorization_code");

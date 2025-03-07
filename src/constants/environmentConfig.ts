@@ -15,7 +15,7 @@ const authConfigs = {
   },
   production: {
     AUTH_CLIENT_ID: "5n2gk5qj1cclclfj4pl1v4f4qt", // Production Cognito Client ID
-    AUTH_COGNITO_DOMAIN: "https://cognito-idp.eu-west-2.amazonaws.com/eu-west-2_JnzrCsnYE",
+    AUTH_COGNITO_DOMAIN: "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com",
     AUTH_USER_POOL_ID: "eu-west-2_JnzrCsnYE", // Production Cognito User Pool ID
     AUTH_PRICING_URL: "https://vestapropertychecker.com/pricing",
   },

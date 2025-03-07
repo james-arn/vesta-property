@@ -56,8 +56,17 @@ export const useSecureAuthentication = () => {
 
         // Construct logout URL to properly terminate the Cognito session
         // Per AWS docs: https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html
-        const logoutUrl = new URL(ENV_CONFIG.AUTH_COGNITO_DOMAIN);
-        logoutUrl.pathname = "/logout";
+        let logoutUrl: URL;
+        if (ENV_CONFIG.AUTH_COGNITO_DOMAIN.includes("cognito-idp")) {
+          // If using the API endpoint format (for production)
+          logoutUrl = new URL(
+            `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/${ENV_CONFIG.AUTH_USER_POOL_ID}/oauth2/logout`
+          );
+        } else {
+          // If using the domain format (for development)
+          logoutUrl = new URL(`${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/logout`);
+        }
+
         logoutUrl.searchParams.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
         logoutUrl.searchParams.append("logout_uri", ENV_CONFIG.LOGOUT_URI);
 
