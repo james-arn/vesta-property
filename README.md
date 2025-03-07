@@ -129,14 +129,12 @@ The project uses the following technologies:
 - **Shadcn:** A component library that provides pre-designed UI components to speed up development.
 - **Sentry** for error handling.
 - **Google Analytics** for reporting on how to improve the extension.
-- **ExtensionPay** to manage payments, authentication, and subscription-based premium features. ExtensionPay's integration with Stripe allows us to:
-
-  - Handle transactions securely.
-  - Provide multi-device authentication and licensing without the need for building an in-house system.
-  - Enable premium features (such as enhanced data for property searches) for paid users.
 
 - **AWS Lambda, DynamoDB, API Gateway:** Not in this repo, but we have a serverless backend that is used to:
-  - Handle API keys outside of client and providing crime API.
+  - Handle API keys outside of client and providing crime API in free version.
+  - Handle transactions securely.
+  - Provide multi-device authentication and licensing
+  - Enable premium features (such as enhanced data for property searches) for paid users.
   - Track and decrement user credits securely.
 
 New developers joining the project should note:

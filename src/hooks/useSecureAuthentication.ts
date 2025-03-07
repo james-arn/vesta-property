@@ -1,5 +1,5 @@
 import { ActionEvents } from "@/constants/actionEvents";
-import { AUTH_CONFIG } from "@/constants/authConfig";
+import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { StorageKeys } from "@/constants/storage";
 import { toast } from "@/hooks/use-toast";
 import { logErrorToSentry } from "@/utils/sentry";
@@ -56,10 +56,10 @@ export const useSecureAuthentication = () => {
 
         // Construct logout URL to properly terminate the Cognito session
         // Per AWS docs: https://docs.aws.amazon.com/cognito/latest/developerguide/logout-endpoint.html
-        const logoutUrl = new URL(AUTH_CONFIG.AUTH_COGNITO_DOMAIN);
+        const logoutUrl = new URL(ENV_CONFIG.AUTH_COGNITO_DOMAIN);
         logoutUrl.pathname = "/logout";
-        logoutUrl.searchParams.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
-        logoutUrl.searchParams.append("logout_uri", AUTH_CONFIG.LOGOUT_URI);
+        logoutUrl.searchParams.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
+        logoutUrl.searchParams.append("logout_uri", ENV_CONFIG.LOGOUT_URI);
 
         // Open a tab to complete the Cognito logout process
         chrome.tabs.create({ url: logoutUrl.toString() }, (tab) => {
@@ -302,12 +302,12 @@ export const useSecureAuthentication = () => {
           generateCodeChallenge(codeVerifier)
             .then((codeChallenge) => {
               // Construct the authorization URL for hosted UI
-              const authUrl = new URL(AUTH_CONFIG.AUTH_COGNITO_DOMAIN);
+              const authUrl = new URL(ENV_CONFIG.AUTH_COGNITO_DOMAIN);
               authUrl.pathname = "/oauth2/authorize";
-              authUrl.searchParams.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
+              authUrl.searchParams.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
               authUrl.searchParams.append("response_type", "code");
               authUrl.searchParams.append("scope", "phone openid email");
-              authUrl.searchParams.append("redirect_uri", AUTH_CONFIG.REDIRECT_URI);
+              authUrl.searchParams.append("redirect_uri", ENV_CONFIG.REDIRECT_URI);
               authUrl.searchParams.append("state", state);
               authUrl.searchParams.append("code_challenge", codeChallenge);
               authUrl.searchParams.append("code_challenge_method", "S256");

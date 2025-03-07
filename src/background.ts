@@ -1,5 +1,5 @@
 import { exchangeCodeForTokens, refreshTokens, storeAuthTokens } from "@/background/authHelpers";
-import { AUTH_CONFIG } from "@/constants/authConfig";
+import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { ActionEvents } from "./constants/actionEvents";
 import { StorageKeys } from "./constants/storage";
 import {
@@ -378,7 +378,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
     try {
       // Check if this is a Cognito redirect with an auth code
-      if (tab.url.includes(AUTH_CONFIG.REDIRECT_URI) && tab.url.includes("code=")) {
+      if (tab.url.includes(ENV_CONFIG.REDIRECT_URI) && tab.url.includes("code=")) {
         console.log("[background.ts] Caught Cognito redirect with auth code in tab update");
 
         // Extract the authorization code from the URL
@@ -425,7 +425,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           );
         }
         // Separate handling for logout redirects
-        else if (tab.url.includes(AUTH_CONFIG.LOGOUT_URI)) {
+        else if (tab.url.includes(ENV_CONFIG.LOGOUT_URI)) {
           console.log("Detected logout redirect");
 
           // This is a post-logout redirect

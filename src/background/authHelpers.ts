@@ -1,4 +1,4 @@
-import { AUTH_CONFIG } from "@/constants/authConfig";
+import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { StorageKeys } from "@/constants/storage";
 import { TokenResponse } from "@/types/auth";
 import { logErrorToSentry } from "@/utils/sentry";
@@ -11,12 +11,12 @@ export async function exchangeCodeForTokens(
   code: string,
   codeVerifier: string
 ): Promise<TokenResponse> {
-  const tokenEndpoint = `${AUTH_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
+  const tokenEndpoint = `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
 
   const params = new URLSearchParams();
   params.append("grant_type", "authorization_code");
-  params.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
-  params.append("redirect_uri", AUTH_CONFIG.REDIRECT_URI);
+  params.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
+  params.append("redirect_uri", ENV_CONFIG.REDIRECT_URI);
   params.append("code", code);
   params.append("code_verifier", codeVerifier);
 
@@ -43,11 +43,11 @@ export async function exchangeCodeForTokens(
  * Should be called before tokens expire (default: 1 hour for ID/access tokens)
  */
 export async function refreshTokens(refreshToken: string): Promise<TokenResponse> {
-  const tokenEndpoint = `${AUTH_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
+  const tokenEndpoint = `${ENV_CONFIG.AUTH_COGNITO_DOMAIN}/oauth2/token`;
 
   const params = new URLSearchParams();
   params.append("grant_type", "refresh_token");
-  params.append("client_id", AUTH_CONFIG.AUTH_CLIENT_ID);
+  params.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
   params.append("refresh_token", refreshToken);
 
   try {

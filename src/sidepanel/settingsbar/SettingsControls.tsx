@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AUTH_CONFIG } from "@/constants/authConfig";
+import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import React from "react";
@@ -67,7 +67,7 @@ const SettingsControls = () => {
 
     const handleUpgrade = () => {
         // Open the external site for purchasing/registration in a new tab
-        chrome.tabs.create({ url: AUTH_CONFIG.AUTH_PRICING_URL });
+        chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
     };
 
     if (isAuthenticating || isCheckingAuth) {
