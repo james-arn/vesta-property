@@ -1,4 +1,3 @@
-// hooks/usePortalSession.ts
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { toast } from "@/hooks/use-toast";
 import { useCallback, useState } from "react";
