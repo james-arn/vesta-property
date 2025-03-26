@@ -11,11 +11,13 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { useToast } from "@/hooks/use-toast";
+import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import React from "react";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { GoCreditCard, GoStar } from "react-icons/go";
 import { IoSettingsOutline } from "react-icons/io5";
+import { MdManageAccounts } from "react-icons/md";
 import { VscFeedback } from "react-icons/vsc";
 
 const SettingsIconWithTooltip = () => (
@@ -40,13 +42,9 @@ const PremiumFooterCTA = ({ onClick }: { onClick: () => void }) => (
     </div>
 );
 
-/**
- * Authentication-related functionality has been moved to src/hooks/useSecureAuthentication.ts
- * for better code organization and reusability.
- */
-
 const SettingsControls = () => {
     const { toast } = useToast();
+    const { createPortalSession, isLoading: isPortalLoading } = useCreateStripePortalSession();
 
     const {
         isAuthenticated,
@@ -70,7 +68,12 @@ const SettingsControls = () => {
         chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
     };
 
-    if (isAuthenticating || isCheckingAuth) {
+    const handleManageSubscription = async () => {
+        // The hook handles error display and tab opening internally
+        await createPortalSession(window.location.href);
+    };
+
+    if (isAuthenticating || isCheckingAuth || isPortalLoading) {
         return (
             <div className="flex items-center justify-center">
                 <div className="animate-spin h-5 w-5 border-2 border-primary rounded-full border-t-transparent" />
@@ -92,6 +95,10 @@ const SettingsControls = () => {
                     <DropdownMenuGroup>
                         {isAuthenticated ? (
                             <>
+                                <DropdownMenuItem onClick={handleManageSubscription} className="cursor-pointer">
+                                    <MdManageAccounts className="mr-2" />
+                                    <span>Manage Subscription</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                                     <FiLogOut className="mr-2" />
                                     <span>Sign out</span>
@@ -115,7 +122,6 @@ const SettingsControls = () => {
                             <VscFeedback className="mr-2" />
                             <span>Give feedback</span>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem disabled>
                             <span>More features coming soon! 😊</span>
                         </DropdownMenuItem>
