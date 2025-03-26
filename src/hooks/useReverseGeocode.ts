@@ -15,7 +15,7 @@ const fetchReverseGeocode = async (
   lng: string
 ): Promise<{ address: string; postcode: string }> => {
   try {
-    const url = `${process.env.VESTA_AWS_ENDPOINT}/getReverseGeocode?lat=${lat}&lng=${lng}`;
+    const url = `${process.env.VESTA_PROPERTY_DATA_PRODUCTION_ONLY_ENDPOINT}/getReverseGeocode?lat=${lat}&lng=${lng}`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error("Reverse geocoding failed");

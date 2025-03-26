@@ -262,8 +262,24 @@ export interface NearbyPlanningApplication extends PlanningApplication {
 }
 
 export interface MarketStatisticsWrapper {
-  outcode: string;
-  local_authority: string;
+  outcode: {
+    count_of_properties: number;
+    count_total_properties_sold_last_12_months: number;
+    average_price_properties_sold_last_12_months: number;
+    sales_yearly: { year: number; count_of_sales: number; average_price: number }[];
+    outcode: string;
+    local_authority: string;
+    national: MarketStatisticsNational;
+  };
+  local_authority: {
+    count_of_properties: number;
+    count_total_properties_sold_last_12_months: number;
+    average_price_properties_sold_last_12_months: number;
+    sales_yearly: { year: number; count_of_sales: number; average_price: number }[];
+    outcode: string;
+    local_authority: string;
+    national: MarketStatisticsNational;
+  };
   national: MarketStatisticsNational;
 }
 

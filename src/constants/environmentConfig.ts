@@ -46,8 +46,9 @@ const apiConfig = {
   MEASUREMENT_ID: process.env.MEASUREMENT_ID,
   API_SECRET: process.env.API_SECRET,
   GA_ENDPOINT: process.env.GA_ENDPOINT,
-  VESTA_AWS_ENDPOINT: process.env.VESTA_AWS_ENDPOINT,
-  USE_PREMIUM_DATA_MOCK: process.env.USE_PREMIUM_DATA_MOCK === "true",
+  VESTA_PROPERTY_DATA_ENDPOINT: process.env.VESTA_PROPERTY_DATA_ENDPOINT,
+  VESTA_USER_ENDPOINT: process.env.VESTA_USER_ENDPOINT,
+  USE_PREMIUM_DATA_MOCK_ON_FRONTEND: process.env.USE_PREMIUM_DATA_MOCK_ON_FRONTEND === "true",
 };
 
 // Export the combined configuration

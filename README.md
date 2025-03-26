@@ -14,8 +14,9 @@ In doing so, it enhancees transparency and assists buyers in making more informe
    MEASUREMENT_ID
    API_SECRET
    GA_ENDPOINT
-   VESTA_AWS_ENDPOINT
-   USE_PREMIUM_DATA_MOCK
+   VESTA_PROPERTY_DATA_ENDPOINT
+   USE_PREMIUM_DATA_MOCK_ON_FRONTEND
+   USE_PREMIUM_DATA_MOCK_ON_BACKEND
 4. Run `npm run build:dev` or `npm run build:prod` depending on which enviornment you want. Note: production strips out all console.logs
 5. Open chrome and go to `chrome://extensions/`
 6. Click on `Load unpacked`

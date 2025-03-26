@@ -41,7 +41,7 @@ export function getCrimeScoreValue(
 }
 
 const fetchCrimeScore = async (lat: string, lng: string): Promise<CrimeScoreResponse> => {
-  const endpoint = `${process.env.VESTA_AWS_ENDPOINT}/crime-report?lat=${lat}&lng=${lng}`;
+  const endpoint = `${process.env.VESTA_PROPERTY_DATA_PRODUCTION_ONLY_ENDPOINT}/crime-report?lat=${lat}&lng=${lng}`;
   try {
     const response = await fetch(endpoint);
     if (!response.ok) {
