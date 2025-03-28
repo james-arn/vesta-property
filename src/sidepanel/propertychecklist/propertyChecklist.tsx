@@ -482,7 +482,11 @@ export function generatePropertyChecklist(
       group: PropertyGroups.PREMIUM,
       label: "Planning Permissions",
       key: "planningPermissions",
-      status: getPlanningApplicationsStatus(isPremiumStreetDataLoading, premiumStreetData?.attributes.planning_applications, premiumStreetData?.attributes.nearby_planning_applications),
+      status: getPlanningApplicationsStatus(
+        isPremiumStreetDataLoading,
+        premiumStreetData?.attributes.planning_applications,
+        premiumStreetData?.attributes.nearby_planning_applications
+      ),
       value: getPlanningApplicationsValue(isPremiumStreetDataLoading, premiumStreetData?.attributes.planning_applications, premiumStreetData?.attributes.nearby_planning_applications, premiumStreetDataError),
       askAgentMessage: "I noticed there are quite a few planning permissions on this property area. Do you have more information on this?",
       toolTipExplainer:

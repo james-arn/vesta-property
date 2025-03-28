@@ -17,7 +17,7 @@ const PlanningPermissionCard: React.FC<PlanningPermissionCardProps> = ({
     return (
         <Card className="flex flex-col">
             <CardContent className="flex-1 pb-0">
-                <h3 className="text-lg font-bold">Planning Applications</h3>
+                <h3 className="text-md font-bold">Planning Applications</h3>
                 <ul className="space-y-2">
                     {planningPermissionData?.map((permission) => (
                         <li key={permission.reference_number} className="border-b pb-2">

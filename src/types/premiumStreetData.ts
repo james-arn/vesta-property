@@ -10,6 +10,30 @@ export interface AddressMatchMeta {
   balance_gbp: number;
 }
 
+export interface PropertyTransaction {
+  transaction_id: string;
+  date: string; // ISO date
+  price: number;
+  is_new_build: boolean;
+  meta: {
+    data_type: "actual" | "predicted";
+    source: string;
+    attribution_string: string | null;
+  };
+}
+
+export interface PropertyValueEstimate {
+  month: number;
+  year: number;
+  estimated_market_value: number;
+  estimated_market_value_rounded: number;
+}
+
+export interface RentalEstimate {
+  estimated_monthly_rental_value: number;
+  estimated_annual_rental_yield: number;
+}
+
 export interface PropertyAttributes {
   street_group_property_id: string | null;
   address: Address | null;
@@ -26,6 +50,11 @@ export interface PropertyAttributes {
   planning_applications?: PlanningApplication[] | null;
   nearby_planning_applications?: NearbyPlanningApplication[] | null;
   market_statistics?: MarketStatisticsWrapper | null;
+  transactions?: PropertyTransaction[];
+  estimated_values?: PropertyValueEstimate[];
+  estimated_rental_value?: RentalEstimate;
+  propensity_to_sell_score?: number;
+  propensity_to_let_score?: number;
 }
 
 export interface Address {

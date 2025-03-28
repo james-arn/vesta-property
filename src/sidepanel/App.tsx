@@ -193,12 +193,12 @@ const App: React.FC = () => {
     },
     {} as { [key: string]: boolean }
   );
-  const [openGroups, setOpenGroups] = useState<{ [key: string]: boolean }>(
+  const [openChecklistGroups, setOpenChecklistGroups] = useState<{ [key: string]: boolean }>(
     initialOpenGroups
   );
 
   const toggleGroup = (group: string) => {
-    setOpenGroups((prev) => ({
+    setOpenChecklistGroups((prev) => ({
       ...prev,
       [group]: !prev[group],
     }));
@@ -206,7 +206,7 @@ const App: React.FC = () => {
 
   let lastGroup = "";
 
-  const handleEpcClick = (url: string) => {
+  const openNewTab = (url: string) => {
     chrome.tabs.create({ url });
   };
 
@@ -300,8 +300,8 @@ const App: React.FC = () => {
         className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
-        <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
-        <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
+        <span>{group} {!openChecklistGroups[group] && `(${itemCount})`}</span>
+        <span className="mr-2">{openChecklistGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
   };
@@ -312,7 +312,6 @@ const App: React.FC = () => {
       payload: { displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true },
     });
   }
-
 
   if (nonPropertyPageWarningMessage) {
     return (
@@ -343,8 +342,8 @@ const App: React.FC = () => {
       )}
       <div className={`p-4 ${!isAuthenticated ? 'pb-16' : 'pb-4'}`}>
         <SettingsBar
-          openGroups={openGroups}
-          setOpenGroups={setOpenGroups}
+          openGroups={openChecklistGroups}
+          setOpenGroups={setOpenChecklistGroups}
           propertyChecklistData={propertyChecklistData}
           filters={filters}
           toggleFilter={toggleFilter}
@@ -375,7 +374,7 @@ const App: React.FC = () => {
             return (
               <React.Fragment key={item.key}>
                 {showGroupHeading && renderGroupHeading(item.group)}
-                {openGroups[item.group] && (
+                {openChecklistGroups[item.group] && (
                   <ChecklistItem
                     item={item}
                     isSelected={
@@ -388,7 +387,15 @@ const App: React.FC = () => {
                         ? () => toggleSelection(item.key)
                         : undefined
                     }
-                    onValueClick={getValueClickHandler(item.key, item.value, handleEpcClick, toggleCrimeChart, togglePlanningPermissionCard)}
+                    onValueClick={
+                      getValueClickHandler(
+                        item.key,
+                        item.value,
+                        openNewTab,
+                        toggleCrimeChart,
+                        togglePlanningPermissionCard
+                      )
+                    }
                   />
                 )}
                 {/* Dropdown crime piechart on crime score click */}

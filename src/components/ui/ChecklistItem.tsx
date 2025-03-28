@@ -1,5 +1,6 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getStatusIcon } from "@/sidepanel/helpers";
+import { isClickableItemKey } from "@/types/clickableChecklist";
 import { DataStatus, PropertyDataList } from "@/types/property";
 import React from "react";
 import { FaInfoCircle } from "react-icons/fa";
@@ -20,22 +21,51 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const isWarning = item.status === DataStatus.ASK_AGENT;
 
     const renderValue = () => {
+        const isClickable = isClickableItemKey(item.key)
+            && item.value !== "Not mentioned"
+            && item.status !== DataStatus.IS_LOADING;
+
+        // Special case for EPC and floor plan - always show as "Yes" when clickable
         if ((item.key === "epc" || item.key === "floorPlan") && item.value !== "Not mentioned") {
             return (
-                <span onClick={onValueClick} className="cursor-pointer text-blue-500 underline">
+                <span
+                    onClick={onValueClick}
+                    className="cursor-pointer text-blue-500 underline"
+                >
                     Yes
                 </span>
             );
         }
-        // For crimeScore, we expect a clickable link that toggles inline expansion.
+
+        // For crimeScore, we expect a clickable link that toggles inline expansion
         if (item.key === "crimeScore") {
             return (
-                <span onClick={onValueClick} className={`${item.status !== DataStatus.IS_LOADING
-                    ? "cursor-pointer text-blue-500 underline" : ""}`}>
+                <span
+                    onClick={onValueClick}
+                    className={`${item.status !== DataStatus.IS_LOADING ? "cursor-pointer text-blue-500 underline" : ""}`}
+                >
                     {item.value || "Not found"}
                 </span>
             );
         }
+
+        // For planningPermissions
+        if (item.key === "planningPermissions" && isClickable) {
+            return (
+                <span
+                    onClick={onValueClick}
+                    className="cursor-pointer text-blue-500 underline"
+                >
+                    {item.value || "Not found"}
+                </span>
+            );
+        }
+
+        // Log warning if this is a clickable key but we don't have specific rendering for it
+        if (isClickableItemKey(item.key) && item.key !== "epc" && item.key !== "floorPlan" && item.key !== "crimeScore" && item.key !== "planningPermissions") {
+            console.error(`Key "${item.key}" is defined as clickable but has no special rendering in ChecklistItem`);
+        }
+
         return <span>{item.value || "Not found"}</span>;
     };
 

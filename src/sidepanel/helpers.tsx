@@ -1,4 +1,5 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { isClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';
 import { DataStatus, PropertyDataList } from "../types/property";
@@ -74,18 +75,22 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
 export const getValueClickHandler = (
   key: string,
   value: any,
-  handleEpcClick: (url: string) => void,
+  openNewTab: (url: string) => void,
   toggleCrimeChart: () => void,
   togglePlanningPermissionCard: () => void): (() => void) | undefined => {
+
+  if (!isClickableItemKey(key)) return undefined;
+
   switch (key) {
     case "epc":
     case "floorPlan":
-      return () => handleEpcClick(String(value));
+      return () => openNewTab(String(value));
     case "crimeScore":
       return toggleCrimeChart;
     case "planningPermissions":
       return togglePlanningPermissionCard;
     default:
+      console.error(`Key "${key}" is defined as clickable but not handled in switch statement`);
       return undefined;
   }
 };
