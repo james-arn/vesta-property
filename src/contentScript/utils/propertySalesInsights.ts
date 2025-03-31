@@ -1,11 +1,7 @@
+import { NOT_APPLICABLE, PriceDiscrepancyReason } from "@/constants/propertyConsts";
 import { multiplierCAGRThreshold } from "@/constants/thresholds";
 import { clickPropertySaleHistoryButton } from "@/contentScript/utils/propertyScrapeHelpers";
-import {
-  DataStatus,
-  NOT_APPLICABLE,
-  PriceDiscrepancyReason,
-  SaleHistoryEntry,
-} from "@/types/property";
+import { DataStatus, SaleHistoryEntry } from "@/types/property";
 
 /**
  * Returns a promise that resolves once a table with a "Year sold" header is found in the DOM.

@@ -83,28 +83,3 @@ export interface SaleHistoryEntry {
   soldPrice: string;
   percentageChange: string;
 }
-
-export const PropertyGroups = {
-  GENERAL: "General",
-  SALES_HISTORY: "Sales History",
-  INTERIOR: "Interior",
-  EXTERIOR: "Exterior",
-  UTILITIES: "Utilities",
-  NEIGHBOURHOOD: "Neighbourhood",
-  LEGAL: "Legal",
-  RENTING: "Renting",
-  RISKS: "Risks",
-  MISC: "Miscellaneous",
-  RIGHTS_AND_RESTRICTIONS: "Rights and Restrictions",
-  PREMIUM: "Premium",
-} as const;
-
-export const PriceDiscrepancyReason = {
-  NO_PREVIOUS_SOLD_HISTORY: "noPreviousSoldHistory",
-  MISSING_OR_INVALID_PRICE_DATA: "missingOrInvalidPriceData",
-  PRICE_GAP_WITHIN_EXPECTED_RANGE: "priceGapWithinExpectedRange",
-  PRICE_GAP_EXCEEDS_EXPECTED_RANGE: "priceGapExceedsExpectedRange",
-  PRICE_DROP: "priceDrop",
-} as const;
-
-export const NOT_APPLICABLE = "N/A";

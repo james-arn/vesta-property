@@ -1,4 +1,5 @@
-import { DataStatus, PriceDiscrepancyReason } from "../../types/property";
+import { PriceDiscrepancyReason } from "@/constants/propertyConsts";
+import { DataStatus } from "../../types/property";
 import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
 import { agentMissingInfo } from "./propertyChecklist";
 

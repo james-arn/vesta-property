@@ -1,4 +1,5 @@
-import { getPlanningApplicationsStatus, getPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
+import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
+import { PropertyGroups } from "@/constants/propertyConsts";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
@@ -9,7 +10,6 @@ import {
   DataStatus,
   ExtractedPropertyScrapingData,
   PropertyDataList,
-  PropertyGroups,
 } from "../../types/property";
 import {
   calculateListingHistoryDetails,
@@ -480,15 +480,27 @@ export function generatePropertyChecklist(
     // Premium
     {
       group: PropertyGroups.PREMIUM,
-      label: "Planning Permissions",
+      label: "Property Planning Permissions",
       key: "planningPermissions",
-      status: getPlanningApplicationsStatus(
-        isPremiumStreetDataLoading,
+      status: getPropertyPlanningApplicationsStatus(
         premiumStreetData?.attributes.planning_applications,
-        premiumStreetData?.attributes.nearby_planning_applications
       ),
-      value: getPlanningApplicationsValue(isPremiumStreetDataLoading, premiumStreetData?.attributes.planning_applications, premiumStreetData?.attributes.nearby_planning_applications, premiumStreetDataError),
-      askAgentMessage: "I noticed there are quite a few planning permissions on this property area. Do you have more information on this?",
+      value: getPropertyPlanningApplicationsValue(premiumStreetData?.attributes.planning_applications),
+      askAgentMessage: "I noticed there are quite a few planning permissions on the property. Do you have more information on this?",
+      toolTipExplainer:
+        "Planning permission is a key aspect of property regulation in the UK.\n\n" +
+        "It typically applies to the specific property and its immediate surroundings, ensuring that any proposed alterations or developments align with local council guidelines.\n\n" +
+        "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. "
+    },
+    {
+      group: PropertyGroups.PREMIUM,
+      label: "Nearby Planning Permissions",
+      key: "nearbyPlanningPermissions",
+      status: getNearbyPlanningApplicationsStatus(
+        premiumStreetData?.attributes.nearby_planning_applications,
+      ),
+      value: getNearbyPlanningApplicationsValue(premiumStreetData?.attributes.nearby_planning_applications),
+      askAgentMessage: "I noticed there are quite a few planning permissions on property nearby. Is there anything I should know about this?",
       toolTipExplainer:
         "Planning permission is a key aspect of property regulation in the UK.\n\n" +
         "It typically applies to the specific property and its immediate surroundings, ensuring that any proposed alterations or developments align with local council guidelines.\n\n" +

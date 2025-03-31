@@ -77,7 +77,8 @@ export const getValueClickHandler = (
   value: any,
   openNewTab: (url: string) => void,
   toggleCrimeChart: () => void,
-  togglePlanningPermissionCard: () => void): (() => void) | undefined => {
+  togglePlanningPermissionCard: () => void,
+  toggleNearbyPlanningPermissionCard?: () => void): (() => void) | undefined => {
 
   if (!isClickableItemKey(key)) return undefined;
 
@@ -89,6 +90,8 @@ export const getValueClickHandler = (
       return toggleCrimeChart;
     case "planningPermissions":
       return togglePlanningPermissionCard;
+    case "nearbyPlanningPermissions":
+      return toggleNearbyPlanningPermissionCard || (() => console.error("No handler for nearbyPlanningPermissions"));
     default:
       console.error(`Key "${key}" is defined as clickable but not handled in switch statement`);
       return undefined;

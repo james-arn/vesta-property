@@ -1,49 +1,111 @@
+import { PREMIUM_DATA_STATES } from "@/constants/propertyConsts";
 import { NearbyPlanningApplication, PlanningApplication } from "@/types/premiumStreetData";
 import { DataStatus } from "@/types/property";
 
-export function getPlanningApplicationsStatus(
-  isPremiumStreetDataLoading: boolean,
-  planningApplicationsData?: PlanningApplication[] | null,
-  nearbyPlanningApplicationsData?: NearbyPlanningApplication[] | null
-): DataStatus {
-  if (isPremiumStreetDataLoading) {
-    return DataStatus.IS_LOADING;
-  }
-  if (planningApplicationsData?.length && planningApplicationsData.length > 0) {
-    return DataStatus.ASK_AGENT;
-  }
-  if (nearbyPlanningApplicationsData?.length && nearbyPlanningApplicationsData.length > 0) {
-    return DataStatus.ASK_AGENT;
-  }
-  return DataStatus.FOUND_POSITIVE;
-}
-
-export function getPlanningApplicationsValue(
-  isPremiumStreetDataLoading: boolean,
-  planningApplicationsData?: PlanningApplication[] | null,
-  nearbyPlanningApplicationsData?: NearbyPlanningApplication[] | null,
-  premiumStreetDataError?: Error | null
-): string {
-  if (isPremiumStreetDataLoading) {
-    return "Calculating...";
-  }
-  if (premiumStreetDataError) {
-    return "Unable to find, check with agent";
+/**
+ * Determines the status of property planning applications data
+ */
+export const getPropertyPlanningApplicationsStatus = (
+  planningApplications: PlanningApplication[] | null | undefined
+) => {
+  if (!planningApplications) {
+    return DataStatus.NOT_APPLICABLE;
   }
 
-  const hasPlanningApplications =
-    planningApplicationsData?.length && planningApplicationsData.length > 0;
-  const hasNearbyPlanningApplications =
-    nearbyPlanningApplicationsData?.length && nearbyPlanningApplicationsData.length > 0;
+  return planningApplications.length > 0 ? DataStatus.FOUND_POSITIVE : DataStatus.NOT_APPLICABLE;
+};
 
-  if (hasPlanningApplications && hasNearbyPlanningApplications) {
-    return "Planning applications on-premise and nearby found";
+/**
+ * Determines the status of nearby planning applications data
+ */
+export const getNearbyPlanningApplicationsStatus = (
+  nearbyPlanningApplications: NearbyPlanningApplication[] | null | undefined
+) => {
+  if (!nearbyPlanningApplications) {
+    return DataStatus.NOT_APPLICABLE;
   }
-  if (hasPlanningApplications) {
-    return "Planning applications found";
+
+  return nearbyPlanningApplications.length > 0
+    ? DataStatus.FOUND_POSITIVE
+    : DataStatus.NOT_APPLICABLE;
+};
+
+/**
+ * Gets the value to display for property planning applications
+ */
+export const getPropertyPlanningApplicationsValue = (
+  planningApplications: PlanningApplication[] | null | undefined
+) => {
+  if (!planningApplications) {
+    return PREMIUM_DATA_STATES.NOT_FOUND;
   }
-  if (hasNearbyPlanningApplications) {
-    return "Nearby planning applications found";
+
+  if (planningApplications.length === 0) {
+    return PREMIUM_DATA_STATES.NO_APPLICATIONS;
   }
-  return "Unable to find, check with agent";
-}
+
+  return `${planningApplications.length} application${
+    planningApplications.length !== 1 ? "s" : ""
+  } found`;
+};
+
+/**
+ * Gets the value to display for nearby planning applications
+ */
+export const getNearbyPlanningApplicationsValue = (
+  nearbyPlanningApplications: NearbyPlanningApplication[] | null | undefined
+) => {
+  if (!nearbyPlanningApplications) {
+    return PREMIUM_DATA_STATES.NOT_FOUND;
+  }
+
+  if (nearbyPlanningApplications.length === 0) {
+    return PREMIUM_DATA_STATES.NO_NEARBY_APPLICATIONS;
+  }
+
+  return `${nearbyPlanningApplications.length} nearby application${
+    nearbyPlanningApplications.length !== 1 ? "s" : ""
+  } found`;
+};
+
+/**
+ * Gets planning applications value (combined property and nearby)
+ * @deprecated Use the specific functions for property and nearby instead
+ */
+export const getPlanningApplicationsValue = (
+  planningApplications: PlanningApplication[] | null | undefined,
+  nearbyPlanningApplications: NearbyPlanningApplication[] | null | undefined
+) => {
+  if (!planningApplications && !nearbyPlanningApplications) {
+    return PREMIUM_DATA_STATES.NOT_FOUND;
+  }
+
+  const propertyCount = planningApplications?.length || 0;
+  const nearbyCount = nearbyPlanningApplications?.length || 0;
+  const totalCount = propertyCount + nearbyCount;
+
+  if (totalCount === 0) {
+    return PREMIUM_DATA_STATES.NO_APPLICATIONS;
+  }
+
+  return `${totalCount} application${totalCount !== 1 ? "s" : ""} found`;
+};
+
+/**
+ * Gets planning applications status (combined property and nearby)
+ * @deprecated Use the specific functions for property and nearby instead
+ */
+export const getPlanningApplicationsStatus = (
+  planningApplications: PlanningApplication[] | null | undefined,
+  nearbyPlanningApplications: NearbyPlanningApplication[] | null | undefined
+) => {
+  if (!planningApplications && !nearbyPlanningApplications) {
+    return "Not found";
+  }
+
+  const propertyCount = planningApplications?.length || 0;
+  const nearbyCount = nearbyPlanningApplications?.length || 0;
+  const totalCount = propertyCount + nearbyCount;
+
+  return totalCount > 0 ? "Found" : "No data";
+};

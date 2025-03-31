@@ -21,8 +21,7 @@ import { ActionEvents } from "../constants/actionEvents";
 import {
   DataStatus,
   ExtractedPropertyScrapingData,
-  PropertyDataList,
-  PropertyGroups,
+  PropertyDataList
 } from "../types/property";
 import {
   extractPropertyIdFromUrl,
@@ -95,6 +94,10 @@ const App: React.FC = () => {
   const [planningPermissionCardExpanded, setPlanningPermissionCardExpanded] = useState(false);
   const planningPermissionContentRef = useRef<HTMLDivElement>(null);
   const [planningPermissionContentHeight, setPlanningPermissionContentHeight] = useState(0);
+
+  const [nearbyPlanningPermissionCardExpanded, setNearbyPlanningPermissionCardExpanded] = useState(false);
+  const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
+  const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
 
   useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
   const queryClient = useQueryClient();
@@ -183,6 +186,12 @@ const App: React.FC = () => {
       setPlanningPermissionContentHeight(planningPermissionContentRef.current.scrollHeight);
     }
   }, [planningPermissionCardExpanded, premiumStreetDataQuery.data]);
+
+  useEffect(function updateNearbyPlanningPermissionContentHeight() {
+    if (nearbyPlanningPermissionContentRef.current) {
+      setNearbyPlanningPermissionContentHeight(nearbyPlanningPermissionContentRef.current.scrollHeight);
+    }
+  }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
   const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery, premiumStreetDataQuery);
 
@@ -292,8 +301,17 @@ const App: React.FC = () => {
     setPlanningPermissionCardExpanded((prev) => !prev);
   };
 
+  const toggleNearbyPlanningPermissionCard = () => {
+    setNearbyPlanningPermissionCardExpanded((prev) => !prev);
+  };
+
+  // Track rendered groups to prevent duplicates
+  const renderedGroupsSet = new Set<string>();
 
   const renderGroupHeading = (group: string) => {
+    if (renderedGroupsSet.has(group)) return null;
+    renderedGroupsSet.add(group);
+
     const itemCount = checklistToRender.filter(item => item.group === group).length;
     return (
       <li
@@ -326,6 +344,8 @@ const App: React.FC = () => {
     return <SideBarLoading />;
   }
 
+  const isPremiumDataFetched = premiumStreetDataQuery.isFetched
+
   return (
     <>
       {nonPropertyPageWarningMessage && (
@@ -356,21 +376,6 @@ const App: React.FC = () => {
             const showGroupHeading = item.group !== lastGroup;
             lastGroup = item.group;
 
-            if (item.group === PropertyGroups.PREMIUM && !propertyData.address.isAddressConfirmedByUser) {
-              return (
-                <React.Fragment key="premium-toggle">
-                  {renderGroupHeading(PropertyGroups.PREMIUM)}
-                  <div className="p-4">
-                    <Button
-                      onClick={() => setShowBuildingValidationModal(true)}
-                    >
-                      Load Premium Data
-                    </Button>
-                  </div>
-                </React.Fragment>
-              );
-            }
-
             return (
               <React.Fragment key={item.key}>
                 {showGroupHeading && renderGroupHeading(item.group)}
@@ -393,9 +398,11 @@ const App: React.FC = () => {
                         item.value,
                         openNewTab,
                         toggleCrimeChart,
-                        togglePlanningPermissionCard
+                        togglePlanningPermissionCard,
+                        toggleNearbyPlanningPermissionCard
                       )
                     }
+                    isPremiumDataFetched={isPremiumDataFetched}
                   />
                 )}
                 {/* Dropdown crime piechart on crime score click */}
@@ -422,7 +429,7 @@ const App: React.FC = () => {
                     )}
                   </div>
                 )}
-                {/* Dropdown planning permission card on planning permission click */}
+                {/* Dropdown planning permission card on planning permission property click */}
                 {item.key === "planningPermissions" && (
                   <div
                     ref={planningPermissionContentRef}
@@ -439,6 +446,29 @@ const App: React.FC = () => {
                           planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
                           nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
                           isLoading={premiumStreetDataQuery.isLoading}
+                          displayMode="property"
+                        />
+                      </Suspense>
+                    )}
+                  </div>
+                )}
+                {/* Dropdown planning permission card on nearby planning permission click */}
+                {item.key === "nearbyPlanningPermissions" && (
+                  <div
+                    ref={nearbyPlanningPermissionContentRef}
+                    style={{
+                      maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0",
+                      opacity: nearbyPlanningPermissionCardExpanded ? 1 : 0,
+                      overflow: "hidden",
+                      transition: "max-height 0.3s ease, opacity 0.3s ease",
+                    }}
+                  >
+                    {premiumStreetDataQuery.data && (
+                      <Suspense fallback={<LoadingSpinner />}>
+                        <LazyPlanningPermissionCard
+                          nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                          isLoading={premiumStreetDataQuery.isLoading}
+                          displayMode="nearby"
                         />
                       </Suspense>
                     )}
@@ -447,6 +477,17 @@ const App: React.FC = () => {
               </React.Fragment>
             );
           })}
+          {!propertyData.address.isAddressConfirmedByUser &&
+            checklistToRender.some(item => item.group === "Premium") && (
+              <li className="mt-2 p-4">
+                <Button
+                  onClick={() => setShowBuildingValidationModal(true)}
+                  className="w-full"
+                >
+                  Load Premium Data
+                </Button>
+              </li>
+            )}
         </ul>
         {showBuildingValidationModal && (
           <Suspense fallback={null}>
