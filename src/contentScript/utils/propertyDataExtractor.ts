@@ -8,6 +8,7 @@ import { ExtractedPropertyScrapingData } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
+
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
 ): Promise<ExtractedPropertyScrapingData> {
@@ -27,11 +28,17 @@ export async function extractPropertyDataFromDOM(
     listedProperty: listedPropertyFromUnstructuredText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
-  const epc =
+  // Initialize basic EPC data without processing - this will be handled in the background script
+  const epcUrl =
     (pageModel?.propertyData?.epcGraphs?.length ?? 0) > 0 &&
     pageModel?.propertyData?.epcGraphs?.[0]?.url
       ? pageModel?.propertyData?.epcGraphs?.[0]?.url
-      : "Not mentioned";
+      : null;
+
+  const epc = {
+    url: epcUrl,
+    scores: null, // Scores will be processed in the background script
+  };
 
   const floorPlan =
     pageModel?.propertyData?.floorplans &&

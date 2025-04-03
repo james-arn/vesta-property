@@ -7,7 +7,6 @@ import {
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
   ResponseType,
   ShowWarningMessage,
-  UpdatePropertyDataMessage,
 } from "./types/messages";
 import { initSentry, logErrorToSentry } from "./utils/sentry";
 
@@ -175,17 +174,9 @@ function handleToUIFromContentScriptMessage(
 ) {
   if (request.action === ActionEvents.UPDATE_PROPERTY_DATA) {
     console.log("[background.ts] Property Data:", request.data);
-    chrome.runtime.sendMessage<UpdatePropertyDataMessage, ResponseType>(
-      request as UpdatePropertyDataMessage,
-      (response) => {
-        if (chrome.runtime.lastError) {
-          logErrorToSentry(chrome.runtime.lastError);
-        }
-        console.log("[background.ts] Message forwarded to UI:", request);
-        console.log("[background.ts] Response:", response);
-        sendResponse({ status: "Property data update handled" });
-      }
-    );
+
+    // Return true to indicate that the response will be sent asynchronously
+    return true;
   }
 
   if (request.action === ActionEvents.SHOW_WARNING) {
@@ -235,7 +226,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
     request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED
   ) {
-    handleToUIFromContentScriptMessage(request, sendResponse);
+    const result = handleToUIFromContentScriptMessage(request, sendResponse);
+    // Return true if we need to keep the message channel open for an async response
+    return result === true;
   }
 
   // Messages for the Content Script
@@ -346,6 +339,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     sendResponse({ status: "Logout success handled" });
   }
+
+  // Handle fetching image for Canvas CORS workaround
+  if (request.action === ActionEvents.FETCH_IMAGE_FOR_CANVAS && request.url) {
+    console.log(`[background.ts] Received request to fetch image: ${request.url}`);
+    const imageUrl = request.url;
+
+    (async () => {
+      try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const blob = await response.blob();
+
+        // Convert Blob to Data URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          // Send the successful Data URL directly back to the caller
+          console.log(
+            `[background.ts] Sending back Data URL (length: ${reader.result?.toString().length})`
+          );
+          sendResponse({ success: true, dataUrl: reader.result });
+        };
+        reader.onerror = (error) => {
+          console.error("[background.ts] FileReader error:", error);
+          // Send the error back to the caller
+          sendResponse({ success: false, error: "Failed to read image blob." });
+        };
+        reader.readAsDataURL(blob);
+      } catch (error: any) {
+        console.error(`[background.ts] Failed to fetch image (${imageUrl}):`, error);
+        // Send the error back to the caller
+        sendResponse({ success: false, error: error.message || "Failed to fetch image." });
+      }
+    })();
+
+    // Keep message channel open for async response
+    return true;
+  }
+
+  // Ensure other message handlers return false if not async
+  // Return false or undefined for synchronous handlers
+  // return false;
 });
 
 // Listen for tab switches

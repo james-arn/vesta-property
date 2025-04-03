@@ -11,6 +11,7 @@ import {
   ExtractedPropertyScrapingData,
   PropertyDataList,
 } from "../../types/property";
+import { type EpcBandResult } from './epcImageUtils';
 import {
   calculateListingHistoryDetails,
   getCAGRStatus,
@@ -20,6 +21,7 @@ import {
   getYesNoOrMissingStatus,
   priceDiscrepancyMessages,
 } from "./helpers";
+
 export const agentMissingInfo = "not mentioned";
 const askAgentWrittenByAgent = "ask agent";
 
@@ -43,11 +45,11 @@ const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 export function generatePropertyChecklist(
   ExtractedPropertyScrapingData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
-  premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined
+  premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined,
+  epcBandData?: EpcBandResult | null // Optional pre-processed data
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(ExtractedPropertyScrapingData.listingHistory);
-  console.log("premiumStreetDataQuery", premiumStreetDataQuery);
 
   const crimeScoreData = crimeScoreQuery?.data;
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
@@ -57,6 +59,26 @@ export function generatePropertyChecklist(
   const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
   const premiumStreetDataError = premiumStreetDataQuery?.error;
 
+  // --- Determine EPC status synchronously based on passed-in data --- 
+  let epcStatus: DataStatus;
+  const epcUrl = ExtractedPropertyScrapingData.epc?.url;
+
+  if (!epcUrl) {
+    epcStatus = DataStatus.ASK_AGENT; // No URL, nothing to process
+  } else if (epcBandData === undefined || epcBandData === null) {
+    // URL exists, but processing hasn't finished (or wasn't triggered yet)
+    epcStatus = DataStatus.IS_LOADING;
+  } else if (epcBandData.error) {
+    // Processing finished but resulted in an error
+    epcStatus = DataStatus.ASK_AGENT;
+  } else if (epcBandData.currentBand || epcBandData.potentialBand) {
+    // Processing finished successfully with bands
+    epcStatus = DataStatus.FOUND_POSITIVE;
+  } else {
+    // Processing finished successfully but found no bands (treat as warning/ask)
+    epcStatus = DataStatus.ASK_AGENT;
+  }
+  // --- End of Sync EPC Status --- 
 
   const checklist: PropertyDataList[] = [
     {
@@ -201,7 +223,23 @@ export function generatePropertyChecklist(
         "This 10% threshold is set as a benchmark for normal fluctuations in a stable market. \n\n" +
         "Keep in mind that with only a few data points available, this metric might not be fully representative and could display as 'N/A'.",
     },
-
+    {
+      group: PropertyGroups.UTILITIES,
+      label: "EPC Certificate",
+      key: "epc",
+      status: epcStatus, // Use the status determined synchronously
+      // Keep value simple (e.g., URL or placeholder)
+      value: epcUrl ? DOMPurify.sanitize(epcUrl) : agentMissingInfo,
+      epcBandData: epcBandData ?? undefined, // Assign the passed-in data
+      askAgentMessage: epcUrl ? (epcBandData?.error ?
+        `Analysis Error (${epcBandData.error}). Ask Agent?` :
+        "Do you have the EPC certificate?") : "No EPC image found.",
+      toolTipExplainer:
+        epcUrl ? (epcBandData?.error ?
+          `Analysis failed: ${epcBandData.error}` :
+          "Energy Performance Certificate rating based on image analysis.") :
+          "No EPC image found on listing.",
+    },
     // Interior Details
     {
       group: PropertyGroups.INTERIOR,
@@ -436,17 +474,6 @@ export function generatePropertyChecklist(
     },
     {
       group: PropertyGroups.UTILITIES,
-      label: "EPC Certificate",
-      key: "epc",
-      status: ExtractedPropertyScrapingData.epc ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
-      value: DOMPurify.sanitize(ExtractedPropertyScrapingData.epc ?? ""),
-      askAgentMessage: "Do you have the EPC certificate?",
-      toolTipExplainer:
-        "An Energy Performance Certificate (EPC) provides a property's energy efficiency rating, ranging from A (most efficient) to G (least efficient).\n\n" +
-        "An EPC is required before a property is sold or rented and is valid for 10 years.",
-    },
-    {
-      group: PropertyGroups.UTILITIES,
       label: "Council Tax Band",
       key: "councilTax",
       status: getStatusFromString(ExtractedPropertyScrapingData.councilTax, ["tbc"]),
@@ -508,5 +535,15 @@ export function generatePropertyChecklist(
     },
   ];
 
-  return checklist;
+  // Filter out items not applicable based on property type (e.g., councilTax for non-residential)
+  // This filtering logic might need adjustment depending on exact requirements
+  const filteredChecklist = checklist.filter(item => {
+    if (item.key === 'councilTax' && ExtractedPropertyScrapingData.propertyType === 'Commercial') {
+      return false; // Example: Don't show council tax for commercial
+    }
+    // Add other filtering logic as needed
+    return true;
+  });
+
+  return filteredChecklist;
 }

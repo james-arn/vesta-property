@@ -18,7 +18,9 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
   heating: null,
   floorPlan: null,
   garden: null,
-  epc: null,
+  epc: {
+    url: null,
+  },
   broadband: null,
   listingHistory: null,
   windows: null,

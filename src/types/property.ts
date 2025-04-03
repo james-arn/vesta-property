@@ -1,3 +1,4 @@
+import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import React from "react";
 
 export enum DataStatus {
@@ -17,6 +18,7 @@ export interface PropertyDataList {
   selected?: boolean;
   askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
+  epcBandData?: EpcBandResult;
 }
 
 export interface AgentDetails {
@@ -42,7 +44,9 @@ export interface ExtractedPropertyScrapingData {
   coastalErosion: PropertyItem;
   copyLinkUrl: string | null;
   councilTax: string | null;
-  epc: string | null;
+  epc: {
+    url: string | null;
+  };
   floodedInLastFiveYears: boolean | null;
   floodDefences: boolean | null;
   floodSources: string[] | null;

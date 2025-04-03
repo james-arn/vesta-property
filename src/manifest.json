@@ -3,9 +3,17 @@
   "name": "Vesta Property Checklist",
   "version": "1.1",
   "description": "Evaluate property listings with ease using automated checklists.",
-  "permissions": ["activeTab", "sidePanel", "storage", "tabs", "identity", "notifications"],
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage",
+    "tabs",
+    "identity",
+    "notifications"
+  ],
   "host_permissions": [
     "https://www.rightmove.co.uk/*",
+    "https://media.rightmove.co.uk/*",
     "https://o4508799628738560.ingest.de.sentry.io/*",
     "https://api.vestapropertychecker.com/*",
     "https://nominatim.openstreetmap.org/*",
@@ -23,7 +31,7 @@
     "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com;"
+    "extension_pages": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://media.rightmove.co.uk https://www.google-analytics.com https://o4508799628738560.ingest.de.sentry.io https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; img-src 'self' data:;"
   },
   "icons": {
     "16": "images/icon16.png",
@@ -40,8 +48,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.rightmove.co.uk/*"],
-      "js": ["contentScript.js"],
+      "matches": [
+        "https://www.rightmove.co.uk/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -51,7 +63,11 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["injectScript.js", "login-success.html", "logout-success.html"],
+      "resources": [
+        "injectScript.js",
+        "login-success.html",
+        "logout-success.html"
+      ],
       "matches": [
         "https://www.rightmove.co.uk/*",
         "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/*",
@@ -60,7 +76,12 @@
       ]
     },
     {
-      "resources": ["oauth2/idpresponse", "oauth2/authorize", "oauth2/token", "oauth2/userInfo"],
+      "resources": [
+        "oauth2/idpresponse",
+        "oauth2/authorize",
+        "oauth2/token",
+        "oauth2/userInfo"
+      ],
       "matches": [
         "https://cognito-idp.eu-west-2.amazonaws.com/*",
         "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com/*"
@@ -71,6 +92,8 @@
     "default_path": "sidepanel.html"
   },
   "externally_connectable": {
-    "matches": ["*://*/*"]
+    "matches": [
+      "*://*/*"
+    ]
   }
 }

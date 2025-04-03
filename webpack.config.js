@@ -36,6 +36,9 @@ module.exports = {
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
+    fallback: {
+      path: require.resolve("path-browserify"),
+    },
   },
   plugins: [
     new CleanWebpackPlugin(),
@@ -60,6 +63,7 @@ module.exports = {
       authToken: process.env.SENTRY_AUTH_TOKEN,
       org: "vesta-ja",
       project: "vesta",
+      telemetry: false,
     }),
     // // stops remote code being loaded in sentry for lazy loading modules that are not used https://browser.sentry-cdn.com - otherwise, rejected from chrome store submission
     new ReplaceInFileWebpackPlugin([

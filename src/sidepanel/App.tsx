@@ -39,6 +39,7 @@ const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/Pl
 const App: React.FC = () => {
   // 1. Property data starts empty and is updated via rightmove scrape
   const { propertyData, dispatch } = usePropertyData()
+  const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
   const { isAuthenticated } = useSecureAuthentication();
   const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -50,7 +51,6 @@ const App: React.FC = () => {
   const [selectedWarningItems, setSelectedWarningItems] = useState<
     PropertyDataList[]
   >([]);
-  const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
 
   const { lat, lng } = propertyData.locationCoordinates;
 
@@ -102,7 +102,6 @@ const App: React.FC = () => {
   useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
   const queryClient = useQueryClient();
 
-
   useEffect(function tellBackgroundSideBarOpened() {
     chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
       console.log('SIDE_PANEL_OPENED response:', response);
@@ -127,7 +126,6 @@ const App: React.FC = () => {
           setIsPropertyDataLoading(false);
           dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
         } else {
-          console.log('urlvalid')
           // URL is valid – clear any existing warning and try to load cached data.
           setNonPropertyPageWarningMessage(null);
           setIsPropertyDataLoading(true);
@@ -173,7 +171,7 @@ const App: React.FC = () => {
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [queryClient]);
+  }, [queryClient, dispatch]);
 
   useEffect(function updateCrimeContentHeight() {
     if (crimeContentRef.current) {
@@ -193,7 +191,11 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  const propertyChecklistData = generatePropertyChecklist(propertyData, crimeQuery, premiumStreetDataQuery);
+  const propertyChecklistData = generatePropertyChecklist(
+    propertyData,
+    crimeQuery,
+    premiumStreetDataQuery,
+  );
 
   const initialOpenGroups = propertyChecklistData.reduce(
     (acc, item) => {
