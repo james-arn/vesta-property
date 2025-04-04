@@ -58,15 +58,26 @@ function hexToRgb(hex: string): RGBColor | null {
 }
 
 // --- Constants for color comparison ---
-const COLOR_SIMILARITY_THRESHOLD = 55; // Was 45
+const COLOR_SIMILARITY_THRESHOLD = 45; // Was 55
 const MIN_ALPHA_THRESHOLD = 200; // Ignore mostly transparent pixels
 const IGNORE_COLOR_THRESHOLD = 50; // How close to pure white/black/grey to ignore
 const MIN_PIXEL_COUNT_THRESHOLD = 10; // Minimum number of pixels for a color to be considered significant on the right side
 
+// --- Threshold specifically for matching right-side chevrons ---
+const RIGHT_SIDE_SIMILARITY_THRESHOLD = 60; // Was 50
+
+// --- Threshold for comparing the two right-side chevrons directly ---
+const CHEVRON_COLOR_SIMILARITY_THRESHOLD = 25; // Tight threshold
+
 // --- Helper Functions (Required for new logic) ---
 
 // Function to check if two RGB colors are similar (Euclidean distance)
-const areColorsSimilar = (color1: RGBColor, color2: RGBColor): boolean => {
+// Takes optional threshold override
+const areColorsSimilar = (
+  color1: RGBColor,
+  color2: RGBColor,
+  threshold: number = COLOR_SIMILARITY_THRESHOLD // Default to the stricter scan threshold
+): boolean => {
   // Check if colors are valid before calculating distance
   if (!color1 || !color2) return false;
   const dist = Math.sqrt(
@@ -74,7 +85,7 @@ const areColorsSimilar = (color1: RGBColor, color2: RGBColor): boolean => {
       Math.pow(color1.g - color2.g, 2) +
       Math.pow(color1.b - color2.b, 2)
   );
-  return dist < COLOR_SIMILARITY_THRESHOLD;
+  return dist < threshold;
 };
 
 // Function to check if a color is too close to white, black, or grey, or transparent
@@ -166,29 +177,24 @@ const findBandRegionsDynamically = (
   canvasWidth: number,
   canvasHeight: number
 ): Record<string, RelativeRegion> | null => {
-  const foundRegions: Record<string, RelativeRegion> = {};
+  const foundRegions: Record<string, RelativeRegion> = {}; // Regions found by COLOR
   const bandHeights: Record<string, number> = {}; // Store heights to calculate y positions
   const bandYs: Record<string, number> = {}; // Store top y positions
 
-  // --- Revert scan line position but keep other relaxed parameters ---
   const scanX = Math.floor(canvasWidth * 0.15); // Scan vertically around 15% from left (back from 25%)
   const scanWidth = Math.max(1, Math.floor(canvasWidth * 0.1)); // Keep wider (10%) horizontal line
   const stepY = 1; // Scan every pixel vertically
   const minColorStreak = 3; // Keep shorter streak (3)
 
-  console.log(`[Dynamic Region Finder] Starting scan at x=${scanX}`);
+  console.log(`[Dynamic Region Finder] Starting COLOR scan at x=${scanX}`);
 
   let lastY = 0;
+  // --- Step 1: Find regions by direct color matching ---
   for (const band of EPC_BANDS) {
-    // Iterate in order (A to G)
     const targetColor = band.referenceColorRgb;
     if (!targetColor) continue; // Skip if reference color missing
-
     let currentStreak = 0;
     let streakStartY = -1;
-
-    // Scan vertically downwards from the last found position
-    // Start scan slightly below the last band found to avoid overlap issues
     const startScanY = lastY > 0 ? lastY + 5 : Math.floor(canvasHeight * 0.1); // Start scan lower if previous band found
     const endScanY = Math.floor(canvasHeight * 0.95);
 
@@ -213,7 +219,6 @@ const findBandRegionsDynamically = (
 
       // --- Relax horizontal match requirement ---
       if (matchCount > scanWidth / 3) {
-        // Was / 2 (require > 1/3 match, not > 1/2)
         // If majority of horizontal samples match
         if (streakStartY === -1) {
           streakStartY = y; // Start of potential streak
@@ -226,7 +231,7 @@ const findBandRegionsDynamically = (
           const bandBottomY = y - stepY; // End of the streak
           const detectedHeight = bandBottomY - bandTopY;
           console.log(
-            `[Dynamic Region Finder] Found streak for Band ${band.letter} at y=${bandTopY} to y=${bandBottomY} (Height: ${detectedHeight}px)`
+            `[Dynamic Region Finder - Color] Found Band ${band.letter} at y=${bandTopY} to y=${bandBottomY} (Height: ${detectedHeight}px)`
           );
 
           if (detectedHeight > 0) {
@@ -250,7 +255,7 @@ const findBandRegionsDynamically = (
       const bandBottomY = endScanY - stepY;
       const detectedHeight = bandBottomY - bandTopY;
       console.log(
-        `[Dynamic Region Finder] Found streak for Band ${band.letter} at end of scan y=${bandTopY} to y=${bandBottomY} (Height: ${detectedHeight}px)`
+        `[Dynamic Region Finder - Color] Found Band ${band.letter} at end of scan y=${bandTopY} to y=${bandBottomY} (Height: ${detectedHeight}px)`
       );
       if (detectedHeight > 0) {
         bandYs[band.letter] = bandTopY / canvasHeight;
@@ -260,31 +265,106 @@ const findBandRegionsDynamically = (
     }
   }
 
-  // Construct RelativeRegions using found Y and Height
   Object.keys(bandYs).forEach((letter) => {
     if (bandHeights[letter]) {
       foundRegions[letter] = {
-        x: 0.05, // Keep standard left-side position
-        y: bandYs[letter], // Use dynamically found Y
-        width: 0.25, // Standard width
-        height: bandHeights[letter], // Use dynamically found Height
+        x: 0.05,
+        y: bandYs[letter],
+        width: 0.25,
+        height: bandHeights[letter],
       };
     }
   });
 
-  const foundCount = Object.keys(foundRegions).length;
-  console.log(`[Dynamic Region Finder] Found ${foundCount} band regions dynamically.`);
+  const colorFoundCount = Object.keys(foundRegions).length;
+  console.log(`[Dynamic Region Finder] Found ${colorFoundCount} regions by color scan.`);
 
-  // Require at least a few bands to be found for confidence
-  if (foundCount < 3) {
-    console.error("[Dynamic Region Finder] Failed to find enough band regions dynamically.");
+  // --- Step 2: Attempt Interpolation/Extrapolation for missing bands ---
+  EPC_BANDS.forEach((currentBand, index) => {
+    const currentLetter = currentBand.letter;
+    if (!foundRegions[currentLetter]) {
+      // If band wasn't found by color
+      const prevBand = index > 0 ? EPC_BANDS[index - 1] : null;
+      const nextBand = index < EPC_BANDS.length - 1 ? EPC_BANDS[index + 1] : null;
+
+      // Get regions IF they were found by color scan
+      const prevRegion = prevBand ? foundRegions[prevBand.letter] : null;
+      const nextRegion = nextBand ? foundRegions[nextBand.letter] : null;
+
+      let estimatedY: number | null = null;
+      let estimatedHeight: number | null = null;
+      let estimated = false;
+
+      if (prevRegion && nextRegion) {
+        // Interpolate between two found neighbours
+        const gapTopY = prevRegion.y + prevRegion.height;
+        const gapHeight = nextRegion.y - gapTopY;
+        // Check for a reasonable positive gap between the neighbours
+        if (gapHeight > 0.005 && gapHeight < 0.2) {
+          estimatedY = gapTopY;
+          estimatedHeight = gapHeight;
+          estimated = true;
+          console.log(
+            `[Dynamic Region Finder - Interpolate] Estimating ${currentLetter} between ${prevBand?.letter} and ${nextBand?.letter}`
+          );
+        } else {
+          console.warn(
+            `[Dynamic Region Finder - Interpolate] Unreasonable gap for ${currentLetter} (Gap: ${gapHeight.toFixed(3)}), cannot estimate.`
+          );
+        }
+      } else if (prevRegion) {
+        // Extrapolate downwards from found upper neighbour
+        estimatedY = prevRegion.y + prevRegion.height;
+        estimatedHeight = prevRegion.height; // Assume same height
+        estimated = true;
+        console.log(
+          `[Dynamic Region Finder - Extrapolate] Estimating ${currentLetter} based on ${prevBand?.letter} above.`
+        );
+      } else if (nextRegion) {
+        // Extrapolate upwards from found lower neighbour
+        estimatedHeight = nextRegion.height; // Assume same height
+        estimatedY = nextRegion.y - estimatedHeight;
+        if (estimatedY > 0) {
+          // Ensure Y is positive
+          estimated = true;
+          console.log(
+            `[Dynamic Region Finder - Extrapolate] Estimating ${currentLetter} based on ${nextBand?.letter} below.`
+          );
+        } else {
+          console.warn(
+            `[Dynamic Region Finder - Extrapolate] Cannot estimate ${currentLetter} upwards from ${nextBand?.letter}, negative Y.`
+          );
+        }
+      }
+
+      // Add the estimated region if calculated successfully
+      if (estimated && estimatedY !== null && estimatedHeight !== null && estimatedHeight > 0) {
+        foundRegions[currentLetter] = {
+          x: 0.05,
+          y: estimatedY,
+          width: 0.25,
+          height: estimatedHeight,
+        };
+      }
+    }
+  });
+
+  // --- Step 3: Final Check ---
+  const finalFoundCount = Object.keys(foundRegions).length;
+  console.log(`[Dynamic Region Finder] Found/Estimated ${finalFoundCount} band regions finally.`);
+
+  // Require at least 5 bands total (found by color or estimated)
+  if (finalFoundCount < 5) {
+    console.error(
+      `[Dynamic Region Finder] Failed to find/estimate enough band regions (${finalFoundCount} < 5).`
+    );
     return null;
   }
 
-  return foundRegions;
+  return foundRegions; // Return map containing both color-found and estimated regions
 };
 
-// --- Main Processing Function (Uses Dynamic Regions + Vertical Check) ---
+// --- Main Processing Function (Uses Dynamic Regions + Vertical Check + Chevron Compare) ---
 export const processEpcImageDataUrl = async (
   dataUrl: string,
   debugCanvas: HTMLCanvasElement | null = null
@@ -382,7 +462,7 @@ export const processEpcImageDataUrl = async (
       return null;
     }).filter((data): data is { color: RGBColor; y: number } => data !== null);
 
-    // 5. Match Right-Side Pixels to ACTUAL Reference Colors and Store Matches with Y coords
+    // 5. Match Right-Side Pixels to PREDEFINED Reference Colors and Store Matches with Y coords
     interface BandMatchData {
       count: number;
       ySum: number;
@@ -390,33 +470,45 @@ export const processEpcImageDataUrl = async (
     const bandMatches: Record<string, BandMatchData> = {};
 
     rightSidePixelsData.forEach((pixelData) => {
-      let closestMatch: { color: RGBColor; bandInfo: EpcBandInfo } | null = null;
-      let minDistance = COLOR_SIMILARITY_THRESHOLD;
+      let closestMatchBand: EpcBandInfo | null = null;
+      // Use the MORE LENIENT threshold for right-side matching
+      let minDistance = RIGHT_SIDE_SIMILARITY_THRESHOLD;
 
-      actualReferenceColors.forEach((ref) => {
+      // Iterate through the original EPC_BANDS with predefined colors
+      EPC_BANDS.forEach((band) => {
+        // Use the predefined reference color for comparison
+        const targetColor = band.referenceColorRgb;
+        if (!targetColor) return; // Skip if predefined RGB is missing
+
         const dist = Math.sqrt(
-          Math.pow(pixelData.color.r - ref.color.r, 2) +
-            Math.pow(pixelData.color.g - ref.color.g, 2) +
-            Math.pow(pixelData.color.b - ref.color.b, 2)
+          Math.pow(pixelData.color.r - targetColor.r, 2) +
+            Math.pow(pixelData.color.g - targetColor.g, 2) +
+            Math.pow(pixelData.color.b - targetColor.b, 2)
         );
+
         if (dist < minDistance) {
           minDistance = dist;
-          closestMatch = ref;
+          closestMatchBand = band; // Store the matched band info
         }
       });
 
-      if (closestMatch) {
-        const matchData = closestMatch as { color: RGBColor; bandInfo: EpcBandInfo };
-        const bandKey = matchData.bandInfo.letter;
+      // If a closest match within the threshold was found based on predefined colors
+      if (closestMatchBand) {
+        // Explicit type assertion
+        const matchedBandInfo = closestMatchBand as EpcBandInfo;
+        const bandKey = matchedBandInfo.letter;
         if (!bandMatches[bandKey]) {
           bandMatches[bandKey] = { count: 0, ySum: 0 };
         }
         bandMatches[bandKey].count++;
-        bandMatches[bandKey].ySum += pixelData.y; // Add Y coordinate
+        bandMatches[bandKey].ySum += pixelData.y;
       }
     });
 
-    console.log("[Canvas Process - VC] Match data (count, ySum) on right side:", bandMatches);
+    console.log(
+      "[Canvas Process - VC FixedRef] Match data (count, ySum) on right side:",
+      bandMatches
+    );
 
     // 6. Identify Significant Bands based on Count
     const significantBandKeys = Object.entries(bandMatches)
@@ -463,13 +555,99 @@ export const processEpcImageDataUrl = async (
       validatedBands.map((b) => b.letter)
     );
 
-    // 8. Assign Current/Potential Based on Validated Bands and Rank
+    // --- NEW Step 7.5: Sample Combined Chevron Region Color ---
+    // Use the existing rightAnalysisRegion, sample densely
+    const sampledCombinedChevronColor = getDominantColorInRegion(
+      ctx,
+      rightAnalysisRegion,
+      canvas.width,
+      canvas.height,
+      30,
+      20
+    );
+
+    console.log(
+      "[Canvas Process - Combined Chevron Check] Sampled Color:",
+      sampledCombinedChevronColor
+    );
+
+    // --- REVISED Step 8: Assign Current/Potential Based on Validation & Combined Chevron Sample ---
     let currentBandInfo: EpcBandInfo | null = null;
     let potentialBandInfo: EpcBandInfo | null = null;
-    if (validatedBands.length >= 2) {
-      const sortedBands = validatedBands.slice(0, 2).sort((a, b) => b.score - a.score);
-      potentialBandInfo = sortedBands[0];
-      currentBandInfo = sortedBands[1];
+
+    // --- Heuristic Check for A/B Ambiguity ---
+    const isOnlyAandBValidated =
+      validatedBands.length === 2 &&
+      validatedBands.some((b) => b.letter === "A") &&
+      validatedBands.some((b) => b.letter === "B");
+
+    if (isOnlyAandBValidated && sampledCombinedChevronColor) {
+      // If only A & B are valid possibilities, and chevron sampling found *a* color,
+      // strongly assume it must be B, overriding potentially misleading color distance.
+      console.log(
+        "[Canvas Process - Heuristic] Validated bands are A & B, and combined chevron color found. Forcing B/B."
+      );
+      const bandBInfo = EPC_BANDS.find((b) => b.letter === "B");
+      if (bandBInfo) {
+        currentBandInfo = bandBInfo;
+        potentialBandInfo = bandBInfo;
+      } else {
+        // Should not happen, but fallback just in case
+        console.warn("[Canvas Process - Heuristic] Could not find Band B info for override!");
+        // Fallback to sorting A and B
+        const sortedBands = validatedBands.sort((a, b) => b.score - a.score);
+        potentialBandInfo = sortedBands[0];
+        currentBandInfo = sortedBands[1];
+      }
+    }
+    // --- Original Logic (if not the specific A/B case or if combined sample failed) ---
+    else if (validatedBands.length >= 2) {
+      // If we successfully sampled a dominant color from the combined chevron area
+      if (sampledCombinedChevronColor) {
+        console.log(
+          "[Canvas Process - Combined Chevron Check] Found combined color. Determining single best match among validated bands."
+        );
+        let bestSingleMatch: EpcBandInfo | null = null;
+        let minSingleDistance = Infinity;
+        validatedBands.forEach((band) => {
+          const targetColor = band.referenceColorRgb;
+          if (targetColor) {
+            const dist = Math.sqrt(
+              Math.pow(sampledCombinedChevronColor.r - targetColor.r, 2) +
+                Math.pow(sampledCombinedChevronColor.g - targetColor.g, 2) +
+                Math.pow(sampledCombinedChevronColor.b - targetColor.b, 2)
+            );
+            // Check distance against the TIGHTER threshold
+            if (dist < CHEVRON_COLOR_SIMILARITY_THRESHOLD && dist < minSingleDistance) {
+              minSingleDistance = dist;
+              bestSingleMatch = band;
+            }
+          }
+        });
+
+        if (bestSingleMatch) {
+          const bestMatchInfo = bestSingleMatch as EpcBandInfo;
+          console.log(
+            `[Canvas Process - Combined Chevron Check] Best single match is ${bestMatchInfo.letter}. Assuming Current=Potential.`
+          );
+          currentBandInfo = bestMatchInfo;
+          potentialBandInfo = bestMatchInfo;
+        } else {
+          console.warn(
+            "[Canvas Process - Combined Chevron Check] Combined color didn't match validated bands well. Falling back to sorting."
+          );
+          const sortedBands = validatedBands.slice(0, 2).sort((a, b) => b.score - a.score);
+          potentialBandInfo = sortedBands[0];
+          currentBandInfo = sortedBands[1];
+        }
+      } else {
+        console.warn(
+          "[Canvas Process - Combined Chevron Check] Failed to sample combined color. Falling back to sorting."
+        );
+        const sortedBands = validatedBands.slice(0, 2).sort((a, b) => b.score - a.score);
+        potentialBandInfo = sortedBands[0];
+        currentBandInfo = sortedBands[1];
+      }
     } else if (validatedBands.length === 1) {
       currentBandInfo = validatedBands[0];
       potentialBandInfo = validatedBands[0];
@@ -480,13 +658,11 @@ export const processEpcImageDataUrl = async (
       console.error(
         "[Canvas Process - VC] Could not find two *validated* significant band colors."
       );
-      // Fallback or different error? Maybe return the pre-validation result?
-      // For now, return error
       return { error: "Could not identify distinct & validated current/potential bands." };
     }
 
     console.log(
-      `[Canvas Process - VC] Final Result -> Current: ${currentBandInfo?.letter ?? "N/A"}, Potential: ${potentialBandInfo?.letter ?? "N/A"}`
+      `[Canvas Process - Final] Final Result -> Current: ${currentBandInfo?.letter ?? "N/A"}, Potential: ${potentialBandInfo?.letter ?? "N/A"}`
     );
 
     // 9. Draw Debug Info (Updated)
@@ -529,7 +705,7 @@ export const processEpcImageDataUrl = async (
       potentialBand: potentialBandInfo ?? undefined,
     };
   } catch (error: any) {
-    console.error("[Canvas Process - VC] Error processing EPC image:", error);
+    console.error("[Canvas Process - Error] Error processing EPC image:", error);
     return { error: error?.message || "Failed to process image" };
   }
 };

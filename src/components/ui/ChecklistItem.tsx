@@ -295,9 +295,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                         ref={debugCanvasRef}
                         style={{ display: 'block', width: '100%', height: 'auto' }}
                     />
-                    <p style={{ fontSize: '0.7rem', color: 'grey', padding: '2px 4px', margin: 0 }}>
-                        Debug Canvas: Red=Potential Region, Blue=Current Region
-                    </p>
                 </div>
             )}
 
