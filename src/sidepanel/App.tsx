@@ -9,6 +9,7 @@ import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
+import { useEpcProcessor } from '@/hooks/useEpcProcessor';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
@@ -19,7 +20,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActionEvents } from "../constants/actionEvents";
 import {
-  DataStatus,
   ExtractedPropertyScrapingData,
   PropertyDataList
 } from "../types/property";
@@ -48,9 +48,9 @@ const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<keyof typeof STEPS>(
     STEPS.INITIAL_REVIEW
   );
-  const [selectedWarningItems, setSelectedWarningItems] = useState<
-    PropertyDataList[]
-  >([]);
+  const [selectedWarningItems, setSelectedWarningItems] = useState<PropertyDataList[]>([]);
+  const epcDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isEpcDebugModeOn = process.env.IS_EPC_DEBUG_MODE === "true";
 
   const { lat, lng } = propertyData.locationCoordinates;
 
@@ -191,29 +191,59 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  const propertyChecklistData = generatePropertyChecklist(
+  // --- Base Checklist Data Generation ---
+  const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
     propertyData,
     crimeQuery,
     premiumStreetDataQuery,
-  );
+  ), [propertyData, crimeQuery, premiumStreetDataQuery]);
 
-  const initialOpenGroups = propertyChecklistData.reduce(
+  // --- EPC Processing Hook ---
+  const epcItemFromBaseData = useMemo(() => basePropertyChecklistData.find(item => item.key === 'epc'), [basePropertyChecklistData]);
+  const originalEpcImageUrl = useMemo(() => (
+    (epcItemFromBaseData?.value && typeof epcItemFromBaseData.value === 'string' && epcItemFromBaseData.value.startsWith('http'))
+      ? epcItemFromBaseData.value
+      : null
+  ), [epcItemFromBaseData]);
+  const originalEpcValue = epcItemFromBaseData?.value as string | number | boolean | null | undefined;
+  const epcState = useEpcProcessor(originalEpcImageUrl, originalEpcValue, isEpcDebugModeOn ? epcDebugCanvasRef : undefined);
+
+  // --- Derive Display Checklist Data using useMemo ---
+  const displayChecklistData = useMemo(() => {
+    return basePropertyChecklistData.map(item => {
+      if (item.key === 'epc') {
+        // Apply EPC updates directly from epcState if they differ from base data
+        if (item.status !== epcState.status || item.value !== epcState.displayValue) {
+          return {
+            ...item,
+            status: epcState.status,
+            value: epcState.displayValue,
+          };
+        }
+      }
+      return item; // Return original item if not EPC or no update needed
+    });
+  }, [basePropertyChecklistData, epcState.status, epcState.displayValue]);
+
+  // --- Filtering and Grouping Logic (now depends on the derived displayChecklistData) ---
+  const initialOpenGroups = useMemo(() => displayChecklistData.reduce(
     (acc, item) => {
-      acc[item.group] = true;
+      if (item.group) {
+        acc[item.group] = true;
+      }
       return acc;
     },
-    {} as { [key: string]: boolean }
-  );
-  const [openChecklistGroups, setOpenChecklistGroups] = useState<{ [key: string]: boolean }>(
-    initialOpenGroups
-  );
+    {} as Record<string, boolean>
+  ), [displayChecklistData]);
 
-  const toggleGroup = (group: string) => {
-    setOpenChecklistGroups((prev) => ({
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpenGroups);
+
+  const toggleGroup = useCallback((group: string) => {
+    setOpenGroups((prev) => ({
       ...prev,
       [group]: !prev[group],
     }));
-  };
+  }, []);
 
   let lastGroup = "";
 
@@ -228,32 +258,39 @@ const App: React.FC = () => {
     }));
   };
 
-  const applyFilters = (
-    checklist: PropertyDataList[],
-    filters: { showAskAgentOnly: boolean }
-  ) => {
-    let filtered = checklist;
-    if (filters.showAskAgentOnly) {
-      filtered = filtered.filter(
-        (item: PropertyDataList) => item.status === DataStatus.ASK_AGENT
-      );
-    }
-    // Apply more filters here
-    return filtered;
-  };
+  const applyFilters = useCallback(
+    (checklist: PropertyDataList[], currentFilters: typeof filters) => {
+      let filteredData = checklist;
+      if (currentFilters.showAskAgentOnly) {
+        filteredData = filterChecklistToAllAskAgentOnlyItems(filteredData);
+      }
+      return filteredData;
+    },
+    []
+  );
 
-  const filteredChecklist = applyFilters(propertyChecklistData, filters);
-  const askAgentItems =
-    filterChecklistToAllAskAgentOnlyItems(filteredChecklist);
+  const filteredChecklistData = useMemo(() => applyFilters(displayChecklistData, filters), [displayChecklistData, filters, applyFilters]);
+
+  const groupedChecklistData = useMemo(() => filteredChecklistData.reduce(
+    (acc, item) => {
+      const group = item.group || 'Other';
+      if (!acc[group]) {
+        acc[group] = [];
+      }
+      acc[group].push(item);
+      return acc;
+    },
+    {} as Record<string, PropertyDataList[]>
+  ), [filteredChecklistData]);
 
   const checklistToRender =
-    currentStep === STEPS.SELECT_ISSUES ? askAgentItems : filteredChecklist;
+    currentStep === STEPS.SELECT_ISSUES ? filteredChecklistData : displayChecklistData;
 
   const handleNextStep = () => {
     setCurrentStep((prevStep) => {
       switch (prevStep) {
         case STEPS.INITIAL_REVIEW:
-          setSelectedWarningItems(askAgentItems);
+          setSelectedWarningItems(filteredChecklistData);
           return STEPS.SELECT_ISSUES;
         case STEPS.SELECT_ISSUES:
           const emailAgentUrl = propertyData.agent?.contactUrl;
@@ -267,8 +304,6 @@ const App: React.FC = () => {
             });
           }
           return STEPS.REVIEW_MESSAGE;
-        // No review message button - it's handled with user submission in rightmove itself & through the message actionevents.AGENT_CONTACT_FORM_SUBMITTED
-        // No sign in step button - it's handled with user submission in rightmove itself & through the message actionevents.RIGHTMOVE_SIGN_IN
         case STEPS.EMAIL_SENT:
           const propertyListingUrl = propertyData.copyLinkUrl
             ? propertyData.copyLinkUrl.split("?")[0]
@@ -290,7 +325,7 @@ const App: React.FC = () => {
     setSelectedWarningItems((prev) => {
       const isSelected = prev.some((item) => item.key === key);
       if (isSelected) return prev.filter((item) => item.key !== key);
-      const selectedItem = askAgentItems.find((item) => item.key === key);
+      const selectedItem = filteredChecklistData.find((item) => item.key === key);
       return selectedItem ? [...prev, selectedItem] : prev;
     });
   };
@@ -307,10 +342,9 @@ const App: React.FC = () => {
     setNearbyPlanningPermissionCardExpanded((prev) => !prev);
   };
 
-  // Track rendered groups to prevent duplicates
   const renderedGroupsSet = new Set<string>();
 
-  const renderGroupHeading = (group: string) => {
+  const renderGroupHeading = useCallback((group: string) => {
     if (renderedGroupsSet.has(group)) return null;
     renderedGroupsSet.add(group);
 
@@ -320,11 +354,11 @@ const App: React.FC = () => {
         className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
         onClick={() => toggleGroup(group)}
       >
-        <span>{group} {!openChecklistGroups[group] && `(${itemCount})`}</span>
-        <span className="mr-2">{openChecklistGroups[group] ? "▼" : "▲"}</span>
+        <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
+        <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
-  };
+  }, [checklistToRender, openGroups, toggleGroup]);
 
   const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
     dispatch({
@@ -346,10 +380,10 @@ const App: React.FC = () => {
     return <SideBarLoading />;
   }
 
-  const isPremiumDataFetched = premiumStreetDataQuery.isFetched
+  const isPremiumDataFetched = premiumStreetDataQuery.isSuccess;
 
   return (
-    <>
+    <div className="p-0 m-0">
       {nonPropertyPageWarningMessage && (
         <Alert
           type="warning"
@@ -364,9 +398,9 @@ const App: React.FC = () => {
       )}
       <div className={`p-4 ${!isAuthenticated ? 'pb-16' : 'pb-4'}`}>
         <SettingsBar
-          openGroups={openChecklistGroups}
-          setOpenGroups={setOpenChecklistGroups}
-          propertyChecklistData={propertyChecklistData}
+          openGroups={openGroups}
+          setOpenGroups={setOpenGroups}
+          propertyChecklistData={displayChecklistData}
           filters={filters}
           toggleFilter={toggleFilter}
           currentStep={currentStep}
@@ -374,113 +408,113 @@ const App: React.FC = () => {
           agentDetails={propertyData.agent}
         />
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {checklistToRender.map((item) => {
-            const showGroupHeading = item.group !== lastGroup;
-            lastGroup = item.group;
-
-            return (
-              <React.Fragment key={item.key}>
-                {showGroupHeading && renderGroupHeading(item.group)}
-                {openChecklistGroups[item.group] && (
-                  <ChecklistItem
-                    item={item}
-                    isSelected={
-                      currentStep === STEPS.SELECT_ISSUES
-                        ? selectedWarningItems.some((sel) => sel.key === item.key)
-                        : true
-                    }
-                    onItemClick={
-                      currentStep === STEPS.SELECT_ISSUES
-                        ? () => toggleSelection(item.key)
-                        : undefined
-                    }
-                    onValueClick={
-                      getValueClickHandler(
-                        item.key,
-                        item.value,
-                        openNewTab,
-                        toggleCrimeChart,
-                        togglePlanningPermissionCard,
-                        toggleNearbyPlanningPermissionCard
-                      )
-                    }
-                    isPremiumDataFetched={isPremiumDataFetched}
-                  />
-                )}
-                {/* Dropdown crime piechart on crime score click */}
-                {item.key === "crimeScore" && (
-                  <div
-                    ref={crimeContentRef}
-                    style={{
-                      maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0",
-                      opacity: crimeChartExpanded ? 1 : 0,
-                      overflow: "hidden",
-                      transition: "max-height 0.3s ease, opacity 0.3s ease",
-                    }}
-                  >
-                    {crimeQuery.data && (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <LazyCrimePieChart
-                          crimeSummary={crimeQuery.data.crimeSummary}
-                          totalCrimes={crimeQuery.data.totalCrimes}
-                          trendingPercentageOver6Months={
-                            crimeQuery.data.trendingPercentageOver6Months
-                          }
+          {Object.entries(groupedChecklistData).map(([group, items]) => (
+            <div key={group} className="mb-4">
+              {renderGroupHeading(group)}
+              {openGroups[group] && (
+                <ul className="mt-2 space-y-1">
+                  {items.map((item: PropertyDataList) => {
+                    const isEpc = item.key === 'epc';
+                    const isItemSelected = !filters.showAskAgentOnly || selectedWarningItems.some(i => i.key === item.key);
+                    return (
+                      <React.Fragment key={item.key}>
+                        <ChecklistItem
+                          item={item}
+                          isSelected={isItemSelected}
+                          onItemClick={currentStep === STEPS.SELECT_ISSUES ? () => toggleSelection(item.key) : undefined}
+                          onValueClick={getValueClickHandler(
+                            item.key,
+                            item.value,
+                            openNewTab,
+                            toggleCrimeChart,
+                            togglePlanningPermissionCard,
+                            toggleNearbyPlanningPermissionCard
+                          )}
+                          isPremiumDataFetched={isPremiumDataFetched}
+                          epcImageDataUrl={isEpc ? epcState.imageDataUrl : undefined}
+                          epcDebugCanvasRef={isEpc && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
+                          isEpcDebugModeOn={isEpcDebugModeOn}
                         />
-                      </Suspense>
-                    )}
-                  </div>
-                )}
-                {/* Dropdown planning permission card on planning permission property click */}
-                {item.key === "planningPermissions" && (
-                  <div
-                    ref={planningPermissionContentRef}
-                    style={{
-                      maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0",
-                      opacity: planningPermissionCardExpanded ? 1 : 0,
-                      overflow: "hidden",
-                      transition: "max-height 0.3s ease, opacity 0.3s ease",
-                    }}
-                  >
-                    {premiumStreetDataQuery.data && (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <LazyPlanningPermissionCard
-                          planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                          nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                          isLoading={premiumStreetDataQuery.isLoading}
-                          displayMode="property"
-                        />
-                      </Suspense>
-                    )}
-                  </div>
-                )}
-                {/* Dropdown planning permission card on nearby planning permission click */}
-                {item.key === "nearbyPlanningPermissions" && (
-                  <div
-                    ref={nearbyPlanningPermissionContentRef}
-                    style={{
-                      maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0",
-                      opacity: nearbyPlanningPermissionCardExpanded ? 1 : 0,
-                      overflow: "hidden",
-                      transition: "max-height 0.3s ease, opacity 0.3s ease",
-                    }}
-                  >
-                    {premiumStreetDataQuery.data && (
-                      <Suspense fallback={<LoadingSpinner />}>
-                        <LazyPlanningPermissionCard
-                          nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                          isLoading={premiumStreetDataQuery.isLoading}
-                          displayMode="nearby"
-                        />
-                      </Suspense>
-                    )}
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+                        {item.key === "crimeScore" && (
+                          <div
+                            ref={crimeContentRef}
+                            style={{
+                              maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0",
+                              opacity: crimeChartExpanded ? 1 : 0,
+                              overflow: "hidden",
+                              transition: "max-height 0.3s ease, opacity 0.3s ease",
+                            }}
+                            className="pl-[calc(1rem+8px)]"
+                          >
+                            {crimeQuery.data && (
+                              <Suspense fallback={<LoadingSpinner />}>
+                                <LazyCrimePieChart
+                                  crimeSummary={crimeQuery.data.crimeSummary}
+                                  totalCrimes={crimeQuery.data.totalCrimes}
+                                  trendingPercentageOver6Months={
+                                    crimeQuery.data.trendingPercentageOver6Months
+                                  }
+                                />
+                              </Suspense>
+                            )}
+                          </div>
+                        )}
+                        {/* Dropdown planning permission card on planning permission prop */}
+                        {item.key === "planningPermissions" && (
+                          <div
+                            ref={planningPermissionContentRef}
+                            style={{
+                              maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0",
+                              opacity: planningPermissionCardExpanded ? 1 : 0,
+                              overflow: "hidden",
+                              transition: "max-height 0.3s ease, opacity 0.3s ease",
+                            }}
+                            className="pl-[calc(1rem+8px)]"
+                          >
+                            {premiumStreetDataQuery.data && (
+                              <Suspense fallback={<LoadingSpinner />}>
+                                <LazyPlanningPermissionCard
+                                  planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                                  nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                  isLoading={premiumStreetDataQuery.isLoading}
+                                  displayMode="property"
+                                />
+                              </Suspense>
+                            )}
+                          </div>
+                        )}
+                        {/* Dropdown planning permission card on nearby planning permission click */}
+                        {item.key === "nearbyPlanningPermissions" && (
+                          <div
+                            ref={nearbyPlanningPermissionContentRef}
+                            style={{
+                              maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0",
+                              opacity: nearbyPlanningPermissionCardExpanded ? 1 : 0,
+                              overflow: "hidden",
+                              transition: "max-height 0.3s ease, opacity 0.3s ease",
+                            }}
+                            className="pl-[calc(1rem+8px)]"
+                          >
+                            {premiumStreetDataQuery.data && (
+                              <Suspense fallback={<LoadingSpinner />}>
+                                <LazyPlanningPermissionCard
+                                  nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                  isLoading={premiumStreetDataQuery.isLoading}
+                                  displayMode="nearby"
+                                />
+                              </Suspense>
+                            )}
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          ))}
           {!propertyData.address.isAddressConfirmedByUser &&
-            checklistToRender.some(item => item.group === "Premium") && (
+            displayChecklistData.some(item => item.group === "Premium") && (
               <li className="mt-2 p-4">
                 <Button
                   onClick={() => setShowBuildingValidationModal(true)}
@@ -505,7 +539,7 @@ const App: React.FC = () => {
         {/* DevTools component - only visible in development mode */}
         <DevTools />
       </div>
-    </>
+    </div>
   );
 };
 

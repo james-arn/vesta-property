@@ -1,26 +1,7 @@
-// Remove types from the node-canvas library imports if they exist
-// import { Image, Canvas, CanvasRenderingContext2D as NodeCanvasRenderingContext2D } from 'canvas';
-// Remove self-import
-// import { EpcBandInfo, EpcBandResult } from './epcImageUtils';
-
-// Import ActionEvents if not already imported
-
-// Define interfaces for clarity
-interface RGBColor {
-  r: number;
-  g: number;
-  b: number;
-}
-
-export interface EpcBandInfo {
-  letter: string;
-  range: { min: number; max: number | string }; // Max can be '92+' for A
-  referenceColorHex: string;
-  referenceColorRgb?: RGBColor; // Will be populated
-  score: number; // <-- Add score property
-}
-
 // Standard EPC Band definitions
+
+import { EpcBandInfo, RGBColor } from "@/types/epc";
+
 // Reference colors are approximate, matching might need tuning
 const EPC_BANDS: EpcBandInfo[] = [
   { letter: "A", range: { min: 92, max: "92+" }, referenceColorHex: "#008054", score: 92 },
@@ -37,15 +18,7 @@ EPC_BANDS.forEach((band) => {
   band.referenceColorRgb = hexToRgb(band.referenceColorHex) ?? undefined; // Convert null to undefined
 });
 
-// Export EpcBandResult
-export interface EpcBandResult {
-  currentBand?: EpcBandInfo;
-  potentialBand?: EpcBandInfo;
-  error?: string;
-}
-
 // --- Helper Functions ---
-
 function hexToRgb(hex: string): RGBColor | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result

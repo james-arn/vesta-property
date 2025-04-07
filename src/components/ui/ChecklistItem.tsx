@@ -1,12 +1,8 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ActionEvents } from '@/constants/actionEvents';
 import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
 import { isClickableItemKey } from "@/types/clickableChecklist";
-import { DataStatus } from "@/types/property";
-
-import { EpcBandInfo, EpcBandResult, processEpcImageDataUrl } from '@/sidepanel/propertychecklist/epcImageUtils';
-import { PropertyDataList } from "@/types/property";
-import React, { useEffect, useRef, useState } from 'react';
+import { DataStatus, PropertyDataList } from "@/types/property";
+import React, { useState } from 'react';
 import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaTimesCircle } from "react-icons/fa";
 
 export interface ChecklistItemProps {
@@ -15,6 +11,9 @@ export interface ChecklistItemProps {
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
+    epcImageDataUrl?: string | null;
+    epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+    isEpcDebugModeOn: boolean;
 }
 
 // Mapping DataStatus to styling and icons
@@ -26,123 +25,30 @@ const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string 
     [DataStatus.IS_LOADING]: { icon: FaClock, color: 'text-blue-500' },
 };
 
-const formatEPCBandInfo = (band: EpcBandInfo | undefined | null): string => {
-    if (!band) return 'N/A';
-    const rangeMax = typeof band.range.max === 'string' ? band.range.max : band.range.max.toString();
-    return `${band.letter} (${band.range.min}-${rangeMax})`;
-};
-
-// Add a simple flag for enabling debug mode (you can make this dynamic later)
-const IS_EPC_DEBUG_MODE = true;
-
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     item,
     isSelected,
     onItemClick,
     onValueClick,
-    isPremiumDataFetched
+    isPremiumDataFetched,
+    epcImageDataUrl,
+    epcDebugCanvasRef,
+    isEpcDebugModeOn
 }) => {
-    const { key, label, status, value, toolTipExplainer, askAgentMessage } = item;
+    const { key, label, status, value, toolTipExplainer } = item;
 
-    // --- State for EPC Async Processing ---
-    type EpcProcessingStatus = 'idle' | 'fetching' | 'processing' | 'success' | 'error';
-    const [epcProcessingStatus, setEpcProcessingStatus] = useState<EpcProcessingStatus>('idle');
-    const [epcResult, setEpcResult] = useState<EpcBandResult | null>(null);
-    const [fetchError, setFetchError] = useState<string | null>(null);
-    const [epcImageDataUrl, setEpcImageDataUrl] = useState<string | null>(null);
-
-    // --- Ref for mounted status ---
-    const isMountedRef = useRef(true);
-    // --- Ref for debug canvas ---
-    const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-    // --- State for EPC Image Visibility ---
     const [isEpcImageVisible, setIsEpcImageVisible] = useState(false);
-
     const isEpcItem = key === 'epc';
-    const originalEpcImageUrl = (isEpcItem && typeof value === 'string' && value.startsWith('http')) ? value : null;
 
-    // Function to toggle image visibility
     const toggleEpcImageVisibility = () => {
-        if (isEpcItem && originalEpcImageUrl) { // Only toggle if it's an EPC item with a valid URL
+        if (isEpcItem && epcImageDataUrl) {
             setIsEpcImageVisible(prev => !prev);
         }
     };
 
-    // --- Effect for EPC Processing ---
-    useEffect(() => {
-        isMountedRef.current = true;
-
-        if (!originalEpcImageUrl) {
-            if (epcProcessingStatus !== 'idle') {
-                setEpcProcessingStatus('idle');
-                setEpcResult(null);
-                setFetchError(null);
-            }
-            return () => {
-                isMountedRef.current = false;
-            };
-        }
-
-        if (epcProcessingStatus === 'idle') {
-            setEpcProcessingStatus('fetching');
-            setEpcResult(null);
-            setFetchError(null);
-            console.log(`[ChecklistItem] Requesting fetch for: ${originalEpcImageUrl}`);
-
-            chrome.runtime.sendMessage(
-                { action: ActionEvents.FETCH_IMAGE_FOR_CANVAS, url: originalEpcImageUrl },
-                (response) => {
-                    if (!isMountedRef.current) {
-                        console.log("[ChecklistItem] Component unmounted before background response processed.");
-                        return;
-                    }
-
-                    if (response?.success && response.dataUrl) {
-                        console.log(`[ChecklistItem] Received Data URL, starting canvas processing.`);
-                        setEpcProcessingStatus('processing');
-                        processEpcImageDataUrl(response.dataUrl, debugCanvasRef.current)
-                            .then(result => {
-                                if (isMountedRef.current) {
-                                    setEpcResult(result);
-                                    setEpcProcessingStatus(result.error ? 'error' : 'success');
-                                }
-                            })
-                            .catch(error => {
-                                console.error(`[ChecklistItem] Canvas processing failed:`, error);
-                                if (isMountedRef.current) {
-                                    setEpcResult({ error: error?.message || "Canvas processing failed." });
-                                    setEpcProcessingStatus('error');
-                                }
-                            });
-                    } else {
-                        const errorMsg = response?.error || "Failed to fetch image data.";
-                        console.error(`[ChecklistItem] Background fetch failed:`, errorMsg);
-                        if (isMountedRef.current) {
-                            setFetchError(errorMsg);
-                            setEpcProcessingStatus('error');
-                        }
-                    }
-                }
-            );
-        }
-
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, [originalEpcImageUrl, epcProcessingStatus]);
-
     // --- Determine Display Status and Icon ---
-    let displayStatus = status;
-    if (isEpcItem) {
-        if (epcProcessingStatus === 'fetching' || epcProcessingStatus === 'processing') displayStatus = DataStatus.IS_LOADING;
-        else if (epcProcessingStatus === 'error') displayStatus = DataStatus.ASK_AGENT;
-        else if (epcProcessingStatus === 'success' && (epcResult?.currentBand || epcResult?.potentialBand)) displayStatus = DataStatus.FOUND_POSITIVE;
-        else if (epcProcessingStatus === 'success') displayStatus = DataStatus.ASK_AGENT;
-    }
-
+    const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
-
     const isWarning = displayStatus === DataStatus.ASK_AGENT;
 
     // Check if this is a premium item without proper data
@@ -180,42 +86,17 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         if (isEpcItem) {
-            let content: React.ReactNode;
-            // Generate the content based on processing status
-            if (epcProcessingStatus === 'fetching') {
-                content = <span className="italic text-gray-500">Fetching image...</span>;
-            } else if (epcProcessingStatus === 'processing') {
-                content = <span className="italic text-gray-500">Analysing image...</span>;
-            } else if (epcProcessingStatus === 'error') {
-                const errorMsg = fetchError || epcResult?.error || "Could not analyse image";
-                content = <span className="italic text-red-500">Error: {errorMsg}</span>;
-            } else if (epcProcessingStatus === 'success') {
-                if (epcResult?.currentBand || epcResult?.potentialBand) {
-                    content = (
-                        <span>
-                            Current: {formatEPCBandInfo(epcResult.currentBand)} | Potential: {formatEPCBandInfo(epcResult.potentialBand)}
-                        </span>
-                    );
-                } else {
-                    content = <span className="italic text-yellow-600">Could not determine bands from image.</span>;
-                }
-            } else { // Idle state
-                if (originalEpcImageUrl) {
-                    content = (
-                        <span className="text-blue-600 hover:underline">
-                            Click to analyse / view image
-                        </span>
-                    );
-                } else {
-                    content = <span className="italic text-gray-400">{String(value)}</span>; // Show original value if not a URL
-                }
-            }
+            const displayContent = value || "N/A";
+            const hasImageData = !!epcImageDataUrl;
 
-            // Wrap the content in a clickable div
             return (
-                <div onClick={toggleEpcImageVisibility} style={{ cursor: originalEpcImageUrl ? 'pointer' : 'default' }}>
-                    {content}
-                </div>
+                <span
+                    onClick={hasImageData ? toggleEpcImageVisibility : undefined}
+                    className={hasImageData ? 'cursor-pointer text-blue-500 underline' : ''}
+                    style={{ display: 'inline-block' }}
+                >
+                    {displayContent}
+                </span>
             );
         }
 
@@ -257,7 +138,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             key !== "epc" && key !== "floorPlan" &&
             key !== "crimeScore" && key !== "planningPermissions" &&
             key !== "nearbyPlanningPermissions") {
-            console.error(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
+            console.warn(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
         }
 
         return <span>{value || "Not found"}</span>;
@@ -280,7 +161,9 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
-                            <FaInfoCircle className="cursor-pointer" />
+                            <button className="p-1 -m-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                                <FaInfoCircle className="cursor-pointer text-gray-500" />
+                            </button>
                         </TooltipTrigger>
                         <TooltipContent side="right" align="center" className="w-[200px] whitespace-pre-line">
                             {toolTipExplainer}
@@ -288,17 +171,18 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     </Tooltip>
                 </TooltipProvider>
             </div>
-            {/* --- Conditionally render the debug canvas --- */}
-            {IS_EPC_DEBUG_MODE && isEpcItem && (
+
+            {/* Render Debug Canvas if debug mode is ON (independent of click) */}
+            {isEpcDebugModeOn && isEpcItem && epcDebugCanvasRef && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px solid grey', overflow: 'auto' }}>
                     <canvas
-                        ref={debugCanvasRef}
+                        ref={epcDebugCanvasRef}
                         style={{ display: 'block', width: '100%', height: 'auto' }}
                     />
                 </div>
             )}
 
-            {/* --- Conditionally render the full EPC image using DATA URL --- */}
+            {/* Render Normal Image when visible state is true and image exists */}
             {isEpcItem && isEpcImageVisible && epcImageDataUrl && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px dashed blue', padding: '5px' }}>
                     <img

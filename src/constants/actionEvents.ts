@@ -17,6 +17,7 @@ export const ActionEvents = {
   AUTH_SUCCESS: "authSuccess", // NOTE - used as magic string in login-success.html & logout-success.html as can't import constants into html files
   LOGOUT_SUCCESS: "logoutSuccess", // Used as magic string in logout-success.js
   REFRESH_TOKENS: "refreshTokens",
+  // Needs to get epc image url in background and send to UI to stop CORS issues.
   FETCH_IMAGE_FOR_CANVAS: "fetchImageForCanvas",
   EPC_BANDS_READY: "epcBandsReady",
 } as const;
