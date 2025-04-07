@@ -1,5 +1,4 @@
-import { exchangeCodeForTokens, refreshTokens, storeAuthTokens } from "@/background/authHelpers";
-import { ENV_CONFIG } from "@/constants/environmentConfig";
+import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers";
 import { ActionEvents } from "./constants/actionEvents";
 import { StorageKeys } from "./constants/storage";
 import {
@@ -217,274 +216,174 @@ function handleToUIFromContentScriptMessage(
   }
 }
 
-// Listen for messages from the content script and store data.
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Messages for the UI
-  if (
-    request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
-    request.action === ActionEvents.SHOW_WARNING ||
-    request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
-    request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED
-  ) {
-    const result = handleToUIFromContentScriptMessage(request, sendResponse);
-    // Return true if we need to keep the message channel open for an async response
-    return result === true;
-  }
+  console.log(
+    "[background.ts] Received message:",
+    request.action,
+    "from:",
+    sender.id,
+    "tab:",
+    sender.tab?.id
+  );
 
-  // Messages for the Content Script
+  // Determine the source and intended target of the message
+  const isFromSidePanel =
+    sender.url?.includes(chrome.runtime.id) && sender.url?.includes("sidepanel.html");
+  const isFromContentScript = !!sender.tab; // Content scripts usually have a tab associated
+
+  // Messages FROM Side Panel TO Content Script
   if (
-    request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM ||
-    request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING
+    isFromSidePanel &&
+    (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM ||
+      request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING)
   ) {
+    console.log(`[background.ts] Handling SidePanel -> ContentScript: ${request.action}`);
     handleToContentScriptFromUIMessage(request, sendResponse);
+    return false; // Not async
   }
 
-  // Listen for form submission messages from the content script
-  if (request.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
-    console.log("[background.ts] Form submitted message received");
-    // Forward the message to the React app
-    chrome.runtime.sendMessage({
-      action: ActionEvents.AGENT_CONTACT_FORM_SUBMITTED,
-    });
-    sendResponse({ status: "Agent contact form submitted handled" });
-  }
-
-  // Handle token refresh requests from the useSecureAuthentication hook
-  if (request.action === ActionEvents.REFRESH_TOKENS && request.refreshToken) {
-    console.log("[background.ts] Received token refresh request");
-
-    // Refresh the tokens asynchronously
-    (async () => {
-      try {
-        // Get new tokens using the refresh token
-        const tokenResponse = await refreshTokens(request.refreshToken);
-
-        // Store the new tokens
-        await storeAuthTokens(tokenResponse);
-
-        console.log("[background.ts] Token refresh successful");
-        sendResponse({ success: true });
-      } catch (error) {
-        logErrorToSentry(error, "error");
-        console.error("[background.ts] Token refresh failed:", error);
-        sendResponse({ success: false, error: String(error) });
-      }
-    })();
-
-    // Keep the message channel open for the async response
-    return true;
-  }
-
-  // Handle AUTH_CODE_RECEIVED message from login-success.html
-  if (request.type === ActionEvents.AUTH_CODE_RECEIVED && request.code) {
-    console.log("[background.ts] Received auth code from login-success.html:", request.code);
-
-    // Get the code verifier
-    chrome.storage.local.get([StorageKeys.AUTH_CODE_VERIFIER], async (result) => {
-      if (result[StorageKeys.AUTH_CODE_VERIFIER]) {
-        try {
-          // Exchange code for tokens
-          const tokenResponse = await exchangeCodeForTokens(
-            request.code,
-            result[StorageKeys.AUTH_CODE_VERIFIER]
-          );
-
-          // Store tokens using the helper function
-          await storeAuthTokens(tokenResponse);
-
-          showSystemNotification(
-            "Successfully Signed In",
-            "You are now signed in to the Vesta Property Checker. You can start using all premium features."
-          );
-        } catch (error) {
-          logErrorToSentry(error, "error");
-          chrome.storage.local.set({
-            [StorageKeys.AUTH_ERROR]: `Failed to exchange code for tokens: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-            [StorageKeys.AUTH_IN_PROGRESS]: false,
-          });
-        }
+  // Messages FROM Content Script or Background TO Side Panel (UI Updates)
+  if (
+    !isFromSidePanel && // Don't forward messages from side panel back to itself
+    (request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
+      request.action === ActionEvents.SHOW_WARNING ||
+      request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
+      request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED ||
+      request.action === ActionEvents.AUTHENTICATION_COMPLETE ||
+      request.action === ActionEvents.LOGOUT_COMPLETE ||
+      request.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED)
+  ) {
+    console.log(`[background.ts] Forwarding message to UI (SidePanel): ${request.action}`);
+    chrome.runtime.sendMessage(request, (response) => {
+      // Send to potentially multiple listeners (Side Panel)
+      if (chrome.runtime.lastError) {
+        logErrorToSentry(
+          `Error forwarding message ${request.action} to UI: ${chrome.runtime.lastError.message}`,
+          "warning"
+        );
+      } else {
+        console.log(`[background.ts] Forwarded ${request.action} to UI. Response:`, response);
       }
     });
-
-    // Keep the message channel open for the async response
-    return true;
+    sendResponse({ status: `Message ${request.action} forwarded to UI` });
+    return false; // Message forwarding itself is sync
   }
 
-  // Handle AUTH_SUCCESS message from login-success.html or logout-success.html
-  if (request.type === ActionEvents.AUTH_SUCCESS) {
-    console.log("[background.ts] Received AUTH_SUCCESS message from redirect page");
-
-    // The page will close itself, so we don't need to close it explicitly
-
-    // If we have a tab ID in sender, let's track it for debugging
-    if (sender.tab && sender.tab.id) {
-      console.log("[background.ts] Authentication completed in tab:", sender.tab.id);
-    }
-
-    sendResponse({ status: "Auth success handled" });
-  }
-
-  // Handle LOGOUT_SUCCESS message from logout-success.js
-  if (request.type === ActionEvents.LOGOUT_SUCCESS) {
-    console.log("[background.ts] Received LOGOUT_SUCCESS message from logout page");
-
-    // The page will close itself, so we don't need to close it explicitly
-
-    // If we have a tab ID in sender, let's track it for debugging
-    if (sender.tab && sender.tab.id) {
-      console.log("[background.ts] Logout completed in tab:", sender.tab.id);
-    }
-
-    sendResponse({ status: "Logout success handled" });
-  }
-
-  // Handle fetching image for Canvas CORS workaround
-  if (request.action === ActionEvents.FETCH_IMAGE_FOR_CANVAS && request.url) {
-    console.log(`[background.ts] Received request to fetch image: ${request.url}`);
-    const imageUrl = request.url;
-
-    (async () => {
-      try {
-        const response = await fetch(imageUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const blob = await response.blob();
-
-        // Convert Blob to Data URL
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          // Send the successful Data URL directly back to the caller
-          console.log(
-            `[background.ts] Sending back Data URL (length: ${reader.result?.toString().length})`
-          );
-          sendResponse({ success: true, dataUrl: reader.result });
-        };
-        reader.onerror = (error) => {
-          console.error("[background.ts] FileReader error:", error);
-          // Send the error back to the caller
-          sendResponse({ success: false, error: "Failed to read image blob." });
-        };
-        reader.readAsDataURL(blob);
-      } catch (error: any) {
-        console.error(`[background.ts] Failed to fetch image (${imageUrl}):`, error);
-        // Send the error back to the caller
-        sendResponse({ success: false, error: error.message || "Failed to fetch image." });
-      }
-    })();
-
-    // Keep message channel open for async response
-    return true;
-  }
-
-  // Ensure other message handlers return false if not async
-  // Return false or undefined for synchronous handlers
-  // return false;
-});
-
-// Listen for tab switches
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  // Get the active tab's URL
-  chrome.tabs.get(activeInfo.tabId, (tab) => {
-    if (tab.url) {
-      // Send the URL to the sidebar
-      chrome.runtime.sendMessage<NavigatedUrlOrTabChangedOrExtensionOpenedMessage, ResponseType>({
-        action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
-        data: tab.url,
-      });
-    }
-  });
-});
-
-// Optionally, listen for tab updates (e.g., when the page reloads or URL changes)
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === "complete" && tab.active) {
-    chrome.runtime.sendMessage<NavigatedUrlOrTabChangedOrExtensionOpenedMessage, ResponseType>({
-      action: ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED,
-      data: tab.url ?? "",
+  // Message FROM Side Panel TO Background (Get Auth Status)
+  if (isFromSidePanel && request.action === ActionEvents.GET_AUTH_STATUS) {
+    console.log("[background.ts] Handling GET_AUTH_STATUS from SidePanel.");
+    chrome.storage.local.get([StorageKeys.AUTH_ID_TOKEN], (result) => {
+      const hasToken = !!result[StorageKeys.AUTH_ID_TOKEN];
+      sendResponse({ isAuthenticated: hasToken });
     });
+    return true; // Async storage access
   }
+
+  // Side Panel opened event (Special case, triggered by Side Panel)
+  if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
+    console.log("[background.ts] Handling SIDE_PANEL_OPENED.");
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        processTab(tabs[0], (processTabResponse) => {
+          sendResponse({ status: "Processed active tab.", processTabResponse });
+        });
+      } else {
+        sendResponse({ status: "No active tab found." });
+      }
+    });
+    return true; // Async processTab
+  }
+
+  // Image Fetching (Initiated by Side Panel, handled by Background)
+  if (request.action === ActionEvents.FETCH_IMAGE_FOR_CANVAS) {
+    console.log("[background.ts] Handling FETCH_IMAGE_FOR_CANVAS.");
+    if (request.url) {
+      fetch(request.url)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          return response.blob();
+        })
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onloadend = () => sendResponse({ success: true, dataUrl: reader.result });
+          reader.onerror = (error) => {
+            throw error || new Error("FileReader error");
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch((error) => {
+          const errorMsg = error instanceof Error ? error.message : "Failed to fetch image.";
+          logErrorToSentry(`Failed to fetch image: ${request.url} - ${errorMsg}`, "error");
+          sendResponse({ success: false, error: errorMsg });
+        });
+      return true; // Async fetch
+    } else {
+      sendResponse({ success: false, error: "Missing URL." });
+      return false;
+    }
+  }
+
+  // Default case for unhandled actions
+  console.warn(
+    `[background.ts] Unhandled/misdirected action: ${request.action} from sender ID ${sender.id}`
+  );
+  // Optional: send a generic response for unhandled cases if needed
+  // sendResponse({ status: `Action ${request.action} not handled by background.` });
+  return false; // Assume sync handling if not explicitly returned true
 });
 
-// Handle additional token exchange code in the tab change event
+// Auth Listener for redirect URL
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only proceed if we have a complete URL change
   if (changeInfo.status === "complete" && tab.url) {
-    try {
-      // Check if this is a Cognito redirect with an auth code
-      if (tab.url.includes(ENV_CONFIG.REDIRECT_URI) && tab.url.includes("code=")) {
-        console.log("[background.ts] Caught Cognito redirect with auth code in tab update");
+    const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/`;
+    if (tab.url.startsWith(redirectUri)) {
+      const url = new URL(tab.url);
+      const code = url.searchParams.get("code");
 
-        // Extract the authorization code from the URL
-        const urlObj = new URL(tab.url);
-        const code = urlObj.searchParams.get("code");
-        const error = urlObj.searchParams.get("error");
-        const errorDescription = urlObj.searchParams.get("error_description");
+      if (code) {
+        console.log("[background.ts] Auth code received:", code);
+        showSystemNotification("Vesta", "Processing authentication...");
+        try {
+          // Need codeVerifier from storage here!
+          const storageResult = await chrome.storage.local.get([StorageKeys.AUTH_CODE_VERIFIER]);
+          const codeVerifier = storageResult[StorageKeys.AUTH_CODE_VERIFIER];
 
-        if (code) {
-          // Verify we're in the authentication flow and have a code verifier
-          chrome.storage.local.get(
-            [StorageKeys.AUTH_IN_PROGRESS, StorageKeys.AUTH_CODE_VERIFIER],
-            async (result) => {
-              if (result[StorageKeys.AUTH_IN_PROGRESS] && result[StorageKeys.AUTH_CODE_VERIFIER]) {
-                try {
-                  // Exchange code for tokens
-                  const tokenResponse = await exchangeCodeForTokens(
-                    code,
-                    result[StorageKeys.AUTH_CODE_VERIFIER]
-                  );
+          if (!codeVerifier) {
+            throw new Error("Missing code verifier in storage.");
+          }
 
-                  // Store tokens using the helper function
-                  await storeAuthTokens(tokenResponse);
-
-                  console.log("Authentication successful, tokens stored");
-                  showSystemNotification(
-                    "Successfully Signed In",
-                    "You are now signed in to the Vesta Property Checker. You can start using all premium features."
-                  );
-
-                  // Close the tab once authentication is complete
-                  setTimeout(() => {
-                    chrome.tabs.remove(tabId);
-                  }, 1000);
-                } catch (error) {
-                  logErrorToSentry(error, "error");
-                  chrome.storage.local.set({
-                    [StorageKeys.AUTH_ERROR]: `Failed to exchange code for tokens: ${error instanceof Error ? error.message : String(error)}`,
-                    [StorageKeys.AUTH_IN_PROGRESS]: false,
-                  });
-                }
-              }
-            }
-          );
-        }
-        // Separate handling for logout redirects
-        else if (tab.url.includes(ENV_CONFIG.LOGOUT_URI)) {
-          console.log("Detected logout redirect");
-
-          // This is a post-logout redirect
-          // No additional action needed - the logout has been completed by Cognito
-          // and the tokens have been cleared by our app
-          // Tab will be closed automatically by the page itself
-        }
-        // Handle authentication errors (could happen in either flow)
-        else if (tab.url.includes("error=")) {
-          const url = new URL(tab.url);
-          const error = url.searchParams.get("error");
-          const errorDescription = url.searchParams.get("error_description");
-
-          logErrorToSentry(`Authentication error: ${error} - ${errorDescription}`, "error");
-
-          chrome.storage.local.set({
-            [StorageKeys.AUTH_ERROR]: `Authentication failed: ${errorDescription || error}`,
-            [StorageKeys.AUTH_IN_PROGRESS]: false,
+          // Pass code and verifier to exchange function
+          const tokenResponse = await exchangeCodeForTokens(code, codeVerifier);
+          // Pass the full token response object to storeAuthTokens
+          await storeAuthTokens(tokenResponse);
+          console.log("[background.ts] Tokens stored successfully.");
+          // Notify the UI about successful authentication
+          chrome.runtime.sendMessage({
+            action: ActionEvents.AUTHENTICATION_COMPLETE,
+            data: { isAuthenticated: true },
           });
+          // Close the auth tab
+          chrome.tabs.remove(tabId);
+          showSystemNotification("Vesta", "Authentication successful!");
+        } catch (error) {
+          console.error("[background.ts] Error exchanging code for tokens:", error);
+          logErrorToSentry(
+            `Error exchanging code for tokens: ${error instanceof Error ? error.message : String(error)}`,
+            "error"
+          );
+          showSystemNotification("Vesta", "Authentication failed. Please try again.");
+          // Optionally, redirect to an error page or display error in the auth tab
+        }
+      } else {
+        const error = url.searchParams.get("error");
+        if (error) {
+          console.error("[background.ts] Authentication error from provider:", error);
+          logErrorToSentry(`Authentication error from provider: ${error}`, "error");
+          showSystemNotification("Vesta", `Authentication failed: ${error}`);
+          // Handle error display, maybe close tab or redirect
+          chrome.tabs.remove(tabId);
         }
       }
-    } catch (error) {
-      console.error("[background.ts] Error handling tab update:", error);
     }
   }
 });

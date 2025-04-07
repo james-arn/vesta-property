@@ -198,7 +198,7 @@ const App: React.FC = () => {
     premiumStreetDataQuery,
   ), [propertyData, crimeQuery, premiumStreetDataQuery]);
 
-  // --- EPC Processing Hook ---
+  // --- EPC Processing Hook (Retrieve epcDataSource) ---
   const epcItemFromBaseData = useMemo(() => basePropertyChecklistData.find(item => item.key === 'epc'), [basePropertyChecklistData]);
   const originalEpcImageUrl = useMemo(() => (
     (epcItemFromBaseData?.value && typeof epcItemFromBaseData.value === 'string' && epcItemFromBaseData.value.startsWith('http'))
@@ -206,24 +206,32 @@ const App: React.FC = () => {
       : null
   ), [epcItemFromBaseData]);
   const originalEpcValue = epcItemFromBaseData?.value as string | number | boolean | null | undefined;
-  const epcState = useEpcProcessor(originalEpcImageUrl, originalEpcValue, isEpcDebugModeOn ? epcDebugCanvasRef : undefined);
+  // Destructure the full state from the hook
+  const epcProcessingState = useEpcProcessor(
+    originalEpcImageUrl,
+    originalEpcValue,
+    isEpcDebugModeOn ? epcDebugCanvasRef : undefined
+  );
+  // Specifically get epcDataSource and the derived status/value for updating the list
+  const { epcDataSource, status: epcStatus, displayValue: epcDisplayValue } = epcProcessingState;
 
   // --- Derive Display Checklist Data using useMemo ---
   const displayChecklistData = useMemo(() => {
     return basePropertyChecklistData.map(item => {
       if (item.key === 'epc') {
-        // Apply EPC updates directly from epcState if they differ from base data
-        if (item.status !== epcState.status || item.value !== epcState.displayValue) {
+        // Apply EPC updates directly from epcProcessingState if they differ from base data
+        // Check against the derived status and displayValue from the hook
+        if (item.status !== epcStatus || item.value !== epcDisplayValue) {
           return {
             ...item,
-            status: epcState.status,
-            value: epcState.displayValue,
+            status: epcStatus,
+            value: epcDisplayValue,
           };
         }
       }
       return item; // Return original item if not EPC or no update needed
     });
-  }, [basePropertyChecklistData, epcState.status, epcState.displayValue]);
+  }, [basePropertyChecklistData, epcStatus, epcDisplayValue]);
 
   // --- Filtering and Grouping Logic (now depends on the derived displayChecklistData) ---
   const initialOpenGroups = useMemo(() => displayChecklistData.reduce(
@@ -431,7 +439,7 @@ const App: React.FC = () => {
                             toggleNearbyPlanningPermissionCard
                           )}
                           isPremiumDataFetched={isPremiumDataFetched}
-                          epcImageDataUrl={isEpc ? epcState.imageDataUrl : undefined}
+                          epcDataSource={isEpc ? epcDataSource : null}
                           epcDebugCanvasRef={isEpc && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                           isEpcDebugModeOn={isEpcDebugModeOn}
                         />

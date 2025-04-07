@@ -7,16 +7,20 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 
+const nodeModulesPath = path.resolve(__dirname, "node_modules");
+
 module.exports = {
   mode: process.env.NODE_ENV || "development",
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
     background: "./src/background.ts",
     contentScript: "./src/contentScript/contentScript.ts",
+    sandbox: "./src/sandbox/sandbox.ts",
   },
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].js",
+    publicPath: "",
   },
   module: {
     rules: [
@@ -38,6 +42,9 @@ module.exports = {
     },
     fallback: {
       path: require.resolve("path-browserify"),
+      // Tesseract might require fs, buffer etc. in some environments, add fallbacks if build errors occur
+      // fs: false,
+      // buffer: require.resolve('buffer/'),
     },
   },
   plugins: [
@@ -52,8 +59,18 @@ module.exports = {
         { from: "src/manifest.json" },
         { from: "src/assets/images", to: "images" },
         { from: "src/injectScript.js", to: "injectScript.js" },
-        { from: "public/*.html", to: "[name][ext]" },
-        { from: "public/*.js", to: "[name][ext]" },
+        {
+          from: path.join(nodeModulesPath, "pdfjs-dist/build/pdf.worker.min.mjs"),
+          to: "./",
+        },
+        {
+          from: path.join(nodeModulesPath, "tesseract.js/dist/worker.min.js"),
+          to: "./",
+        },
+        {
+          from: path.join(nodeModulesPath, "tesseract.js-core"),
+          to: "./tesseract-core",
+        },
       ],
     }),
     new Dotenv({

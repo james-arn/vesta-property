@@ -20,6 +20,10 @@ export const ActionEvents = {
   // Needs to get epc image url in background and send to UI to stop CORS issues.
   FETCH_IMAGE_FOR_CANVAS: "fetchImageForCanvas",
   EPC_BANDS_READY: "epcBandsReady",
+  PERFORM_OCR: "PERFORM_OCR",
+  AUTHENTICATION_COMPLETE: "AUTHENTICATION_COMPLETE",
+  LOGOUT_COMPLETE: "LOGOUT_COMPLETE",
+  GET_AUTH_STATUS: "GET_AUTH_STATUS",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

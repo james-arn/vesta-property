@@ -1,9 +1,11 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
+import { type EpcProcessingState } from "@/hooks/useEpcProcessor";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { DataStatus, PropertyDataList } from "@/types/property";
 import React, { useState } from 'react';
 import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaTimesCircle } from "react-icons/fa";
+type EpcDataSource = EpcProcessingState['epcDataSource'];
 
 export interface ChecklistItemProps {
     item: PropertyDataList;
@@ -11,7 +13,7 @@ export interface ChecklistItemProps {
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
-    epcImageDataUrl?: string | null;
+    epcDataSource: EpcDataSource | null;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
 }
@@ -31,17 +33,21 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     onItemClick,
     onValueClick,
     isPremiumDataFetched,
-    epcImageDataUrl,
+    epcDataSource,
     epcDebugCanvasRef,
-    isEpcDebugModeOn
+    isEpcDebugModeOn,
 }) => {
     const { key, label, status, value, toolTipExplainer } = item;
 
     const [isEpcImageVisible, setIsEpcImageVisible] = useState(false);
     const isEpcItem = key === 'epc';
 
+    // Determine if the source is an image with a URL
+    const isImageSourceWithUrl = epcDataSource?.type === 'image' && !!epcDataSource.url;
+
     const toggleEpcImageVisibility = () => {
-        if (isEpcItem && epcImageDataUrl) {
+        // Only toggle if it's an image source with a URL
+        if (isEpcItem && isImageSourceWithUrl) {
             setIsEpcImageVisible(prev => !prev);
         }
     };
@@ -86,14 +92,26 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         if (isEpcItem) {
-            const displayContent = value || "N/A";
-            const hasImageData = !!epcImageDataUrl;
+            let displayContent = value || "N/A"; // Default to original value
+            let title: string | undefined = undefined;
+
+            if (epcDataSource?.type === 'pdf') {
+                // Use extracted PDF data for display and title
+                const { data } = epcDataSource;
+                displayContent =
+                    data.currentRating
+                        ? `Current: ${data.currentRating} | Potential: ${data.potentialRating || 'N/A'}`
+                        : (value || "PDF Processed (No Ratings)"); // Fallback if no ratings in PDF
+                title = data.fullAddress || undefined;
+            }
+            const isClickableForImage = isImageSourceWithUrl;
 
             return (
                 <span
-                    onClick={hasImageData ? toggleEpcImageVisibility : undefined}
-                    className={hasImageData ? 'cursor-pointer text-blue-500 underline' : ''}
+                    onClick={isClickableForImage ? toggleEpcImageVisibility : undefined}
+                    className={isClickableForImage ? 'cursor-pointer text-blue-500 underline' : ''}
                     style={{ display: 'inline-block' }}
+                    title={title} // Show extracted address on hover if from PDF
                 >
                     {displayContent}
                 </span>
@@ -172,7 +190,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </TooltipProvider>
             </div>
 
-            {/* Render Debug Canvas if debug mode is ON (independent of click) */}
+            {/* Render Debug Canvas if debug mode is ON (independent of source) */}
             {isEpcDebugModeOn && isEpcItem && epcDebugCanvasRef && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px solid grey', overflow: 'auto' }}>
                     <canvas
@@ -182,14 +200,14 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </div>
             )}
 
-            {/* Render Normal Image when visible state is true and image exists */}
-            {isEpcItem && isEpcImageVisible && epcImageDataUrl && (
+            {/* Render Normal Image Graph ONLY if the source is image, it has a URL, and is toggled visible */}
+            {isEpcItem && isImageSourceWithUrl && isEpcImageVisible && epcDataSource?.type === 'image' && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px dashed blue', padding: '5px' }}>
                     <img
-                        src={epcImageDataUrl}
-                        alt="Full EPC Graph"
+                        src={epcDataSource.url} // Use the URL from the data source
+                        alt="EPC Graph"
                         style={{ maxWidth: '100%', display: 'block' }}
-                        onError={(e) => (e.currentTarget.alt = 'Could not display fetched EPC image data')}
+                        onError={(e) => (e.currentTarget.alt = 'Could not display fetched EPC graph image')}
                     />
                 </div>
             )}
