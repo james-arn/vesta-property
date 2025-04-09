@@ -17,8 +17,8 @@ export const isPdfUrl = (url: string | null | undefined): boolean => {
  */
 export interface ExtractedEpcData {
   fullAddress: string | null;
-  currentRating: string | null; // e.g., "C"
-  potentialRating: string | null; // e.g., "B"
+  currentEpcRating: string | null; // e.g., "C"
+  potentialEpcRating: string | null; // e.g., "B"
 }
 
 /**
@@ -71,11 +71,11 @@ export const renderPdfPageToDataUrl = async (pdfUrl: string): Promise<string | n
  * @param text The raw text extracted from the EPC PDF page (received from background).
  * @returns An object containing the extracted data, or null values if not found.
  */
-export const extractDataFromText = (text: string): ExtractedEpcData => {
+export const extractAddressAndPdfDataFromText = (text: string): ExtractedEpcData => {
   const extractedData: ExtractedEpcData = {
     fullAddress: null,
-    currentRating: null,
-    potentialRating: null,
+    currentEpcRating: null,
+    potentialEpcRating: null,
   };
 
   if (!text) {
@@ -103,15 +103,15 @@ export const extractDataFromText = (text: string): ExtractedEpcData => {
   const ratingMatch = text.replace(/\n/g, " ").match(ratingRegex);
 
   if (ratingMatch && ratingMatch[1] && ratingMatch[2]) {
-    extractedData.currentRating = ratingMatch[1].toUpperCase();
-    extractedData.potentialRating = ratingMatch[2].toUpperCase();
+    extractedData.currentEpcRating = ratingMatch[1].toUpperCase();
+    extractedData.potentialEpcRating = ratingMatch[2].toUpperCase();
   } else {
     console.warn("Could not extract ratings using primary pattern. Trying fallback...");
     const tableRatingRegex = /(\d+)\s+([A-G])\s+(\d+)\s+([A-G])/i;
     const tableMatch = text.match(tableRatingRegex);
     if (tableMatch && tableMatch[2] && tableMatch[4]) {
-      extractedData.currentRating = tableMatch[2].toUpperCase();
-      extractedData.potentialRating = tableMatch[4].toUpperCase();
+      extractedData.currentEpcRating = tableMatch[2].toUpperCase();
+      extractedData.potentialEpcRating = tableMatch[4].toUpperCase();
       console.warn("Extracted ratings using fallback table pattern.");
     } else {
       console.warn("Could not extract current and potential ratings from EPC text.");

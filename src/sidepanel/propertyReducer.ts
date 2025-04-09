@@ -1,8 +1,9 @@
-import { ExtractedPropertyScrapingData } from "@/types/property";
+import { EpcConfidenceLevels, EpcData, ExtractedPropertyScrapingData } from "@/types/property";
 
 export enum PropertyReducerActionTypes {
   SET_FULL_PROPERTY_DATA = "SET_FULL_PROPERTY_DATA",
   UPDATE_DISPLAY_ADDRESS = "UPDATE_DISPLAY_ADDRESS",
+  UPDATE_EPC_VALUE = "UPDATE_EPC_VALUE",
 }
 
 export type PropertyReducerAction =
@@ -13,6 +14,10 @@ export type PropertyReducerAction =
   | {
       type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS;
       payload: { displayAddress: string; isAddressConfirmedByUser: boolean };
+    }
+  | {
+      type: PropertyReducerActionTypes.UPDATE_EPC_VALUE;
+      payload: { value: string };
     };
 
 function propertyReducer(
@@ -29,6 +34,16 @@ function propertyReducer(
           ...state.address,
           displayAddress: action.payload.displayAddress,
           isAddressConfirmedByUser: action.payload.isAddressConfirmedByUser,
+        },
+      };
+    case PropertyReducerActionTypes.UPDATE_EPC_VALUE:
+      return {
+        ...state,
+        epc: {
+          ...(state.epc as EpcData),
+          value: action.payload.value,
+          confidence: EpcConfidenceLevels.USER_PROVIDED,
+          error: null,
         },
       };
     default:

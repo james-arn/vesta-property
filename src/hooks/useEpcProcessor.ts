@@ -1,56 +1,61 @@
 import { ActionEvents } from "@/constants/actionEvents";
-import { EpcBandResult, processEpcImageDataUrl } from "@/sidepanel/propertychecklist/epcImageUtils";
-import { DataStatus } from "@/types/property";
-import { formatEPCBandInfo } from "@/utils/formatting";
+import { processEpcImageDataUrl } from "@/sidepanel/propertychecklist/epcImageUtils";
+import { DataStatus, EpcConfidenceLevels, EpcData, EpcDataSourceType } from "@/types/property";
 import {
-  type ExtractedEpcData,
-  extractDataFromText,
+  extractAddressAndPdfDataFromText,
   renderPdfPageToDataUrl,
 } from "@/utils/pdfProcessingUtils";
 import { logErrorToSentry } from "@/utils/sentry";
 import { useEffect, useRef, useState } from "react";
 
-type EpcDataSource =
-  | { type: "image"; url: string; result: EpcBandResult | null }
-  | { type: "pdf"; data: ExtractedEpcData };
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
-interface PerformOcrRequestData {
-  imageDataUrl: string;
+export interface EpcProcessorResult extends EpcData {
+  isLoading: boolean;
+  status: DataStatus;
 }
 
+const INITIAL_EPC_RESULT_STATE: EpcProcessorResult = {
+  url: null,
+  displayUrl: null,
+  scores: null,
+  value: null,
+  confidence: EpcConfidenceLevels.NONE,
+  source: EpcDataSourceType.NONE,
+  error: null,
+  isLoading: false,
+  status: DataStatus.NOT_APPLICABLE,
+};
+
+// Constant for sandbox path
+const SANDBOX_HTML_PATH = "sandbox.html";
+
+// Need to re-define this or import if moved to a shared types file
 interface PerformOcrResponseData {
   success: boolean;
   text?: string;
   error?: string;
 }
 
-export type EpcProcessingState = {
-  status: DataStatus;
-  displayValue: string; // Generated based on the source
-  isLoading: boolean;
-  error: string | null;
-  epcDataSource: EpcDataSource | null; // Unified data source
-};
-
-const INITIAL_STATE: EpcProcessingState = {
-  status: DataStatus.IS_LOADING,
-  displayValue: "Loading...",
-  isLoading: false,
-  error: null,
-  epcDataSource: null, // Initialize new state field
-};
-
-// Constant for sandbox path
-const SANDBOX_HTML_PATH = "sandbox.html";
-
 export const useEpcProcessor = (
-  originalImageUrl: string | null | undefined,
-  initialValue: string | number | boolean | undefined | null,
+  initialEpcData: EpcData | null | undefined,
   debugCanvasRef?: React.RefObject<HTMLCanvasElement | null>
-): EpcProcessingState => {
-  const [processingState, setProcessingState] = useState<EpcProcessingState>(INITIAL_STATE);
+): EpcProcessorResult => {
+  const [epcResultState, setEpcResultState] = useState<EpcProcessorResult>(() => {
+    // Initialize state including displayUrl
+    if (initialEpcData) {
+      return {
+        ...INITIAL_EPC_RESULT_STATE,
+        ...initialEpcData, // Spread initial data (includes url, value, confidence, source)
+        displayUrl: initialEpcData.displayUrl ?? null, // Initialize if present
+        status: initialEpcData.value ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+      };
+    } else {
+      return INITIAL_EPC_RESULT_STATE;
+    }
+  });
+
   const isMountedRef = useRef(true);
-  // Store pending OCR request callback (unique ID mapped to callback)
   const ocrCallbackRef = useRef<((result: PerformOcrResponseData) => void) | null>(null);
   const ocrRequestIdRef = useRef<string | null>(null);
   const sandboxIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -154,243 +159,205 @@ export const useEpcProcessor = (
   };
 
   useEffect(() => {
-    const processUrl = async () => {
-      if (!originalImageUrl || !originalImageUrl.startsWith("http")) {
-        // Reset to idle/initial state if no valid URL
-        setProcessingState({
-          ...INITIAL_STATE,
-          status: DataStatus.NOT_APPLICABLE,
-          displayValue: String(initialValue ?? "N/A"),
-          isLoading: false, // Ensure loading is false
-        });
-        removeSandboxIframe(); // Clean up iframe if URL becomes invalid
+    const processEpc = async () => {
+      console.log(
+        "[useEpcProcessor] useEffect triggered. initialEpcData:",
+        JSON.stringify(initialEpcData)
+      );
+
+      const processingUrl = initialEpcData?.url;
+
+      if (!processingUrl) {
+        console.log("[useEpcProcessor] URL is null/undefined, waiting for update...");
         return;
       }
 
-      // Set initial loading state
-      setProcessingState({
-        ...INITIAL_STATE,
+      setEpcResultState((prev) => ({
+        ...prev,
         isLoading: true,
         status: DataStatus.IS_LOADING,
-        displayValue: "Checking URL type...",
-      });
+        error: null,
+      }));
 
-      // --- Check if URL is PDF ---
-      let isPdf = false;
-      try {
-        // Only need isPdfUrl dynamically now
-        const { isPdfUrl } = await import("@/utils/pdfProcessingUtils");
-        isPdf = isPdfUrl(originalImageUrl);
-      } catch (e) {
-        console.error("Failed to dynamically import isPdfUrl:", e);
-        if (!isMountedRef.current) return;
-        setProcessingState((prev) => ({
-          ...prev,
-          isLoading: false,
-          status: DataStatus.ASK_AGENT,
-          error: "Failed to load PDF checker",
-          displayValue: "Error initializing",
-          epcDataSource: null,
-        }));
-        return;
-      }
+      // --- Check if URL is PDF or Image ---
+      const isPdf = processingUrl.toLowerCase().endsWith(".pdf");
+      const isImage = IMAGE_EXTENSIONS.some((ext) => processingUrl.toLowerCase().endsWith(ext));
 
+      // --- PDF Processing ---
       if (isPdf) {
-        // --- Handle PDF Processing via Sandbox ---
-        setProcessingState((prevState) => ({ ...prevState, displayValue: "Rendering PDF..." }));
-
         try {
-          // 1. Render PDF page locally
-          const imageDataUrl = await renderPdfPageToDataUrl(originalImageUrl);
-          if (!isMountedRef.current) return;
-          if (!imageDataUrl) throw new Error("Failed to render PDF page.");
+          const imageDataUrl = await renderPdfPageToDataUrl(processingUrl);
+          if (!isMountedRef.current || !imageDataUrl) {
+            throw new Error(imageDataUrl ? "Component unmounted" : "Failed to render PDF page.");
+          }
 
-          // 2. Ensure sandbox exists (now returns a promise)
-          setProcessingState((prevState) => ({
-            ...prevState,
-            displayValue: "Preparing secure processor...",
-          }));
-          const iframe = await ensureSandboxIframe(); // Await the promise
-          if (!isMountedRef.current) return; // Check mount status after async operation
+          setEpcResultState((prev) => ({ ...prev, status: DataStatus.IS_LOADING, error: null }));
+          const iframe = await ensureSandboxIframe();
+          if (!isMountedRef.current) return;
+
+          console.log("[useEpcProcessor] iframe object after ensure:", iframe);
+          console.log("[useEpcProcessor] iframe.contentWindow after ensure:", iframe.contentWindow);
 
           const requestId = crypto.randomUUID();
           ocrRequestIdRef.current = requestId;
-
-          // 3. Set up promise/callback for the result
           const ocrPromise = new Promise<PerformOcrResponseData>((resolve) => {
             ocrCallbackRef.current = resolve;
           });
 
-          // 4. Send task to sandbox iframe via postMessage WHEN it loads
-          setProcessingState((prevState) => ({
-            ...prevState,
-            displayValue: "Sending page for analysis...",
-          }));
+          console.log("[useEpcProcessor] Reached point before checking iframe.contentWindow");
+
           if (iframe.contentWindow) {
             console.log(`[useEpcProcessor] Posting OCR task with ID: ${requestId} to sandbox.`);
             iframe.contentWindow.postMessage(
-              {
-                action: "PERFORM_OCR",
-                requestId: requestId,
-                data: { imageDataUrl },
-              },
+              { action: "PERFORM_OCR", requestId, data: { imageDataUrl } },
               "*"
             );
           } else {
+            console.error(
+              "[useEpcProcessor] Error: iframe.contentWindow was null or inaccessible."
+            );
             throw new Error("Sandbox iframe contentWindow is not accessible.");
           }
 
-          // 5. Wait for the result from the sandbox listener
           const result = await ocrPromise;
           if (!isMountedRef.current) return;
 
-          // ++ Add logging here to see the received result object ++
-          console.log("[useEpcProcessor] OCR Promise resolved with result:", result);
-
-          // 6. Process result
           if (result.success && result.text) {
-            setProcessingState((prevState) => ({
-              ...prevState,
-              status: DataStatus.IS_LOADING, // Still loading while extracting
-              displayValue: "Extracting data...", // Update display value
-            }));
+            const extractedData = extractAddressAndPdfDataFromText(result.text);
+            const extractedEpcValue = extractedData?.currentEpcRating ?? null;
 
-            // --- Pass result.text to your extraction logic ---
-            const extractedData = extractDataFromText(result.text);
-            // --- (End extraction logic) ---
-
-            // Determine final status based on extraction
-            const finalStatus = extractedData ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
-            const finalDisplayValue = extractedData
-              ? "EPC Data Extracted" // Or format extractedData if needed
-              : "Could not find EPC data in document.";
-            const finalError = extractedData ? null : "Could not find EPC data in the document.";
-
-            setProcessingState((prevState) => ({
-              ...prevState,
-              status: finalStatus,
-              displayValue: finalDisplayValue,
-              epcDataSource: { type: "pdf", data: extractedData }, // Store extracted data
-              error: finalError,
-              isLoading: false, // Done loading
+            setEpcResultState((prev) => ({
+              ...prev,
+              url: processingUrl,
+              isLoading: false,
+              status: extractedEpcValue ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
+              scores: extractedData,
+              value: extractedEpcValue,
+              confidence: extractedEpcValue ? EpcConfidenceLevels.HIGH : EpcConfidenceLevels.NONE,
+              source: extractedEpcValue ? EpcDataSourceType.PDF : prev.source,
+              error: extractedEpcValue ? null : "Could not extract EPC data from PDF.",
             }));
           } else {
-            // If success is false, or text is missing, use the error from the sandbox
-            const errorMessage = result.error || "OCR failed in sandbox without specific error.";
-            console.error("[useEpcProcessor] OCR failed in sandbox:", errorMessage);
-            const errorToLog = new Error(`Sandbox OCR Error: ${errorMessage}`);
-            logErrorToSentry(errorToLog, "error"); // Log error to Sentry
-            throw errorToLog; // Throw the specific error
+            const errorMsg = result.error || "OCR failed in sandbox.";
+            throw new Error(errorMsg);
           }
         } catch (error) {
-          if (!isMountedRef.current) return; // Check mount status again after async op
-          console.error("[useEpcProcessor] Error during PDF processing pipeline:", error);
-          const displayError =
-            error instanceof Error ? error.message : "An unknown error occurred during processing.";
-          // Log the caught error to Sentry
+          if (!isMountedRef.current) return;
+          const displayError = error instanceof Error ? error.message : "PDF processing failed.";
           logErrorToSentry(error instanceof Error ? error : new Error(displayError), "error");
-          setProcessingState((prevState) => ({
-            ...prevState,
-            status: DataStatus.ASK_AGENT, // Fallback status on error
-            displayValue: `Error: ${displayError}`,
+          setEpcResultState((prev) => ({
+            ...prev,
             isLoading: false,
+            status: DataStatus.ASK_AGENT,
             error: displayError,
-            epcDataSource: null,
+            confidence: EpcConfidenceLevels.NONE,
+          }));
+        }
+        // --- Image Processing ---
+      } else if (isImage) {
+        removeSandboxIframe();
+        console.log(`[useEpcProcessor] Requesting fetch for image: ${processingUrl}`);
+
+        try {
+          // Send message to background to fetch image as data URL
+          const response = await new Promise<{
+            success: boolean;
+            dataUrl?: string;
+            error?: string;
+          }>((resolve) => {
+            chrome.runtime.sendMessage(
+              { action: ActionEvents.FETCH_IMAGE_FOR_CANVAS, url: processingUrl },
+              (res) =>
+                resolve(res || { success: false, error: "No response from background script" })
+            );
+          });
+
+          if (!isMountedRef.current) return;
+
+          if (response.success && response.dataUrl) {
+            const fetchedDataUrl = response.dataUrl;
+            // Now process the data URL for EPC bands
+            const result = await processEpcImageDataUrl(fetchedDataUrl, debugCanvasRef?.current);
+            if (!isMountedRef.current) return;
+
+            const extractedEpcValue = result.currentBand?.letter ?? null;
+            const hasPotentialBand = !!result.potentialBand?.letter;
+            const hasBands = !!extractedEpcValue || hasPotentialBand;
+
+            // Update state with results AND the fetched data URL for display
+            setEpcResultState((prev) => {
+              const newState = {
+                ...prev,
+                url: processingUrl, // Keep original URL
+                displayUrl: fetchedDataUrl, // Store data URI for display
+                isLoading: false,
+                status: result.error
+                  ? DataStatus.ASK_AGENT
+                  : hasBands
+                    ? DataStatus.FOUND_POSITIVE
+                    : DataStatus.ASK_AGENT,
+                scores: result,
+                value: extractedEpcValue,
+                confidence: result.error
+                  ? EpcConfidenceLevels.NONE
+                  : extractedEpcValue
+                    ? EpcConfidenceLevels.MEDIUM
+                    : EpcConfidenceLevels.NONE,
+                source: result.error
+                  ? prev.source
+                  : extractedEpcValue
+                    ? EpcDataSourceType.IMAGE
+                    : prev.source,
+                error: result.error || (hasBands ? null : "Could not determine bands from image."),
+              };
+              return newState;
+            });
+          } else {
+            // Handle background fetch failure
+            throw new Error(response.error || "Failed to fetch image data from background.");
+          }
+        } catch (error) {
+          // ... (handle image processing error - set status, error, isLoading false) ...
+          if (!isMountedRef.current) return;
+          const displayError = error instanceof Error ? error.message : "Image processing failed.";
+          logErrorToSentry(error instanceof Error ? error : new Error(displayError), "error");
+          setEpcResultState((prev) => ({
+            ...prev,
+            isLoading: false,
+            status: DataStatus.ASK_AGENT,
+            error: displayError,
+            confidence: EpcConfidenceLevels.NONE,
+            source: prev.source, // Keep previous source on error
+            displayUrl: null, // Clear displayUrl on error
           }));
         }
       } else {
-        // --- Handle Image Processing ---
-        setProcessingState((prevState) => ({
-          ...prevState,
-          displayValue: "Fetching image...",
-          epcDataSource: null, // Clear any previous source
+        // Handle case where URL is neither PDF nor known Image extension
+        console.warn(`[useEpcProcessor] URL is not a PDF or known image type: ${processingUrl}`);
+        setEpcResultState((prev) => ({
+          ...prev,
+          isLoading: false,
+          status: DataStatus.ASK_AGENT,
+          error: "Unsupported URL type for EPC processing.",
+          confidence: EpcConfidenceLevels.NONE,
+          source: prev.source,
+          displayUrl: null,
         }));
-
-        console.log(`[useEpcProcessor] Requesting fetch for image: ${originalImageUrl}`);
-        removeSandboxIframe(); // Clean up iframe if not needed
-        chrome.runtime.sendMessage(
-          { action: ActionEvents.FETCH_IMAGE_FOR_CANVAS, url: originalImageUrl },
-          (response) => {
-            if (!isMountedRef.current) return;
-
-            if (response?.success && response.dataUrl) {
-              const fetchedDataUrl = response.dataUrl;
-              setProcessingState((prevState) => ({
-                ...prevState,
-                displayValue: "Analysing image...",
-                // Don't set epcDataSource yet, wait for processing result
-              }));
-
-              processEpcImageDataUrl(fetchedDataUrl, debugCanvasRef?.current)
-                .then((result) => {
-                  if (!isMountedRef.current) return;
-
-                  const hasBands = result.currentBand || result.potentialBand;
-                  const newStatus = result.error
-                    ? DataStatus.ASK_AGENT
-                    : hasBands
-                      ? DataStatus.FOUND_POSITIVE
-                      : DataStatus.ASK_AGENT;
-                  let newValue = "Could not determine bands from image.";
-                  if (result.error) {
-                    newValue = `Error: ${result.error}`;
-                  } else if (hasBands) {
-                    newValue = `Current: ${formatEPCBandInfo(result.currentBand)} | Potential: ${formatEPCBandInfo(result.potentialBand)}`;
-                  }
-
-                  setProcessingState({
-                    status: newStatus,
-                    displayValue: newValue,
-                    isLoading: false,
-                    error: result.error || (hasBands ? null : "Could not determine bands"),
-                    epcDataSource: { type: "image", url: fetchedDataUrl, result: result }, // Set unified source
-                  });
-                })
-                .catch((error) => {
-                  console.error(`[useEpcProcessor] Canvas processing failed:`, error);
-                  if (!isMountedRef.current) return;
-                  const errorMsg =
-                    error instanceof Error ? error.message : "Canvas processing failed.";
-                  // Even on canvas error, we have the image URL
-                  setProcessingState({
-                    status: DataStatus.ASK_AGENT,
-                    displayValue: `Error: ${errorMsg}`,
-                    isLoading: false,
-                    error: errorMsg,
-                    // Set source with URL but indicate error in result
-                    epcDataSource: {
-                      type: "image",
-                      url: fetchedDataUrl,
-                      result: { error: errorMsg },
-                    },
-                  });
-                });
-            } else {
-              const errorMsg = response?.error || "Failed to fetch image data.";
-              console.error(`[useEpcProcessor] Background fetch failed:`, errorMsg);
-              if (isMountedRef.current) {
-                setProcessingState({
-                  status: DataStatus.ASK_AGENT,
-                  displayValue: `Error: ${errorMsg}`,
-                  isLoading: false,
-                  error: errorMsg,
-                  epcDataSource: null,
-                });
-              }
-            }
-          }
-        );
       }
     };
 
-    processUrl();
-  }, [originalImageUrl, initialValue, debugCanvasRef]);
+    processEpc();
+    // Ensure displayUrl is part of dependencies if its update should trigger re-renders reliant on it directly
+    // However, url, confidence, value, source are the primary triggers for processing logic
+  }, [
+    initialEpcData?.url,
+    initialEpcData?.confidence,
+    initialEpcData?.value,
+    initialEpcData?.source,
+    debugCanvasRef,
+  ]);
 
-  // Combine loading state into the main status for simplicity if needed by consumer
-  const finalStatus = processingState.isLoading ? DataStatus.IS_LOADING : processingState.status;
+  // No need for finalStatus calculation, it's part of the state
 
-  return {
-    ...processingState,
-    status: finalStatus,
-  };
+  return epcResultState; // Return the unified state object
 };

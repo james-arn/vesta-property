@@ -1,4 +1,5 @@
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
+import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
 
 export enum DataStatus {
@@ -33,6 +34,25 @@ export interface PropertyItem {
   reason: string | null;
 }
 
+export const EpcDataSourceType = {
+  LISTING: "Listing",
+  PDF: "PDF",
+  IMAGE: "Image",
+  NONE: "None",
+} as const;
+
+export type EpcDataSourceType = (typeof EpcDataSourceType)[keyof typeof EpcDataSourceType];
+
+export interface EpcData {
+  url: string | null;
+  displayUrl?: string | null;
+  scores: EpcBandResult | ExtractedEpcData | null;
+  value: string | null;
+  confidence: EpcConfidence;
+  source: EpcDataSourceType;
+  error?: string | null;
+}
+
 export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
@@ -44,9 +64,7 @@ export interface ExtractedPropertyScrapingData {
   coastalErosion: PropertyItem;
   copyLinkUrl: string | null;
   councilTax: string | null;
-  epc: {
-    url: string | null;
-  };
+  epc: EpcData;
   floodedInLastFiveYears: boolean | null;
   floodDefences: boolean | null;
   floodSources: string[] | null;
@@ -87,3 +105,12 @@ export interface SaleHistoryEntry {
   soldPrice: string;
   percentageChange: string;
 }
+
+export const EpcConfidenceLevels = {
+  HIGH: "High",
+  MEDIUM: "Medium",
+  USER_PROVIDED: "UserProvided",
+  NONE: "None",
+} as const;
+
+export type EpcConfidence = (typeof EpcConfidenceLevels)[keyof typeof EpcConfidenceLevels];

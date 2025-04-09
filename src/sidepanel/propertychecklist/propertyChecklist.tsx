@@ -2,16 +2,18 @@ import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
+import { EpcProcessorResult } from "@/hooks/useEpcProcessor";
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import {
   DataStatus,
+  EpcConfidenceLevels,
+  EpcDataSourceType,
   ExtractedPropertyScrapingData,
   PropertyDataList,
 } from "../../types/property";
-import { type EpcBandResult } from './epcImageUtils';
 import {
   calculateListingHistoryDetails,
   getCAGRStatus,
@@ -43,13 +45,13 @@ export function getStatusFromString(
 const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 
 export function generatePropertyChecklist(
-  ExtractedPropertyScrapingData: ExtractedPropertyScrapingData,
+  propertyData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
   premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined,
-  epcBandData?: EpcBandResult | null // Optional pre-processed data
+  epcResult: EpcProcessorResult
 ): PropertyDataList[] {
   const { status: listingHistoryStatus, value: listingHistoryValue } =
-    calculateListingHistoryDetails(ExtractedPropertyScrapingData.listingHistory);
+    calculateListingHistoryDetails(propertyData.listingHistory);
 
   const crimeScoreData = crimeScoreQuery?.data;
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
@@ -59,34 +61,58 @@ export function generatePropertyChecklist(
   const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
   const premiumStreetDataError = premiumStreetDataQuery?.error;
 
-  // --- Determine EPC status synchronously based on passed-in data --- 
-  let epcStatus: DataStatus;
-  const epcUrl = ExtractedPropertyScrapingData.epc?.url;
+  // --- Determine EPC display value and status from epcResult --- 
+  let epcDisplayValue: React.ReactNode = "Checking...";
+  let epcStatus: DataStatus = epcResult.status;
+  let epcAskAgentMsg = "Processing EPC...";
+  let epcToolTip = "Attempting to determine EPC rating.";
 
-  if (!epcUrl) {
-    epcStatus = DataStatus.ASK_AGENT; // No URL, nothing to process
-  } else if (epcBandData === undefined || epcBandData === null) {
-    // URL exists, but processing hasn't finished (or wasn't triggered yet)
+  if (epcResult.isLoading) {
+    epcDisplayValue = "Loading...";
     epcStatus = DataStatus.IS_LOADING;
-  } else if (epcBandData.error) {
-    // Processing finished but resulted in an error
+    epcToolTip = "Attempting to determine EPC rating.";
+  } else if (epcResult.error) {
+    epcDisplayValue = `Error: ${epcResult.error}`;
     epcStatus = DataStatus.ASK_AGENT;
-  } else if (epcBandData.currentBand || epcBandData.potentialBand) {
-    // Processing finished successfully with bands
+    epcAskAgentMsg = `Error processing EPC (${epcResult.error}). Ask Agent?`;
+    epcToolTip = `EPC processing failed: ${epcResult.error}`;
+  } else if (epcResult.value) {
+    let confidenceText = "";
+    switch (epcResult.confidence) {
+      case EpcConfidenceLevels.HIGH:
+        confidenceText = "(High Confidence)";
+        break;
+      case EpcConfidenceLevels.MEDIUM:
+        confidenceText = "(Medium Confidence)";
+        break;
+      case EpcConfidenceLevels.USER_PROVIDED:
+        confidenceText = "(User Provided)";
+        break;
+    }
+    epcDisplayValue = `${epcResult.value} ${confidenceText}`.trim();
     epcStatus = DataStatus.FOUND_POSITIVE;
+    epcAskAgentMsg = "Ask agent to confirm EPC rating?";
+    epcToolTip = `EPC Rating: ${epcResult.value}. Confidence: ${epcResult.confidence}. Source: ${epcResult.source}.`;
   } else {
-    // Processing finished successfully but found no bands (treat as warning/ask)
+    epcDisplayValue = "Not Found";
     epcStatus = DataStatus.ASK_AGENT;
+    epcAskAgentMsg = "Could not determine EPC rating. Ask Agent?"
+    epcToolTip = `Could not automatically determine the EPC rating. Source: ${epcResult.source}.`;
   }
-  // --- End of Sync EPC Status --- 
+  if (propertyData.epc.confidence === EpcConfidenceLevels.HIGH && propertyData.epc.value && propertyData.epc.source === EpcDataSourceType.LISTING) {
+    epcDisplayValue = `${propertyData.epc.value} (High Confidence)`.trim();
+    epcStatus = DataStatus.FOUND_POSITIVE;
+    epcAskAgentMsg = "Ask agent to confirm EPC rating?";
+    epcToolTip = `EPC Rating: ${propertyData.epc.value}. Confidence: ${propertyData.epc.confidence}. Source: ${propertyData.epc.source}.`;
+  }
 
   const checklist: PropertyDataList[] = [
     {
       group: PropertyGroups.GENERAL,
       label: "Price",
       key: "price",
-      status: getStatusFromString(ExtractedPropertyScrapingData.salePrice),
-      value: ExtractedPropertyScrapingData.salePrice,
+      status: getStatusFromString(propertyData.salePrice),
+      value: propertyData.salePrice,
       askAgentMessage: "What's the price?",
       toolTipExplainer:
         "Knowing the purchase price means you can work out the total cost of buying the property.\n\n" +
@@ -96,8 +122,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Tenure",
       key: "tenure",
-      status: getStatusFromString(ExtractedPropertyScrapingData.tenure),
-      value: capitaliseFirstLetterAndCleanString(ExtractedPropertyScrapingData.tenure ?? ""),
+      status: getStatusFromString(propertyData.tenure),
+      value: capitaliseFirstLetterAndCleanString(propertyData.tenure ?? ""),
       askAgentMessage: "What's the tenure?",
       toolTipExplainer:
         "Tenure determines how you legally own the property and any associated costs or obligations.\n\n" +
@@ -108,8 +134,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Location",
       key: "location",
-      status: getStatusFromString(ExtractedPropertyScrapingData.address.displayAddress),
-      value: ExtractedPropertyScrapingData.address.displayAddress,
+      status: getStatusFromString(propertyData.address.displayAddress),
+      value: propertyData.address.displayAddress,
       askAgentMessage: "Where's the property located?",
       toolTipExplainer:
         "Location is a critical factor in property valuation and desirability.\n\n" +
@@ -120,8 +146,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Property Type",
       key: "propertyType",
-      status: getStatusFromString(ExtractedPropertyScrapingData.propertyType),
-      value: ExtractedPropertyScrapingData.propertyType,
+      status: getStatusFromString(propertyData.propertyType),
+      value: propertyData.propertyType,
       askAgentMessage: "What's the property type?",
       toolTipExplainer:
         "Property type refers to the category of the property, such as residential, commercial, or mixed-use.\n\n" +
@@ -132,8 +158,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.GENERAL,
       label: "Accessibility",
       key: "accessibility",
-      status: getStatusFromString(ExtractedPropertyScrapingData.accessibility),
-      value: ExtractedPropertyScrapingData.accessibility,
+      status: getStatusFromString(propertyData.accessibility),
+      value: propertyData.accessibility,
       askAgentMessage: "Is the property accessible-friendly?",
       toolTipExplainer:
         "Accessibility features make the property suitable for people with mobility needs.\n\n" +
@@ -157,15 +183,15 @@ export function generatePropertyChecklist(
       label: "Price Change from last sale",
       key: "priceDiscrepancy",
       status:
-        ExtractedPropertyScrapingData.salesHistory.priceDiscrepancy.status ?? DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.salesHistory.priceDiscrepancy.value,
+        propertyData.salesHistory.priceDiscrepancy.status ?? DataStatus.ASK_AGENT,
+      value: propertyData.salesHistory.priceDiscrepancy.value,
       askAgentMessage:
         priceDiscrepancyMessages[
-          ExtractedPropertyScrapingData.salesHistory.priceDiscrepancy.reason ?? ""
+          propertyData.salesHistory.priceDiscrepancy.reason ?? ""
         ]?.askAgentMessage || "",
       toolTipExplainer:
         priceDiscrepancyMessages[
-          ExtractedPropertyScrapingData.salesHistory.priceDiscrepancy.reason ?? ""
+          propertyData.salesHistory.priceDiscrepancy.reason ?? ""
         ]?.toolTipExplainer ||
         "This metric shows the percentage change between the current listing price and the last sold price, " +
         "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
@@ -174,14 +200,14 @@ export function generatePropertyChecklist(
       group: PropertyGroups.SALES_HISTORY,
       label: "Historical Compound Annual Growth Rate (CAGR)",
       key: "compoundAnnualGrowthRate",
-      status: getCAGRStatus(ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate),
+      status: getCAGRStatus(propertyData.salesHistory.compoundAnnualGrowthRate),
       value:
-        ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate !== null &&
-          typeof ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate === "number"
-          ? `${(ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate * 100).toFixed(2)}%`
+        propertyData.salesHistory.compoundAnnualGrowthRate !== null &&
+          typeof propertyData.salesHistory.compoundAnnualGrowthRate === "number"
+          ? `${(propertyData.salesHistory.compoundAnnualGrowthRate * 100).toFixed(2)}%`
           : "N/A",
       askAgentMessage: (() => {
-        const cagr = ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate;
+        const cagr = propertyData.salesHistory.compoundAnnualGrowthRate;
         if (cagr === null || typeof cagr !== "number") {
           return "";
         }
@@ -193,7 +219,7 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "The CAGR represents the average yearly increase in the property's historical sale values (excluding the current listing). \n\n" +
         "A CAGR below 3% indicates that the property has underperformed historically." +
-        (ExtractedPropertyScrapingData.salesHistory.compoundAnnualGrowthRate === null
+        (propertyData.salesHistory.compoundAnnualGrowthRate === null
           ? "\n\nIt is N/A as there is no sales history."
           : ""),
     },
@@ -202,12 +228,12 @@ export function generatePropertyChecklist(
       label: "Volatility",
       key: "volatility",
       status: getVolatilityStatus(
-        ExtractedPropertyScrapingData.salesHistory.volatility,
+        propertyData.salesHistory.volatility,
         volatilityThreshold
       ),
-      value: ExtractedPropertyScrapingData.salesHistory.volatility,
+      value: propertyData.salesHistory.volatility,
       askAgentMessage: (() => {
-        const volStr = ExtractedPropertyScrapingData.salesHistory.volatility;
+        const volStr = propertyData.salesHistory.volatility;
         if (!volStr || volStr === "N/A") {
           return "";
         }
@@ -225,30 +251,22 @@ export function generatePropertyChecklist(
     },
     {
       group: PropertyGroups.UTILITIES,
-      label: "EPC Certificate",
+      label: "EPC Rating",
       key: "epc",
-      status: epcStatus, // Use the status determined synchronously
-      // Keep value simple (e.g., URL or placeholder)
-      value: epcUrl ? DOMPurify.sanitize(epcUrl) : agentMissingInfo,
-      epcBandData: epcBandData ?? undefined, // Assign the passed-in data
-      askAgentMessage: epcUrl ? (epcBandData?.error ?
-        `Analysis Error (${epcBandData.error}). Ask Agent?` :
-        "Do you have the EPC certificate?") : "No EPC image found.",
-      toolTipExplainer:
-        epcUrl ? (epcBandData?.error ?
-          `Analysis failed: ${epcBandData.error}` :
-          "Energy Performance Certificate rating based on image analysis.") :
-          "No EPC image found on listing.",
+      status: epcStatus,
+      value: epcDisplayValue,
+      askAgentMessage: epcAskAgentMsg,
+      toolTipExplainer: epcToolTip,
     },
     // Interior Details
     {
       group: PropertyGroups.INTERIOR,
       label: "Bedrooms",
       key: "bedrooms",
-      status: ExtractedPropertyScrapingData.bedrooms
+      status: propertyData.bedrooms
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.bedrooms,
+      value: propertyData.bedrooms,
       askAgentMessage: "How many bedrooms?",
       toolTipExplainer:
         "The number of bedrooms in a property is a key factor in its desirability and value.\n\n" +
@@ -258,10 +276,10 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Bathrooms",
       key: "bathrooms",
-      status: ExtractedPropertyScrapingData.bathrooms
+      status: propertyData.bathrooms
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.bathrooms,
+      value: propertyData.bathrooms,
       askAgentMessage: "How many bathrooms?",
       toolTipExplainer:
         "The number of bathrooms in a property is a key factor in its desirability and value.\n\n" +
@@ -271,8 +289,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Heating Type",
       key: "heatingType",
-      status: getStatusFromString(ExtractedPropertyScrapingData.heating),
-      value: ExtractedPropertyScrapingData.heating,
+      status: getStatusFromString(propertyData.heating),
+      value: propertyData.heating,
       askAgentMessage: "What's the heating type?",
       toolTipExplainer:
         "Heating type refers to the method of heating used in the property, such as gas central heating, electric heating, or underfloor heating.\n\n" +
@@ -283,8 +301,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Size",
       key: "size",
-      status: getStatusFromString(ExtractedPropertyScrapingData.size),
-      value: ExtractedPropertyScrapingData.size,
+      status: getStatusFromString(propertyData.size),
+      value: propertyData.size,
       askAgentMessage: "What's the size?",
       toolTipExplainer:
         "The size of a property refers to the total area of the property, including all habitable rooms and spaces.\n\n" +
@@ -295,8 +313,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.INTERIOR,
       label: "Floor Plan",
       key: "floorPlan",
-      status: getStatusFromString(ExtractedPropertyScrapingData.floorPlan),
-      value: DOMPurify.sanitize(ExtractedPropertyScrapingData.floorPlan ?? ""),
+      status: getStatusFromString(propertyData.floorPlan),
+      value: DOMPurify.sanitize(propertyData.floorPlan ?? ""),
       askAgentMessage: "Do you have a floor plan?",
       toolTipExplainer:
         "A floor plan is a detailed layout of the property's interior spaces, including rooms, hallways, and other features.\n\n" +
@@ -306,8 +324,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.EXTERIOR,
       label: "Garden",
       key: "garden",
-      status: getYesNoOrMissingStatus(ExtractedPropertyScrapingData.garden),
-      value: ExtractedPropertyScrapingData.garden ?? "Not mentioned",
+      status: getYesNoOrMissingStatus(propertyData.garden),
+      value: propertyData.garden ?? "Not mentioned",
       askAgentMessage: "Is there a garden?",
       toolTipExplainer:
         "A garden is a private outdoor space associated with a property, providing a place for relaxation, entertainment, and gardening.\n\n" +
@@ -318,11 +336,11 @@ export function generatePropertyChecklist(
       label: "Windows",
       key: "windows",
       status:
-        typeof ExtractedPropertyScrapingData.windows === "string" &&
-          ExtractedPropertyScrapingData.windows.toLowerCase() !== agentMissingInfo
+        typeof propertyData.windows === "string" &&
+          propertyData.windows.toLowerCase() !== agentMissingInfo
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.windows,
+      value: propertyData.windows,
       askAgentMessage: "Windows - material & glazing?",
       toolTipExplainer:
         "The key information to know is the materials, such as wood, aluminium, or uPVC, and the glazing, such as single or double-glazed windows.\n\n" +
@@ -332,8 +350,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.EXTERIOR,
       label: "Parking",
       key: "parking",
-      status: getYesNoOrMissingStatus(ExtractedPropertyScrapingData.parking),
-      value: ExtractedPropertyScrapingData.parking ?? "Not mentioned",
+      status: getYesNoOrMissingStatus(propertyData.parking),
+      value: propertyData.parking ?? "Not mentioned",
       askAgentMessage: "Is there parking?",
       toolTipExplainer:
         "Parking can refer to how and where vehicles can be parked, and any associated costs.\n\n" +
@@ -343,9 +361,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed property",
       key: "listedProperty",
-      status: ExtractedPropertyScrapingData.listedProperty.status ?? DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.listedProperty.value ?? "Not mentioned",
-      askAgentMessage: ExtractedPropertyScrapingData.listedProperty.reason ?? "",
+      status: propertyData.listedProperty.status ?? DataStatus.ASK_AGENT,
+      value: propertyData.listedProperty.value ?? "Not mentioned",
+      askAgentMessage: propertyData.listedProperty.reason ?? "",
       toolTipExplainer:
         "A listed property is designated as being of architectural or historical interest and requires special permission before being altered.\n\n" +
         "There are three grades of listed buildings: Grade I (exceptional interest), Grade II (special interest, most common for homes), and Grade II* (national importance).",
@@ -354,8 +372,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Restrictions",
       key: "restrictions",
-      status: getStatusFromBoolean(ExtractedPropertyScrapingData.restrictions, true),
-      value: getYesNoOrAskAgentStringFromBoolean(ExtractedPropertyScrapingData.restrictions),
+      status: getStatusFromBoolean(propertyData.restrictions, true),
+      value: getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions),
       askAgentMessage: "Any restrictions?",
       toolTipExplainer:
         "Restrictions are legal constraints on what can be done with the property, such as building height limits, conservation area regulations, or planning permissions.\n\n" +
@@ -365,9 +383,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Public right of way obligation",
       key: "publicRightOfWayObligation",
-      status: getStatusFromBoolean(ExtractedPropertyScrapingData.publicRightOfWayObligation, true),
+      status: getStatusFromBoolean(propertyData.publicRightOfWayObligation, true),
       value: getYesNoOrAskAgentStringFromBoolean(
-        ExtractedPropertyScrapingData.publicRightOfWayObligation
+        propertyData.publicRightOfWayObligation
       ),
       askAgentMessage: "Public right of way obligation?",
       toolTipExplainer:
@@ -378,9 +396,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Private right of way obligation",
       key: "privateRightOfWayObligation",
-      status: getStatusFromBoolean(ExtractedPropertyScrapingData.privateRightOfWayObligation, true),
+      status: getStatusFromBoolean(propertyData.privateRightOfWayObligation, true),
       value: getYesNoOrAskAgentStringFromBoolean(
-        ExtractedPropertyScrapingData.privateRightOfWayObligation
+        propertyData.privateRightOfWayObligation
       ),
       askAgentMessage: "Private right of way obligation?",
       toolTipExplainer:
@@ -402,8 +420,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RISKS,
       label: "Flood Defences",
       key: "floodDefences",
-      status: getStatusFromBoolean(ExtractedPropertyScrapingData.floodDefences),
-      value: getYesNoOrAskAgentStringFromBoolean(ExtractedPropertyScrapingData.floodDefences),
+      status: getStatusFromBoolean(propertyData.floodDefences),
+      value: getYesNoOrAskAgentStringFromBoolean(propertyData.floodDefences),
       askAgentMessage: "Any flood defences?",
       toolTipExplainer:
         "Flood defences help protect the property from water damage.\n\n" +
@@ -414,12 +432,12 @@ export function generatePropertyChecklist(
       label: "Flood Sources",
       key: "floodSources",
       status:
-        (ExtractedPropertyScrapingData.floodSources ?? []).length > 0
+        (propertyData.floodSources ?? []).length > 0
           ? DataStatus.FOUND_POSITIVE
           : DataStatus.ASK_AGENT,
       value:
-        (ExtractedPropertyScrapingData.floodSources ?? []).length > 0
-          ? (ExtractedPropertyScrapingData.floodSources?.join(", ") ?? "Not mentioned")
+        (propertyData.floodSources ?? []).length > 0
+          ? (propertyData.floodSources?.join(", ") ?? "Not mentioned")
           : "Not mentioned",
       askAgentMessage: "Any flood sources?",
       toolTipExplainer:
@@ -430,9 +448,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RISKS,
       label: "Flooded in last 5 years",
       key: "floodedInLastFiveYears",
-      status: getStatusFromBoolean(ExtractedPropertyScrapingData.floodedInLastFiveYears, true),
+      status: getStatusFromBoolean(propertyData.floodedInLastFiveYears, true),
       value: getYesNoOrAskAgentStringFromBoolean(
-        ExtractedPropertyScrapingData.floodedInLastFiveYears
+        propertyData.floodedInLastFiveYears
       ),
       askAgentMessage: "Flooded in last 5 years?",
       toolTipExplainer:
@@ -443,9 +461,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RISKS,
       label: "Building Safety",
       key: "buildingSafety",
-      status: ExtractedPropertyScrapingData.buildingSafety.status ?? DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.buildingSafety.value ?? "Not mentioned",
-      askAgentMessage: ExtractedPropertyScrapingData.buildingSafety.reason ?? "",
+      status: propertyData.buildingSafety.status ?? DataStatus.ASK_AGENT,
+      value: propertyData.buildingSafety.value ?? "Not mentioned",
+      askAgentMessage: propertyData.buildingSafety.reason ?? "",
       toolTipExplainer:
         "This item identifies building safety information by scanning for key terms. " +
         "Positive terms such as 'Fire Alarm System' indicate robust safety measures, while negative terms (e.g. 'Mould') " +
@@ -455,9 +473,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RISKS,
       label: "Coastal Erosion",
       key: "coastalErosion",
-      status: ExtractedPropertyScrapingData.coastalErosion.status ?? DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.coastalErosion.value ?? "Not mentioned",
-      askAgentMessage: ExtractedPropertyScrapingData.coastalErosion.reason ?? "",
+      status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
+      value: propertyData.coastalErosion.value ?? "Not mentioned",
+      askAgentMessage: propertyData.coastalErosion.reason ?? "",
       toolTipExplainer:
         "Coastal erosion isn't mentioned in the listing. This could mean the property isn't in a coastal area—or it might be an omission. Please confirm if there's any coastal risk.",
     },
@@ -465,9 +483,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.RISKS,
       label: "Mining Impact",
       key: "miningImpact",
-      status: ExtractedPropertyScrapingData.miningImpact.status ?? DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.miningImpact.value ?? "Not mentioned",
-      askAgentMessage: ExtractedPropertyScrapingData.miningImpact.reason ?? "",
+      status: propertyData.miningImpact.status ?? DataStatus.ASK_AGENT,
+      value: propertyData.miningImpact.value ?? "Not mentioned",
+      askAgentMessage: propertyData.miningImpact.reason ?? "",
       toolTipExplainer:
         "Mining impact refers to the impact of mining on the property and the surrounding area.\n\n" +
         "It's important to check the mining impact to ensure the property is not at risk of mining subsidence or other mining-related risks.",
@@ -476,8 +494,8 @@ export function generatePropertyChecklist(
       group: PropertyGroups.UTILITIES,
       label: "Council Tax Band",
       key: "councilTax",
-      status: getStatusFromString(ExtractedPropertyScrapingData.councilTax, ["tbc"]),
-      value: ExtractedPropertyScrapingData.councilTax,
+      status: getStatusFromString(propertyData.councilTax, ["tbc"]),
+      value: propertyData.councilTax,
       askAgentMessage: "What council tax band?",
       toolTipExplainer:
         "Council tax is a payment to the local authority for services like schools and waste collection.\n\n" +
@@ -487,9 +505,9 @@ export function generatePropertyChecklist(
       group: PropertyGroups.UTILITIES,
       label: "Broadband",
       key: "broadband",
-      status: ExtractedPropertyScrapingData.broadband
+      status: propertyData.broadband
         ? (() => {
-          const match = ExtractedPropertyScrapingData.broadband.match(
+          const match = propertyData.broadband.match(
             BROADBAND_SPEED_UNDER_10MBS_REGEX
           );
           return match && parseInt(match[1]) <= 10
@@ -497,7 +515,7 @@ export function generatePropertyChecklist(
             : DataStatus.FOUND_POSITIVE;
         })()
         : DataStatus.ASK_AGENT,
-      value: ExtractedPropertyScrapingData.broadband,
+      value: propertyData.broadband,
       askAgentMessage: "How's the broadband speed?",
       toolTipExplainer:
         "Broadband speed refers to the speed of internet connection, measured in megabits per second (Mbps).\n\n" +
@@ -538,7 +556,7 @@ export function generatePropertyChecklist(
   // Filter out items not applicable based on property type (e.g., councilTax for non-residential)
   // This filtering logic might need adjustment depending on exact requirements
   const filteredChecklist = checklist.filter(item => {
-    if (item.key === 'councilTax' && ExtractedPropertyScrapingData.propertyType === 'Commercial') {
+    if (item.key === 'councilTax' && propertyData.propertyType === 'Commercial') {
       return false; // Example: Don't show council tax for commercial
     }
     // Add other filtering logic as needed

@@ -4,7 +4,13 @@ import {
   getBroadbandInfo,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
-import { ExtractedPropertyScrapingData } from "@/types/property";
+import {
+  EpcConfidence,
+  EpcConfidenceLevels,
+  EpcData,
+  EpcDataSourceType,
+  ExtractedPropertyScrapingData,
+} from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
@@ -26,18 +32,32 @@ export async function extractPropertyDataFromDOM(
     coastalErosion: coastalErosionResultFromUnstructuredText,
     miningImpact: miningImpactResultFromUnstructuredText,
     listedProperty: listedPropertyFromUnstructuredText,
+    epcRating: epcRatingFromText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
-  // Initialize basic EPC data without processing - this will be handled in the background script
+  // Attempt to extract EPC value directly from page model or DOM first
+
+  const initialEpcValue = epcRatingFromText;
+  const initialEpcConfidence: EpcConfidence = initialEpcValue
+    ? EpcConfidenceLevels.HIGH
+    : EpcConfidenceLevels.NONE;
+  const initialSource: EpcDataSourceType = initialEpcValue
+    ? EpcDataSourceType.LISTING
+    : EpcDataSourceType.NONE;
+
   const epcUrl =
     (pageModel?.propertyData?.epcGraphs?.length ?? 0) > 0 &&
     pageModel?.propertyData?.epcGraphs?.[0]?.url
       ? pageModel?.propertyData?.epcGraphs?.[0]?.url
       : null;
 
-  const epc = {
+  const epcData: EpcData = {
     url: epcUrl,
-    scores: null, // Scores will be processed in the background script
+    scores: null,
+    value: initialEpcValue,
+    confidence: initialEpcConfidence,
+    source: initialSource,
+    error: null,
   };
 
   const floorPlan =
@@ -122,7 +142,7 @@ export async function extractPropertyDataFromDOM(
     coastalErosion: coastalErosionResultFromUnstructuredText,
     copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
     councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
-    epc: epc,
+    epc: epcData,
     floodedInLastFiveYears:
       pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
     floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,

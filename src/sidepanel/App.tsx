@@ -9,7 +9,7 @@ import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
-import { useEpcProcessor } from '@/hooks/useEpcProcessor';
+import { EpcProcessorResult, useEpcProcessor } from '@/hooks/useEpcProcessor';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
@@ -191,49 +191,25 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  // --- Base Checklist Data Generation ---
-  const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
-    propertyData,
-    crimeQuery,
-    premiumStreetDataQuery,
-  ), [propertyData, crimeQuery, premiumStreetDataQuery]);
-
-  // --- EPC Processing Hook (Retrieve epcDataSource) ---
-  const epcItemFromBaseData = useMemo(() => basePropertyChecklistData.find(item => item.key === 'epc'), [basePropertyChecklistData]);
-  const originalEpcImageUrl = useMemo(() => (
-    (epcItemFromBaseData?.value && typeof epcItemFromBaseData.value === 'string' && epcItemFromBaseData.value.startsWith('http'))
-      ? epcItemFromBaseData.value
-      : null
-  ), [epcItemFromBaseData]);
-  const originalEpcValue = epcItemFromBaseData?.value as string | number | boolean | null | undefined;
-  // Destructure the full state from the hook
-  const epcProcessingState = useEpcProcessor(
-    originalEpcImageUrl,
-    originalEpcValue,
+  // --- EPC Processing Hook --- 
+  const epcProcessingResult: EpcProcessorResult = useEpcProcessor(
+    propertyData.epc,
     isEpcDebugModeOn ? epcDebugCanvasRef : undefined
   );
-  // Specifically get epcDataSource and the derived status/value for updating the list
-  const { epcDataSource, status: epcStatus, displayValue: epcDisplayValue } = epcProcessingState;
 
-  // --- Derive Display Checklist Data using useMemo ---
-  const displayChecklistData = useMemo(() => {
-    return basePropertyChecklistData.map(item => {
-      if (item.key === 'epc') {
-        // Apply EPC updates directly from epcProcessingState if they differ from base data
-        // Check against the derived status and displayValue from the hook
-        if (item.status !== epcStatus || item.value !== epcDisplayValue) {
-          return {
-            ...item,
-            status: epcStatus,
-            value: epcDisplayValue,
-          };
-        }
-      }
-      return item; // Return original item if not EPC or no update needed
-    });
-  }, [basePropertyChecklistData, epcStatus, epcDisplayValue]);
+  // --- Base Checklist Data Generation (Now uses processed EPC data) ---
+  const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
+    propertyData, // Pass the base property data
+    crimeQuery,
+    premiumStreetDataQuery,
+    epcProcessingResult // Pass the potentially updated EPC result
+  ), [propertyData, crimeQuery, premiumStreetDataQuery, epcProcessingResult]); // Add epcProcessingResult as dependency
 
-  // --- Filtering and Grouping Logic (now depends on the derived displayChecklistData) ---
+  // No need to derive displayChecklistData separately anymore,
+  // generatePropertyChecklist will use the latest EPC data directly.
+  const displayChecklistData = basePropertyChecklistData;
+
+  // --- Filtering and Grouping Logic (now depends on displayChecklistData) ---
   const initialOpenGroups = useMemo(() => displayChecklistData.reduce(
     (acc, item) => {
       if (item.group) {
@@ -375,6 +351,10 @@ const App: React.FC = () => {
     });
   }
 
+  const handleEpcValueChange = useCallback((newValue: string) => {
+    dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: { value: newValue } });
+  }, [dispatch]);
+
   if (nonPropertyPageWarningMessage) {
     return (
       <Alert
@@ -439,7 +419,8 @@ const App: React.FC = () => {
                             toggleNearbyPlanningPermissionCard
                           )}
                           isPremiumDataFetched={isPremiumDataFetched}
-                          epcDataSource={isEpc ? epcDataSource : null}
+                          epcData={isEpc ? epcProcessingResult : undefined}
+                          onEpcChange={isEpc ? handleEpcValueChange : undefined}
                           epcDebugCanvasRef={isEpc && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                           isEpcDebugModeOn={isEpcDebugModeOn}
                         />

@@ -15,6 +15,9 @@ import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 
+// --- Constants ---
+const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-]?\s*([A-G])\b/i;
+
 export function computeTermChecklistResult(
   termResult: TermExtractionResult | null,
   subject: string
@@ -150,6 +153,10 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
   const description = pageModel?.propertyData?.text?.description || "";
   const combinedText = `${keyFeatures} ${description}`.toLowerCase();
 
+  // --- Extract EPC from combined text ---
+  const epcMatch = combinedText.match(EPC_RATING_REGEX);
+  const epcRatingFromText = epcMatch && epcMatch[1] ? epcMatch[1].toUpperCase() : null;
+
   const heatingMatches = combinedText.match(heatingRegex);
   const gardenMatches = combinedText.match(gardenRegex);
   const parkingMatches = combinedText.match(parkingRegex);
@@ -222,6 +229,7 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       status: miningImpactResult.status,
       reason: miningImpactResult.askAgentMessage,
     },
+    epcRating: epcRatingFromText,
   };
 }
 

@@ -1,4 +1,8 @@
-import { ExtractedPropertyScrapingData } from "@/types/property";
+import {
+  EpcConfidenceLevels,
+  EpcDataSourceType,
+  ExtractedPropertyScrapingData,
+} from "@/types/property";
 
 export const emptyPropertyData: ExtractedPropertyScrapingData = {
   salePrice: null,
@@ -20,6 +24,11 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
   garden: null,
   epc: {
     url: null,
+    scores: null,
+    value: null,
+    confidence: EpcConfidenceLevels.NONE,
+    source: EpcDataSourceType.NONE,
+    error: null,
   },
   broadband: null,
   listingHistory: null,

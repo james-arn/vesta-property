@@ -307,13 +307,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           const reader = new FileReader();
           reader.onloadend = () => sendResponse({ success: true, dataUrl: reader.result });
           reader.onerror = (error) => {
-            throw error || new Error("FileReader error");
+            // Ensure error is thrown or handled to trigger catch
+            console.error("FileReader error:", error);
+            throw new Error("FileReader error occurred");
           };
           reader.readAsDataURL(blob);
         })
         .catch((error) => {
           const errorMsg = error instanceof Error ? error.message : "Failed to fetch image.";
-          logErrorToSentry(`Failed to fetch image: ${request.url} - ${errorMsg}`, "error");
+          logErrorToSentry(
+            `Failed to fetch image (for canvas): ${request.url} - ${errorMsg}`,
+            "error"
+          );
           sendResponse({ success: false, error: errorMsg });
         });
       return true; // Async fetch

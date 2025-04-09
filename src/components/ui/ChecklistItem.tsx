@@ -1,11 +1,11 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
-import { type EpcProcessingState } from "@/hooks/useEpcProcessor";
+import { EpcProcessorResult } from "@/hooks/useEpcProcessor";
 import { isClickableItemKey } from "@/types/clickableChecklist";
-import { DataStatus, PropertyDataList } from "@/types/property";
-import React, { useState } from 'react';
-import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaTimesCircle } from "react-icons/fa";
-type EpcDataSource = EpcProcessingState['epcDataSource'];
+import { DataStatus, EpcConfidenceLevels, PropertyDataList } from "@/types/property";
+import React from 'react';
+import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
 export interface ChecklistItemProps {
     item: PropertyDataList;
@@ -13,7 +13,8 @@ export interface ChecklistItemProps {
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
-    epcDataSource: EpcDataSource | null;
+    epcData?: EpcProcessorResult;
+    onEpcChange?: (newValue: string) => void;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
 }
@@ -27,30 +28,37 @@ const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string 
     [DataStatus.IS_LOADING]: { icon: FaClock, color: 'text-blue-500' },
 };
 
+// Confidence Icons
+const confidenceIcons: Record<(typeof EpcConfidenceLevels)[keyof typeof EpcConfidenceLevels], React.ElementType | null> = {
+    [EpcConfidenceLevels.HIGH]: FaThumbsUp,
+    [EpcConfidenceLevels.MEDIUM]: FaExclamationTriangle,
+    [EpcConfidenceLevels.USER_PROVIDED]: FaUserEdit,
+    [EpcConfidenceLevels.NONE]: null,
+};
+
+const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
+const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     item,
     isSelected,
     onItemClick,
     onValueClick,
     isPremiumDataFetched,
-    epcDataSource,
+    epcData,
+    onEpcChange,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
 }) => {
     const { key, label, status, value, toolTipExplainer } = item;
 
-    const [isEpcImageVisible, setIsEpcImageVisible] = useState(false);
     const isEpcItem = key === 'epc';
 
-    // Determine if the source is an image with a URL
-    const isImageSourceWithUrl = epcDataSource?.type === 'image' && !!epcDataSource.url;
-
-    const toggleEpcImageVisibility = () => {
-        // Only toggle if it's an image source with a URL
-        if (isEpcItem && isImageSourceWithUrl) {
-            setIsEpcImageVisible(prev => !prev);
-        }
-    };
+    // Check if the URL ends with a known image extension
+    const isImageSourceWithUrl =
+        isEpcItem &&
+        !!epcData?.url &&
+        IMAGE_EXTENSIONS.some(ext => epcData.url!.toLowerCase().endsWith(ext));
 
     // --- Determine Display Status and Icon ---
     const displayStatus = status;
@@ -62,6 +70,19 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         (displayStatus === DataStatus.IS_LOADING ||
             !value ||
             (typeof value === 'string' && isPremiumNoDataValue(value)));
+
+    const renderConfidenceIcon = () => {
+        if (!isEpcItem || !epcData || !epcData.confidence || epcData.confidence === EpcConfidenceLevels.NONE) {
+            return null;
+        }
+        const ConfidenceIcon = confidenceIcons[epcData.confidence];
+        let iconColor = 'text-gray-400'; // Default
+        if (epcData.confidence === EpcConfidenceLevels.HIGH) iconColor = 'text-green-500';
+        if (epcData.confidence === EpcConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
+        if (epcData.confidence === EpcConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
+
+        return ConfidenceIcon ? <ConfidenceIcon className={`ml-2 w-3 h-3 ${iconColor}`} title={`Confidence: ${epcData.confidence}`} /> : null;
+    };
 
     const renderValue = () => {
         const isClickable = isClickableItemKey(key)
@@ -92,28 +113,40 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         if (isEpcItem) {
-            let displayContent = value || "N/A"; // Default to original value
-            let title: string | undefined = undefined;
+            const canEditEpc = onEpcChange && epcData &&
+                epcData.confidence !== EpcConfidenceLevels.HIGH &&
+                epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED;
 
-            if (epcDataSource?.type === 'pdf') {
-                // Use extracted PDF data for display and title
-                const { data } = epcDataSource;
-                displayContent =
-                    data.currentRating
-                        ? `Current: ${data.currentRating} | Potential: ${data.potentialRating || 'N/A'}`
-                        : (value || "PDF Processed (No Ratings)"); // Fallback if no ratings in PDF
-                title = data.fullAddress || undefined;
+            const epcValueToDisplay = epcData?.value ?? value ?? "N/A";
+
+            if (canEditEpc && !epcData.isLoading) {
+                return (
+                    <div className="flex items-center">
+                        <Select onValueChange={onEpcChange} defaultValue={epcData?.value ?? undefined}>
+                            <SelectTrigger className="h-7 text-xs px-2 w-[80px]">
+                                <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {EPC_RATINGS.map(rating => (
+                                    <SelectItem key={rating} value={rating} className="text-xs">
+                                        {rating}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {renderConfidenceIcon()}
+                    </div>
+                );
             }
-            const isClickableForImage = isImageSourceWithUrl;
 
+            // Non-editable EPC display - No onClick needed
             return (
                 <span
-                    onClick={isClickableForImage ? toggleEpcImageVisibility : undefined}
-                    className={isClickableForImage ? 'cursor-pointer text-blue-500 underline' : ''}
-                    style={{ display: 'inline-block' }}
-                    title={title} // Show extracted address on hover if from PDF
+                    className={`flex items-center`}
+                    style={{ display: 'inline-flex' }}
                 >
-                    {displayContent}
+                    {epcValueToDisplay}
+                    {renderConfidenceIcon()}
                 </span>
             );
         }
@@ -174,7 +207,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             <div className="flex items-center ml-2">
                 <span>{label}</span>
             </div>
-            <div className="text-gray-800 ml-4">{renderValue()}</div>
+            <div className="text-gray-800 ml-4 flex items-center">{renderValue()}</div>
             <div className="flex items-center justify-center ml-4">
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
@@ -200,11 +233,11 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </div>
             )}
 
-            {/* Render Normal Image Graph ONLY if the source is image, it has a URL, and is toggled visible */}
-            {isEpcItem && isImageSourceWithUrl && isEpcImageVisible && epcDataSource?.type === 'image' && (
+            {/* Image Graph - Render based only on isImageSourceWithUrl */}
+            {isImageSourceWithUrl && epcData?.displayUrl && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px dashed blue', padding: '5px' }}>
                     <img
-                        src={epcDataSource.url} // Use the URL from the data source
+                        src={epcData.displayUrl}
                         alt="EPC Graph"
                         style={{ maxWidth: '100%', display: 'block' }}
                         onError={(e) => (e.currentTarget.alt = 'Could not display fetched EPC graph image')}

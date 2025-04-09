@@ -1,3 +1,4 @@
+// This is used when the epc link is a pdf  - we process PDFs to get the address and EPC data using sandbox for performance reasons to keep it off the main thread.
 import Tesseract from "tesseract.js";
 
 console.log("[sandbox.ts] Sandbox page loaded.");

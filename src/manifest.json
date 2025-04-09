@@ -73,7 +73,8 @@
       "resources": [
         "injectScript.js",
         "login-success.html",
-        "logout-success.html"
+        "logout-success.html",
+        "sandbox.html"
       ],
       "matches": [
         "https://www.rightmove.co.uk/*",
@@ -92,6 +93,14 @@
       "matches": [
         "https://cognito-idp.eu-west-2.amazonaws.com/*",
         "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com/*"
+      ]
+    },
+    {
+      "resources": [
+        "sandbox.html"
+      ],
+      "matches": [
+        "<all_urls>"
       ]
     }
   ],
