@@ -81,7 +81,14 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         if (epcData.confidence === EpcConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
         if (epcData.confidence === EpcConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 
-        return ConfidenceIcon ? <ConfidenceIcon className={`ml-2 w-3 h-3 ${iconColor}`} title={`Confidence: ${epcData.confidence}`} /> : null;
+        const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== EpcConfidenceLevels.HIGH &&
+                epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED &&
+                isImageSourceWithUrl)
+                ? '. Please double check against the EPC image and correct if necessary'
+                : ''
+            }`;
+
+        return ConfidenceIcon ? <ConfidenceIcon className={`ml-2 w-3 h-3 ${iconColor}`} title={tooltipText} /> : null;
     };
 
     const renderValue = () => {

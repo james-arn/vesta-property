@@ -66,7 +66,8 @@ export function useCrimeScore(lat: string, lng: string) {
   return useQuery({
     queryKey: [REACT_QUERY_KEYS.CRIME_SCORE, lat, lng],
     queryFn: () => fetchCrimeScore(lat, lng),
-    staleTime: 24 * 60 * 60 * 1000, // Cache the data for 1 day
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     enabled: !!lat && !!lng,
     // Add status directly into the returned data.
     select: (data: CrimeScoreResponse): CrimeScoreData => {

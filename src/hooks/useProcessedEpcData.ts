@@ -40,7 +40,7 @@ export const useProcessedEpcData = ({
     // Only run processing if URL exists AND initial confidence is NONE
     enabled: !!epcUrl && initialEpcData?.confidence === EpcConfidenceLevels.NONE,
     staleTime: Infinity,
-    gcTime: 1000 * 60 * 30, // Cache for 30 mins after inactive
+    gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     initialData: () => {
       // Provide scraped data as initial if confidence is NOT NONE
       if (initialEpcData && initialEpcData.confidence !== EpcConfidenceLevels.NONE) {

@@ -62,7 +62,8 @@ export function useReverseGeocode(
   const query = useQuery({
     queryKey: stableKeyRef.current,
     queryFn: () => fetchReverseGeocode(lat, lng),
-    staleTime: 24 * 60 * 60 * 1000, // Cache the data for 1 day
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     enabled: Boolean(lat) && Boolean(lng),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
