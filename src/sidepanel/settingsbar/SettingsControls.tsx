@@ -20,15 +20,11 @@ import { IoSettingsOutline } from "react-icons/io5";
 import { MdManageAccounts } from "react-icons/md";
 import { VscFeedback } from "react-icons/vsc";
 
-const SettingsIconWithTooltip = () => (
+const SettingsIcon = () => (
     <TooltipProvider>
         <div className="relative">
             <div className="cursor-pointer" data-tooltip="Settings">
                 <IoSettingsOutline size={20} />
-            </div>
-            {/* Custom tooltip used to ensure click event opens dropdown as expected */}
-            <div className="absolute left-1/2 -translate-x-1/2 -top-6 hidden group-hover:block pointer-events-none bg-primary text-primary-foreground text-xs rounded px-2 py-1">
-                Settings
             </div>
         </div>
     </TooltipProvider>
@@ -86,7 +82,7 @@ const SettingsControls = () => {
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <div className="group">
-                        <SettingsIconWithTooltip />
+                        <SettingsIcon />
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56">

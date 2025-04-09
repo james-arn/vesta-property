@@ -125,97 +125,6 @@ chrome.runtime.onMessage.addListener((request: MessageRequest, sender, sendRespo
   }
 });
 
-function handleToContentScriptFromUIMessage(
-  request: MessageRequest,
-  sendResponse: (response: ResponseType) => void
-) {
-  const { action, data } = request;
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs.length === 0 || !tabs[0].id) {
-      logErrorToSentry("background.ts: No active tab found.", "warning");
-      sendResponse({ status: "No active tab found" });
-      return;
-    }
-    const tabId = tabs[0].id;
-
-    switch (action) {
-      case ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM:
-        const { emailAgentUrl, selectedWarningItems } = data;
-        chrome.tabs.sendMessage(tabId, {
-          action: ActionEvents.NAVIGATE_TO_CONTACT_AGENT_PAGE,
-          data: {
-            url: `https://www.rightmove.co.uk${emailAgentUrl}`,
-            selectedWarningItems,
-          },
-        });
-        break;
-
-      case ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING:
-        const { url } = data;
-        chrome.tabs.sendMessage(tabId, {
-          action: ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING,
-          data: {
-            url,
-          },
-        });
-        break;
-
-      default:
-        console.warn("Unhandled action type:", action);
-    }
-    sendResponse({ status: "Message recieved in background.ts" });
-  });
-}
-
-function handleToUIFromContentScriptMessage(
-  request: MessageRequest,
-  sendResponse: (response: ResponseType) => void
-) {
-  if (request.action === ActionEvents.UPDATE_PROPERTY_DATA) {
-    console.log("[background.ts] Property Data:", request.data);
-
-    // Return true to indicate that the response will be sent asynchronously
-    return true;
-  }
-
-  if (request.action === ActionEvents.SHOW_WARNING) {
-    console.log("[background.ts] Warning Message:", request.data);
-    chrome.runtime.sendMessage<ShowWarningMessage, ResponseType>(
-      request as ShowWarningMessage,
-      () => {
-        if (chrome.runtime.lastError) {
-          logErrorToSentry(chrome.runtime.lastError);
-        } else {
-          console.log("[background.ts] Message forwarded to UI:", request);
-        }
-      }
-    );
-    sendResponse({ status: "Warning message handled" });
-  }
-  if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
-    console.log("[background.ts] Rightmove sign in message received");
-    chrome.runtime.sendMessage(request, () => {
-      if (chrome.runtime.lastError) {
-        logErrorToSentry(chrome.runtime.lastError);
-      } else {
-        console.log("[background.ts] Message forwarded to UI:", request);
-      }
-    });
-    sendResponse({ status: "Rightmove sign in page opened handled" });
-  }
-  if (request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
-    console.log("[background.ts] Rightmove sign in completed message received");
-    chrome.runtime.sendMessage(request, () => {
-      if (chrome.runtime.lastError) {
-        logErrorToSentry(chrome.runtime.lastError);
-      } else {
-        console.log("[background.ts] Message forwarded to UI:", request);
-      }
-    });
-    sendResponse({ status: "Rightmove sign in completed handled" });
-  }
-}
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log(
     "[background.ts] Received message:",
@@ -229,29 +138,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Determine the source and intended target of the message
   const isFromSidePanel =
     sender.url?.includes(chrome.runtime.id) && sender.url?.includes("sidepanel.html");
-  const isFromContentScript = !!sender.tab; // Content scripts usually have a tab associated
-
-  // Messages FROM Side Panel TO Content Script
-  if (
-    isFromSidePanel &&
-    (request.action === ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM ||
-      request.action === ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING)
-  ) {
-    console.log(`[background.ts] Handling SidePanel -> ContentScript: ${request.action}`);
-    handleToContentScriptFromUIMessage(request, sendResponse);
-    return false; // Not async
-  }
 
   // Messages FROM Content Script or Background TO Side Panel (UI Updates)
   if (
     !isFromSidePanel && // Don't forward messages from side panel back to itself
     (request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
       request.action === ActionEvents.SHOW_WARNING ||
-      request.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED ||
-      request.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED ||
       request.action === ActionEvents.AUTHENTICATION_COMPLETE ||
-      request.action === ActionEvents.LOGOUT_COMPLETE ||
-      request.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED)
+      request.action === ActionEvents.LOGOUT_COMPLETE)
   ) {
     console.log(`[background.ts] Forwarding message to UI (SidePanel): ${request.action}`);
     chrome.runtime.sendMessage(request, (response) => {

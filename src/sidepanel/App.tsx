@@ -1,57 +1,60 @@
 import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
-import { Button } from '@/components/ui/button';
-import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
-import { emptyPropertyData } from "@/constants/emptyPropertyData";
+import { ActionEvents } from '@/constants/actionEvents';
+import { emptyPropertyData } from '@/constants/emptyPropertyData';
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
-import { STEPS } from "@/constants/steps";
+import VIEWS from '@/constants/views';
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { useProcessedEpcData } from '@/hooks/useProcessedEpcData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
-import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
 import { INITIAL_EPC_RESULT_STATE } from "@/lib/epcProcessing";
+import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
-import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActionEvents } from "../constants/actionEvents";
 import {
   ExtractedPropertyScrapingData,
   PropertyDataList
 } from "../types/property";
+
 import {
   extractPropertyIdFromUrl,
   filterChecklistToAllAskAgentOnlyItems,
+  generateAgentMessage,
   getValueClickHandler
 } from "./helpers";
+
 import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
 import SettingsBar from "./settingsbar/SettingsBar";
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
 );
-const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
-const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
+const LazyAgentMessageModal = lazy(() =>
+  import('./components/AgentMessageModal').then(module => ({ default: module.AgentMessageModal }))
+);
+const LazyChecklistView = lazy(() =>
+  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
+);
 
 const App: React.FC = () => {
   // 1. Property data starts empty and is updated via rightmove scrape
   const { propertyData, dispatch } = usePropertyData()
   const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
-  const { isAuthenticated } = useSecureAuthentication();
   const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     showAskAgentOnly: false,
   });
-  const [currentStep, setCurrentStep] = useState<keyof typeof STEPS>(
-    STEPS.INITIAL_REVIEW
-  );
-  const [selectedWarningItems, setSelectedWarningItems] = useState<PropertyDataList[]>([]);
   const epcDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isEpcDebugModeOn = process.env.IS_EPC_DEBUG_MODE === "true";
+
+  const [currentView, setCurrentView] = useState<typeof VIEWS[keyof typeof VIEWS]>(
+    VIEWS.DASHBOARD
+  );
 
   const { lat, lng } = propertyData.locationCoordinates;
 
@@ -100,7 +103,7 @@ const App: React.FC = () => {
   const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
   const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
 
-  useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
+  useFeedbackAutoPrompt(propertyData.propertyId);
   const queryClient = useQueryClient();
 
   const {
@@ -165,17 +168,7 @@ const App: React.FC = () => {
         setIsPropertyDataLoading(false);
         dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
         console.log("[Side Panel] Warning message set:", message.data);
-      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_PAGE_OPENED) {
-        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_PAGE_OPENED message received");
-        setCurrentStep(STEPS.RIGHTMOVE_SIGN_IN);
-      } else if (message.action === ActionEvents.RIGHTMOVE_SIGN_IN_COMPLETED) {
-        console.log("[Side Panel] RIGHTMOVE_SIGN_IN_COMPLETED message received");
-        setCurrentStep(STEPS.REVIEW_MESSAGE);
-      } else if (message.action === ActionEvents.AGENT_CONTACT_FORM_SUBMITTED) {
-        console.log("[Side Panel] AGENT_CONTACT_FORM_SUBMITTED message received");
-        setCurrentStep(STEPS.EMAIL_SENT);
       }
-
       sendResponse({ status: "acknowledged", action: message.action });
     };
 
@@ -248,75 +241,24 @@ const App: React.FC = () => {
 
   const applyFilters = useCallback(
     (checklist: PropertyDataList[], currentFilters: typeof filters) => {
-      let filteredData = checklist;
+      let filteredList = [...checklist]; // Start with a copy
+
       if (currentFilters.showAskAgentOnly) {
-        filteredData = filterChecklistToAllAskAgentOnlyItems(filteredData);
+        filteredList = filterChecklistToAllAskAgentOnlyItems(filteredList);
       }
-      return filteredData;
+
+      // Future filters can be added here...
+      // if (currentFilters.someOtherFilter) { ... }
+
+      return filteredList;
     },
-    []
+    [] // Dependencies for useCallback if filters logic changes
   );
 
-  const filteredChecklistData = useMemo(() => applyFilters(displayChecklistData, filters), [displayChecklistData, filters, applyFilters]);
-
-  const groupedChecklistData = useMemo(() => filteredChecklistData.reduce(
-    (acc, item) => {
-      const group = item.group || 'Other';
-      if (!acc[group]) {
-        acc[group] = [];
-      }
-      acc[group].push(item);
-      return acc;
-    },
-    {} as Record<string, PropertyDataList[]>
-  ), [filteredChecklistData]);
-
-  const checklistToRender =
-    currentStep === STEPS.SELECT_ISSUES ? filteredChecklistData : displayChecklistData;
-
-  const handleNextStep = () => {
-    setCurrentStep((prevStep) => {
-      switch (prevStep) {
-        case STEPS.INITIAL_REVIEW:
-          setSelectedWarningItems(filteredChecklistData);
-          return STEPS.SELECT_ISSUES;
-        case STEPS.SELECT_ISSUES:
-          const emailAgentUrl = propertyData.agent?.contactUrl;
-          if (emailAgentUrl) {
-            chrome.runtime.sendMessage<
-              FillRightmoveContactFormMessage,
-              ResponseType
-            >({
-              action: ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM,
-              data: { selectedWarningItems, emailAgentUrl },
-            });
-          }
-          return STEPS.REVIEW_MESSAGE;
-        case STEPS.EMAIL_SENT:
-          const propertyListingUrl = propertyData.copyLinkUrl
-            ? propertyData.copyLinkUrl.split("?")[0]
-            : null;
-          chrome.runtime.sendMessage({
-            action: ActionEvents.NAVIGATE_BACK_TO_PROPERTY_LISTING,
-            data: {
-              url: propertyListingUrl,
-            },
-          });
-          return STEPS.INITIAL_REVIEW;
-        default:
-          return STEPS.INITIAL_REVIEW;
-      }
-    });
-  };
-
-  const toggleSelection = (key: string) => {
-    setSelectedWarningItems((prev) => {
-      const isSelected = prev.some((item) => item.key === key);
-      if (isSelected) return prev.filter((item) => item.key !== key);
-      const selectedItem = filteredChecklistData.find((item) => item.key === key);
-      return selectedItem ? [...prev, selectedItem] : prev;
-    });
-  };
+  const filteredChecklistData = useMemo(
+    () => applyFilters(displayChecklistData, filters),
+    [displayChecklistData, filters, applyFilters]
+  );
 
   const toggleCrimeChart = () => {
     setCrimeChartExpanded((prev) => !prev);
@@ -336,7 +278,7 @@ const App: React.FC = () => {
     if (renderedGroupsSet.has(group)) return null;
     renderedGroupsSet.add(group);
 
-    const itemCount = checklistToRender.filter(item => item.group === group).length;
+    const itemCount = filteredChecklistData.filter(item => item.group === group).length;
     return (
       <li
         className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
@@ -346,7 +288,7 @@ const App: React.FC = () => {
         <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
       </li>
     );
-  }, [checklistToRender, openGroups, toggleGroup]);
+  }, [filteredChecklistData, openGroups, toggleGroup]);
 
   const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
     dispatch({
@@ -359,179 +301,106 @@ const App: React.FC = () => {
     dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: { value: newValue } });
   }, [dispatch]);
 
-  if (nonPropertyPageWarningMessage) {
-    return (
-      <Alert
-        type="warning"
-        message={nonPropertyPageWarningMessage}
-      />
-    );
-  }
+  const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
+  const [agentMessage, setAgentMessage] = useState("");
 
+  const handleGenerateMessageClick = useCallback(() => {
+    const message = generateAgentMessage(displayChecklistData);
+    setAgentMessage(message);
+    setIsAgentMessageModalOpen(true);
+  }, [displayChecklistData]);
+
+  if (nonPropertyPageWarningMessage) {
+    return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
+  }
   if (isPropertyDataLoading) {
     return <SideBarLoading />;
   }
 
   const isPremiumDataFetched = premiumStreetDataQuery.isSuccess;
 
-  return (
-    <div className="p-0 m-0">
-      {nonPropertyPageWarningMessage && (
-        <Alert
-          type="warning"
-          message={nonPropertyPageWarningMessage}
-        />
-      )}
-      {propertyData.isRental && (
-        <Alert
-          type="warning"
-          message="Please note - Vesta Property Inspector currently only fully supports properties for sale and not rent. You can still use the tool but some features may not work as expected."
-        />
-      )}
-      <div className={`p-4 ${!isAuthenticated ? 'pb-16' : 'pb-4'}`}>
-        <SettingsBar
-          openGroups={openGroups}
-          setOpenGroups={setOpenGroups}
-          propertyChecklistData={displayChecklistData}
-          filters={filters}
-          toggleFilter={toggleFilter}
-          currentStep={currentStep}
-          handleNext={handleNextStep}
-          agentDetails={propertyData.agent}
-        />
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {Object.entries(groupedChecklistData).map(([group, items]) => (
-            <div key={group} className="mb-4">
-              {renderGroupHeading(group)}
-              {openGroups[group] && (
-                <ul className="mt-2 space-y-1">
-                  {items.map((item: PropertyDataList) => {
-                    const isEpc = item.key === 'epc';
-                    const isItemSelected = !filters.showAskAgentOnly || selectedWarningItems.some(i => i.key === item.key);
-                    return (
-                      <React.Fragment key={item.key}>
-                        <ChecklistItem
-                          item={item}
-                          isSelected={isItemSelected}
-                          onItemClick={currentStep === STEPS.SELECT_ISSUES ? () => toggleSelection(item.key) : undefined}
-                          onValueClick={getValueClickHandler(
-                            item.key,
-                            item.value,
-                            openNewTab,
-                            toggleCrimeChart,
-                            togglePlanningPermissionCard,
-                            toggleNearbyPlanningPermissionCard
-                          )}
-                          isPremiumDataFetched={isPremiumDataFetched}
-                          epcData={isEpc ? processedEpcResult : undefined}
-                          onEpcChange={isEpc ? handleEpcValueChange : undefined}
-                          epcDebugCanvasRef={isEpc && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
-                          isEpcDebugModeOn={isEpcDebugModeOn}
-                        />
-                        {item.key === "crimeScore" && (
-                          <div
-                            ref={crimeContentRef}
-                            style={{
-                              maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0",
-                              opacity: crimeChartExpanded ? 1 : 0,
-                              overflow: "hidden",
-                              transition: "max-height 0.3s ease, opacity 0.3s ease",
-                            }}
-                            className="pl-[calc(1rem+8px)]"
-                          >
-                            {crimeQuery.data && (
-                              <Suspense fallback={<LoadingSpinner />}>
-                                <LazyCrimePieChart
-                                  crimeSummary={crimeQuery.data.crimeSummary}
-                                  totalCrimes={crimeQuery.data.totalCrimes}
-                                  trendingPercentageOver6Months={
-                                    crimeQuery.data.trendingPercentageOver6Months
-                                  }
-                                />
-                              </Suspense>
-                            )}
-                          </div>
-                        )}
-                        {/* Dropdown planning permission card on planning permission prop */}
-                        {item.key === "planningPermissions" && (
-                          <div
-                            ref={planningPermissionContentRef}
-                            style={{
-                              maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0",
-                              opacity: planningPermissionCardExpanded ? 1 : 0,
-                              overflow: "hidden",
-                              transition: "max-height 0.3s ease, opacity 0.3s ease",
-                            }}
-                            className="pl-[calc(1rem+8px)]"
-                          >
-                            {premiumStreetDataQuery.data && (
-                              <Suspense fallback={<LoadingSpinner />}>
-                                <LazyPlanningPermissionCard
-                                  planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                  nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                                  isLoading={premiumStreetDataQuery.isLoading}
-                                  displayMode="property"
-                                />
-                              </Suspense>
-                            )}
-                          </div>
-                        )}
-                        {/* Dropdown planning permission card on nearby planning permission click */}
-                        {item.key === "nearbyPlanningPermissions" && (
-                          <div
-                            ref={nearbyPlanningPermissionContentRef}
-                            style={{
-                              maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0",
-                              opacity: nearbyPlanningPermissionCardExpanded ? 1 : 0,
-                              overflow: "hidden",
-                              transition: "max-height 0.3s ease, opacity 0.3s ease",
-                            }}
-                            className="pl-[calc(1rem+8px)]"
-                          >
-                            {premiumStreetDataQuery.data && (
-                              <Suspense fallback={<LoadingSpinner />}>
-                                <LazyPlanningPermissionCard
-                                  nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                                  isLoading={premiumStreetDataQuery.isLoading}
-                                  displayMode="nearby"
-                                />
-                              </Suspense>
-                            )}
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          ))}
-          {!propertyData.address.isAddressConfirmedByUser &&
-            displayChecklistData.some(item => item.group === "Premium") && (
-              <li className="mt-2 p-4">
-                <Button
-                  onClick={() => setShowBuildingValidationModal(true)}
-                  className="w-full"
-                >
-                  Load Premium Data
-                </Button>
-              </li>
-            )}
-        </ul>
-        {showBuildingValidationModal && (
-          <Suspense fallback={null}>
-            <LazyBuildingConfirmationDialog
-              open={showBuildingValidationModal}
-              onOpenChange={setShowBuildingValidationModal}
-              suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
-              handleConfirm={handleBuildingNameOrNumberConfirmation}
-            />
-          </Suspense>
-        )}
+  if (!propertyData.propertyId) {
+    // If no property ID, show the info alert
+    return (
+      <Alert
+        type="info"
+        message="Navigate to a property page on rightmove.co.uk to get started."
+      />
+    );
+  }
 
-        {/* DevTools component - only visible in development mode */}
-        <DevTools />
+  // --- Main Render Logic ---
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <SettingsBar
+        toggleFilter={() => toggleFilter('showAskAgentOnly')}
+        filters={filters}
+        openGroups={openGroups}
+        setOpenGroups={setOpenGroups}
+        propertyChecklistData={displayChecklistData}
+        agentDetails={propertyData.agent}
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        onGenerateMessageClick={handleGenerateMessageClick}
+      />
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-grow p-4 overflow-y-auto">
+        {currentView === VIEWS.DASHBOARD
+          ? (
+            <DashboardView checklistsData={displayChecklistData} />
+          ) : (
+            <Suspense fallback={<LoadingSpinner />}>
+              <LazyChecklistView
+                filteredChecklistData={filteredChecklistData}
+                openGroups={openGroups}
+                toggleGroup={toggleGroup}
+                getValueClickHandler={getValueClickHandler}
+                openNewTab={openNewTab}
+                toggleCrimeChart={toggleCrimeChart}
+                togglePlanningPermissionCard={togglePlanningPermissionCard}
+                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                isPremiumDataFetched={isPremiumDataFetched}
+                processedEpcResult={processedEpcResult}
+                handleEpcValueChange={handleEpcValueChange}
+                isEpcDebugModeOn={isEpcDebugModeOn}
+                epcDebugCanvasRef={epcDebugCanvasRef}
+                crimeQuery={crimeQuery}
+                premiumStreetDataQuery={premiumStreetDataQuery}
+                crimeChartExpanded={crimeChartExpanded}
+                crimeContentRef={crimeContentRef}
+                crimeContentHeight={crimeContentHeight}
+                planningPermissionCardExpanded={planningPermissionCardExpanded}
+                planningPermissionContentRef={planningPermissionContentRef}
+                planningPermissionContentHeight={planningPermissionContentHeight}
+                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+              />
+            </Suspense>
+          )
+        }
       </div>
+
+      {/* Modals etc. */}
+      {showBuildingValidationModal && (
+        <Suspense fallback={null}>
+          <LazyBuildingConfirmationDialog
+            open={showBuildingValidationModal}
+            onOpenChange={setShowBuildingValidationModal}
+            suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
+            handleConfirm={handleBuildingNameOrNumberConfirmation}
+          />
+        </Suspense>
+      )}
+      <Suspense fallback={null}>
+        <LazyAgentMessageModal
+          isOpen={isAgentMessageModalOpen}
+          onClose={() => setIsAgentMessageModalOpen(false)}
+          message={agentMessage}
+        />
+      </Suspense>
+      <DevTools />
     </div>
   );
 };

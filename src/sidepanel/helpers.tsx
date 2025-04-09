@@ -73,13 +73,13 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
 }
 
 export const getValueClickHandler = (
-  key: string,
-  value: any,
+  item: PropertyDataList,
   openNewTab: (url: string) => void,
   toggleCrimeChart: () => void,
   togglePlanningPermissionCard: () => void,
   toggleNearbyPlanningPermissionCard?: () => void): (() => void) | undefined => {
 
+  const { key, value } = item;
   if (!isClickableItemKey(key)) return undefined;
 
   switch (key) {
@@ -96,4 +96,15 @@ export const getValueClickHandler = (
       console.error(`Key "${key}" is defined as clickable but not handled in switch statement`);
       return undefined;
   }
+};
+
+export const generateAgentMessage = (checklist: PropertyDataList[]): string => {
+  const askAgentItems = checklist.filter(
+    (item) => item.status === DataStatus.ASK_AGENT && item.askAgentMessage
+  );
+  if (askAgentItems.length === 0) {
+    return "No missing items identified to ask the agent about.";
+  }
+  const questions = askAgentItems.map((item) => `- ${item.askAgentMessage}`).join("\n");
+  return `Regarding the property listing, could you please provide information on the following points?\n\n${questions}\n\nThank you.`;
 };

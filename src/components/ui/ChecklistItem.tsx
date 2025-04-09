@@ -9,7 +9,6 @@ import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, Fa
 
 export interface ChecklistItemProps {
     item: PropertyDataList;
-    isSelected: boolean;
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
@@ -41,7 +40,6 @@ const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     item,
-    isSelected,
     onItemClick,
     onValueClick,
     isPremiumDataFetched,
@@ -82,10 +80,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         if (epcData.confidence === EpcConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 
         const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== EpcConfidenceLevels.HIGH &&
-                epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED &&
-                isImageSourceWithUrl)
-                ? '. Please double check against the EPC image and correct if necessary'
-                : ''
+            epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED &&
+            isImageSourceWithUrl)
+            ? '. Please double check against the EPC image and correct if necessary'
+            : ''
             }`;
 
         return ConfidenceIcon ? <ConfidenceIcon className={`ml-2 w-3 h-3 ${iconColor}`} title={tooltipText} /> : null;
@@ -204,9 +202,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
     return (
         <li
-            onClick={onItemClick}
-            className={`grid grid-cols-[1rem_90px_1fr_2rem] items-center p-2 ${isPremiumField ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100'} rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""
-                } ${isSelected ? "" : "opacity-30"}`}
+            className={`grid grid-cols-[1rem_90px_1fr_2rem] items-center p-2 ${isPremiumField ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100'} rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
             <div className="flex items-center justify-start">
                 <IconComponent className={`w-4 h-4 ${color}`} />

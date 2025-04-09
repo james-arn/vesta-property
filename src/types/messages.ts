@@ -1,5 +1,4 @@
 import { ActionEvents } from "../constants/actionEvents";
-import { PropertyDataList } from "./property";
 
 export interface MessageRequest {
   action: string;
@@ -23,14 +22,6 @@ export interface UpdatePropertyDataMessage extends MessageRequest {
 export interface NavigatedUrlOrTabChangedOrExtensionOpenedMessage extends MessageRequest {
   action: typeof ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED;
   data: any;
-}
-
-export interface FillRightmoveContactFormMessage extends MessageRequest {
-  action: typeof ActionEvents.FILL_RIGHTMOVE_CONTACT_FORM;
-  data: {
-    selectedWarningItems: PropertyDataList[];
-    emailAgentUrl: string;
-  };
 }
 
 export interface ResponseType {
