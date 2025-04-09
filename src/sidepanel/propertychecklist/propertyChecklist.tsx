@@ -2,7 +2,7 @@ import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
-import { EpcProcessorResult } from "@/hooks/useEpcProcessor";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";

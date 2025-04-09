@@ -9,11 +9,12 @@ import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { STEPS } from "@/constants/steps";
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
-import { EpcProcessorResult, useEpcProcessor } from '@/hooks/useEpcProcessor';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
+import { useProcessedEpcData } from '@/hooks/useProcessedEpcData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
+import { INITIAL_EPC_RESULT_STATE } from "@/lib/epcProcessing";
 import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { FillRightmoveContactFormMessage } from "@/types/messages";
 import { useQueryClient } from '@tanstack/react-query';
@@ -101,6 +102,15 @@ const App: React.FC = () => {
 
   useFeedbackAutoPrompt(propertyData.propertyId, currentStep);
   const queryClient = useQueryClient();
+
+  const {
+    processedEpcResult,
+  } = useProcessedEpcData({
+    initialEpcData: propertyData.epc,
+    epcUrl: propertyData.epc?.url,
+    epcDebugCanvasRef,
+    isEpcDebugModeOn,
+  });
 
   useEffect(function tellBackgroundSideBarOpened() {
     chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
@@ -191,19 +201,13 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  // --- EPC Processing Hook --- 
-  const epcProcessingResult: EpcProcessorResult = useEpcProcessor(
-    propertyData.epc,
-    isEpcDebugModeOn ? epcDebugCanvasRef : undefined
-  );
-
   // --- Base Checklist Data Generation (Now uses processed EPC data) ---
   const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
     propertyData, // Pass the base property data
     crimeQuery,
     premiumStreetDataQuery,
-    epcProcessingResult // Pass the potentially updated EPC result
-  ), [propertyData, crimeQuery, premiumStreetDataQuery, epcProcessingResult]); // Add epcProcessingResult as dependency
+    processedEpcResult ?? INITIAL_EPC_RESULT_STATE
+  ), [propertyData, crimeQuery, premiumStreetDataQuery, processedEpcResult]);
 
   // No need to derive displayChecklistData separately anymore,
   // generatePropertyChecklist will use the latest EPC data directly.
@@ -419,7 +423,7 @@ const App: React.FC = () => {
                             toggleNearbyPlanningPermissionCard
                           )}
                           isPremiumDataFetched={isPremiumDataFetched}
-                          epcData={isEpc ? epcProcessingResult : undefined}
+                          epcData={isEpc ? processedEpcResult : undefined}
                           onEpcChange={isEpc ? handleEpcValueChange : undefined}
                           epcDebugCanvasRef={isEpc && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                           isEpcDebugModeOn={isEpcDebugModeOn}

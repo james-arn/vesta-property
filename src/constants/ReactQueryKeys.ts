@@ -3,6 +3,7 @@ const REACT_QUERY_KEYS = {
   CRIME_SCORE: "crimeScore",
   PREMIUM_STREET_DATA: "premiumStreetData",
   REVERSE_GEOCODE: "reverseGeocode",
+  PROCESSED_EPC: "processedEpc",
 } as const;
 
 export type ReactQueryKeys = (typeof REACT_QUERY_KEYS)[keyof typeof REACT_QUERY_KEYS];

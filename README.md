@@ -157,6 +157,21 @@ Chrome extensions (Manifest V3) consist of several key components:
 
 These components communicate using message passing, which enables complex interactivity between the UI, background, and content scripts.
 
+## Caching Strategy
+
+To optimize performance and avoid redundant data fetching or processing, the extension employs the following caching strategies:
+
+- **Scraped Property Data:** TanStack Query (`useQuery`) caches the initial property data scraped from Rightmove pages. The cache key includes the property ID (`[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]`). This prevents re-scraping when switching between already visited property tabs.
+- **Processed EPC Data:** Complex EPC processing (PDF OCR and image analysis) is also managed by TanStack Query. The result of processing a specific EPC URL (image or PDF) is cached using a distinct key (`['processedEpc', epcUrl]`). This avoids re-running expensive analysis on the same EPC document, even across different property listings that might link to it.
+  - The query intelligently uses initial data from the scrape if confidence is high, or runs the processing function only if confidence is low, leveraging the cache for processed results.
+- **Other API Data:** Hooks like `useCrimeScore`, `usePremiumStreetData`, and `useReverseGeocode` likely utilize TanStack Query internally (or could be refactored to do so) to cache results from their respective API endpoints based on appropriate keys (like coordinates or address details).
+
+This multi-layered caching approach ensures that:
+
+1.  Basic property data is quickly available when switching tabs.
+2.  Expensive processing tasks are performed only when necessary and their results are reused.
+3.  API calls are minimized by caching their responses.
+
 ## Publishing the extension to chrome web store
 
 When publishing your extension to the Chrome Web Store, you only need to upload the production build – not your entire project. Typically, this means you should:

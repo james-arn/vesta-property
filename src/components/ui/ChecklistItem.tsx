@@ -1,7 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
-import { EpcProcessorResult } from "@/hooks/useEpcProcessor";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { DataStatus, EpcConfidenceLevels, PropertyDataList } from "@/types/property";
 import React from 'react';
