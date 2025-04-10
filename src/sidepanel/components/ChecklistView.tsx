@@ -1,7 +1,7 @@
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { PropertyDataList } from "@/types/property";
+import { PropertyDataListItem } from "@/types/property";
 import { UseQueryResult } from "@tanstack/react-query";
 import React, { lazy, RefObject, Suspense } from "react";
 
@@ -13,7 +13,7 @@ const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/Pl
 
 
 interface ChecklistViewProps {
-    filteredChecklistData: PropertyDataList[];
+    filteredChecklistData: PropertyDataListItem[];
     openGroups: Record<string, boolean>;
     toggleGroup: (group: string) => void;
     getValueClickHandler: (...args: any[]) => (() => void) | undefined;
@@ -72,21 +72,21 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
         <>
             {filteredChecklistData.map((item, index) => {
                 let groupHeader = null;
-                if (item.group && item.group !== lastGroup) {
+                if (item.checklistGroup && item.checklistGroup !== lastGroup) {
                     groupHeader = (
                         <div
-                            key={`group-${item.group}`}
+                            key={`group-${item.checklistGroup}`}
                             className="text-lg font-semibold mt-4 mb-2 p-2 bg-muted rounded cursor-pointer flex justify-between items-center"
-                            onClick={() => toggleGroup(item.group as string)}
+                            onClick={() => toggleGroup(item.checklistGroup as string)}
                         >
-                            {item.group}
-                            <span>{openGroups[item.group as string] ? '▲' : '▼'}</span>
+                            {item.checklistGroup}
+                            <span>{openGroups[item.checklistGroup as string] ? '▲' : '▼'}</span>
                         </div>
                     );
-                    lastGroup = item.group;
+                    lastGroup = item.checklistGroup;
                 }
 
-                const isVisible = !item.group || openGroups[item.group];
+                const isVisible = !item.checklistGroup || openGroups[item.checklistGroup];
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>

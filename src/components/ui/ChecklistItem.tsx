@@ -3,12 +3,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
-import { DataStatus, EpcConfidenceLevels, PropertyDataList } from "@/types/property";
+import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
 export interface ChecklistItemProps {
-    item: PropertyDataList;
+    item: PropertyDataListItem;
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
@@ -28,11 +28,11 @@ const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string 
 };
 
 // Confidence Icons
-const confidenceIcons: Record<(typeof EpcConfidenceLevels)[keyof typeof EpcConfidenceLevels], React.ElementType | null> = {
-    [EpcConfidenceLevels.HIGH]: FaThumbsUp,
-    [EpcConfidenceLevels.MEDIUM]: FaExclamationTriangle,
-    [EpcConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-    [EpcConfidenceLevels.NONE]: null,
+const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceLevels], React.ElementType | null> = {
+    [ConfidenceLevels.HIGH]: FaThumbsUp,
+    [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
+    [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
+    [ConfidenceLevels.NONE]: null,
 };
 
 const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
@@ -64,23 +64,23 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const isWarning = displayStatus === DataStatus.ASK_AGENT;
 
     // Check if this is a premium item without proper data
-    const isPremiumField = item.group === PropertyGroups.PREMIUM &&
+    const isPremiumField = item.checklistGroup === PropertyGroups.PREMIUM &&
         (displayStatus === DataStatus.IS_LOADING ||
             !value ||
             (typeof value === 'string' && isPremiumNoDataValue(value)));
 
     const renderConfidenceIcon = () => {
-        if (!isEpcItem || !epcData || !epcData.confidence || epcData.confidence === EpcConfidenceLevels.NONE) {
+        if (!isEpcItem || !epcData || !epcData.confidence || epcData.confidence === ConfidenceLevels.NONE) {
             return null;
         }
         const ConfidenceIcon = confidenceIcons[epcData.confidence];
         let iconColor = 'text-gray-400'; // Default
-        if (epcData.confidence === EpcConfidenceLevels.HIGH) iconColor = 'text-green-500';
-        if (epcData.confidence === EpcConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
-        if (epcData.confidence === EpcConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
+        if (epcData.confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
+        if (epcData.confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
+        if (epcData.confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 
-        const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== EpcConfidenceLevels.HIGH &&
-            epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED &&
+        const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== ConfidenceLevels.HIGH &&
+            epcData.confidence !== ConfidenceLevels.USER_PROVIDED &&
             isImageSourceWithUrl)
             ? '. Please double check against the EPC image and correct if necessary'
             : ''
@@ -119,8 +119,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
         if (isEpcItem) {
             const canEditEpc = onEpcChange && epcData &&
-                epcData.confidence !== EpcConfidenceLevels.HIGH &&
-                epcData.confidence !== EpcConfidenceLevels.USER_PROVIDED;
+                epcData.confidence !== ConfidenceLevels.HIGH &&
+                epcData.confidence !== ConfidenceLevels.USER_PROVIDED;
 
             const epcValueToDisplay = epcData?.value ?? value ?? "N/A";
 
@@ -128,7 +128,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 return (
                     <div className="flex items-center">
                         <Select onValueChange={onEpcChange} defaultValue={epcData?.value ?? undefined}>
-                            <SelectTrigger className="h-7 text-xs px-2 w-[80px]">
+                            <SelectTrigger className="h-7 text-xs px-2 w-[60px]">
                                 <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>

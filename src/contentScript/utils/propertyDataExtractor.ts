@@ -5,8 +5,8 @@ import {
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import {
-  EpcConfidence,
-  EpcConfidenceLevels,
+  Confidence,
+  ConfidenceLevels,
   EpcData,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
@@ -38,9 +38,9 @@ export async function extractPropertyDataFromDOM(
   // Attempt to extract EPC value directly from page model or DOM first
 
   const initialEpcValue = epcRatingFromText;
-  const initialEpcConfidence: EpcConfidence = initialEpcValue
-    ? EpcConfidenceLevels.HIGH
-    : EpcConfidenceLevels.NONE;
+  const initialEpcConfidence: Confidence = initialEpcValue
+    ? ConfidenceLevels.HIGH
+    : ConfidenceLevels.NONE;
   const initialSource: EpcDataSourceType = initialEpcValue
     ? EpcDataSourceType.LISTING
     : EpcDataSourceType.NONE;

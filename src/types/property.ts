@@ -1,3 +1,4 @@
+import { DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
@@ -10,16 +11,18 @@ export enum DataStatus {
   IS_LOADING = "IS_LOADING",
 }
 
-export interface PropertyDataList {
+export interface PropertyDataListItem {
   label: string;
   status: DataStatus;
   value: React.ReactNode;
   key: string;
-  group: string;
+  checklistGroup: string;
+  dashboardGroup?: DashboardScoreCategory;
   selected?: boolean;
   askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
   epcBandData?: EpcBandResult;
+  confidence?: Confidence | null;
 }
 
 export interface AgentDetails {
@@ -48,7 +51,7 @@ export interface EpcData {
   displayUrl?: string | null;
   scores: EpcBandResult | ExtractedEpcData | null;
   value: string | null;
-  confidence: EpcConfidence;
+  confidence: Confidence;
   source: EpcDataSourceType;
   error?: string | null;
 }
@@ -106,11 +109,26 @@ export interface SaleHistoryEntry {
   percentageChange: string;
 }
 
-export const EpcConfidenceLevels = {
+export const ConfidenceLevels = {
   HIGH: "High",
   MEDIUM: "Medium",
   USER_PROVIDED: "UserProvided",
   NONE: "None",
 } as const;
 
-export type EpcConfidence = (typeof EpcConfidenceLevels)[keyof typeof EpcConfidenceLevels];
+export type Confidence = (typeof ConfidenceLevels)[keyof typeof ConfidenceLevels];
+
+export interface DashboardScore {
+  scoreValue: number; // The calculated score value
+  maxScore: number; // The maximum possible score for normalisation (e.g., 100)
+  scoreLabel: string; // A qualitative label (e.g., "Good", "High", "Band C")
+}
+
+export interface CategoryScoreData {
+  score: DashboardScore;
+  contributingItems: PropertyDataListItem[];
+}
+
+export type DashboardScores = {
+  [key in DashboardScoreCategory]?: CategoryScoreData;
+};

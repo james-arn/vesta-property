@@ -1,4 +1,4 @@
-import { EpcConfidenceLevels, EpcData, ExtractedPropertyScrapingData } from "@/types/property";
+import { ConfidenceLevels, EpcData, ExtractedPropertyScrapingData } from "@/types/property";
 
 export enum PropertyReducerActionTypes {
   SET_FULL_PROPERTY_DATA = "SET_FULL_PROPERTY_DATA",
@@ -42,7 +42,7 @@ function propertyReducer(
         epc: {
           ...(state.epc as EpcData),
           value: action.payload.value,
-          confidence: EpcConfidenceLevels.USER_PROVIDED,
+          confidence: ConfidenceLevels.USER_PROVIDED,
           error: null,
         },
       };

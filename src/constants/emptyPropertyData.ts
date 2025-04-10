@@ -1,5 +1,5 @@
 import {
-  EpcConfidenceLevels,
+  ConfidenceLevels,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
 } from "@/types/property";
@@ -26,7 +26,7 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
     url: null,
     scores: null,
     value: null,
-    confidence: EpcConfidenceLevels.NONE,
+    confidence: ConfidenceLevels.NONE,
     source: EpcDataSourceType.NONE,
     error: null,
   },

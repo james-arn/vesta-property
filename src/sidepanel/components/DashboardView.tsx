@@ -1,29 +1,118 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 // Correct import path and type
-import { PropertyDataList } from '@/types/property';
+import { PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
-// import { DashboardScoreItem } from './DashboardScoreItem';
-// import { DashboardScoreCategory } from '../constants/dashboardConstants';
+import { DashboardScoreCategory } from '@/constants/dashboardConsts';
+import { calculateDashboardScores, getCategoryDisplayName } from '@/sidepanel/helpers'; // Import calculation and display name logic
+import { DashboardScoreItem } from './DashboardScoreItem';
+// Import Lucide icons
+import { EpcProcessorResult } from "@/lib/epcProcessing";
+import {
+    BadgeDollarSign, // Example for Safety
+    Construction, // Example for Risk
+    HeartPulse, // Example for Value
+    ListChecks, // Example for Completeness
+    PoundSterling, // Example for Running Costs
+    ShieldAlert
+} from 'lucide-react';
+
+type GetValueClickHandlerType = (
+    item: PropertyDataListItem,
+    openNewTab: (url: string) => void,
+    toggleCrimeChart: () => void,
+    togglePlanningPermissionCard: () => void,
+    toggleNearbyPlanningPermissionCard?: () => void
+) => (() => void) | undefined;
 
 interface DashboardViewProps {
-    // Use PropertyDataList array type
-    checklistsData: PropertyDataList[] | null;
+    checklistsData: PropertyDataListItem[] | null;
+    isPremiumDataFetched: boolean;
+    processedEpcResult?: EpcProcessorResult;
+    epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+    isEpcDebugModeOn: boolean;
+    getValueClickHandler: GetValueClickHandlerType;
+    openNewTab: (url: string) => void;
+    toggleCrimeChart: () => void;
+    togglePlanningPermissionCard: () => void;
+    toggleNearbyPlanningPermissionCard?: () => void;
+    handleEpcValueChange: (newValue: string) => void;
 }
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ checklistsData }) => {
+// Map categories to icons
+const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
+    [DashboardScoreCategory.RUNNING_COSTS]: PoundSterling,
+    [DashboardScoreCategory.RISK]: ShieldAlert,
+    [DashboardScoreCategory.SAFETY]: HeartPulse,
+    [DashboardScoreCategory.CONDITION]: Construction,
+    [DashboardScoreCategory.VALUE_FOR_MONEY]: BadgeDollarSign,
+    [DashboardScoreCategory.COMPLETENESS]: ListChecks,
+};
+
+export const DashboardView: React.FC<DashboardViewProps> = ({
+    checklistsData,
+    isPremiumDataFetched,
+    processedEpcResult,
+    epcDebugCanvasRef,
+    isEpcDebugModeOn,
+    getValueClickHandler,
+    openNewTab,
+    toggleCrimeChart,
+    togglePlanningPermissionCard,
+    toggleNearbyPlanningPermissionCard,
+    handleEpcValueChange
+}) => {
+
+    // Calculate scores, memoize to prevent recalculation on every render
+    const dashboardScores = useMemo(() => calculateDashboardScores(checklistsData), [checklistsData]);
+
     if (!checklistsData) {
-        return <div>Loading checklist data...</div>;
+        return <div className="p-4 text-center text-muted-foreground">Loading dashboard data...</div>;
     }
 
-    // Calculation logic will be added later
-    // const dashboardScores = calculateDashboardScores(checklistsData);
+    // Determine the order of categories for display
+    const categoryOrder: DashboardScoreCategory[] = [
+        DashboardScoreCategory.RUNNING_COSTS,
+        DashboardScoreCategory.RISK,
+        DashboardScoreCategory.SAFETY, // Placeholder
+        DashboardScoreCategory.CONDITION, // Placeholder
+        DashboardScoreCategory.VALUE_FOR_MONEY, // Placeholder
+        DashboardScoreCategory.COMPLETENESS,
+    ];
 
     return (
-        <div className="dashboard-view p-4">
-            <h2 className="text-xl font-semibold mb-4">Property Dashboard</h2>
-            <p className="text-muted-foreground">Dashboard content placeholder. View switching is now active.</p>
-            {/* Mapping and DashboardScoreItem rendering will go here */}
+        <div className="dashboard-view p-4 space-y-2">
+            {categoryOrder.map((category) => {
+                const categoryScoreData = dashboardScores[category];
+                const title = getCategoryDisplayName(category);
+                // Define which categories should treat lower scores as better
+                const lowerIsBetter = category === DashboardScoreCategory.RISK;
+                const IconComponent = categoryIcons[category]; // Get the icon component
+
+                return (
+                    <DashboardScoreItem
+                        key={category}
+                        title={title}
+                        categoryScoreData={categoryScoreData}
+                        lowerIsBetter={lowerIsBetter}
+                        icon={IconComponent}
+                        isPremiumDataFetched={isPremiumDataFetched}
+                        epcData={processedEpcResult}
+                        epcDebugCanvasRef={epcDebugCanvasRef}
+                        isEpcDebugModeOn={isEpcDebugModeOn}
+                        getValueClickHandler={getValueClickHandler}
+                        openNewTab={openNewTab}
+                        toggleCrimeChart={toggleCrimeChart}
+                        togglePlanningPermissionCard={togglePlanningPermissionCard}
+                        toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                        handleEpcValueChange={handleEpcValueChange}
+                    />
+                );
+            })}
+
+            {Object.keys(dashboardScores).length === 0 && !checklistsData && (
+                <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
+            )}
         </div>
     );
 }; 

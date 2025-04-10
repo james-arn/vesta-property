@@ -9,19 +9,18 @@ import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import {
   DataStatus,
-  EpcConfidenceLevels,
-  EpcDataSourceType,
   ExtractedPropertyScrapingData,
-  PropertyDataList,
+  PropertyDataListItem
 } from "../../types/property";
 import {
   calculateListingHistoryDetails,
+  determineEpcChecklistItemDetails,
   getCAGRStatus,
   getStatusFromBoolean,
   getVolatilityStatus,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
-  priceDiscrepancyMessages,
+  priceDiscrepancyMessages
 } from "./helpers";
 
 export const agentMissingInfo = "not mentioned";
@@ -49,7 +48,12 @@ export function generatePropertyChecklist(
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
   premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined,
   epcResult: EpcProcessorResult
-): PropertyDataList[] {
+): PropertyDataListItem[] {
+  if (!propertyData) {
+    console.error('No property data provided to generatePropertyChecklist');
+    return [];
+  }
+
   const { status: listingHistoryStatus, value: listingHistoryValue } =
     calculateListingHistoryDetails(propertyData.listingHistory);
 
@@ -61,54 +65,15 @@ export function generatePropertyChecklist(
   const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
   const premiumStreetDataError = premiumStreetDataQuery?.error;
 
-  // --- Determine EPC display value and status from epcResult --- 
-  let epcDisplayValue: React.ReactNode = "Checking...";
-  let epcStatus: DataStatus = epcResult.status;
-  let epcAskAgentMsg = "Processing EPC...";
-  let epcToolTip = "Attempting to determine EPC rating.";
+  const epcChecklistItem = determineEpcChecklistItemDetails(
+    propertyData.epc,
+    epcResult
+  );
 
-  if (epcResult.isLoading) {
-    epcDisplayValue = "Loading...";
-    epcStatus = DataStatus.IS_LOADING;
-    epcToolTip = "Attempting to determine EPC rating.";
-  } else if (epcResult.error) {
-    epcDisplayValue = `Error: ${epcResult.error}`;
-    epcStatus = DataStatus.ASK_AGENT;
-    epcAskAgentMsg = `Error processing EPC (${epcResult.error}). Ask Agent?`;
-    epcToolTip = `EPC processing failed: ${epcResult.error}`;
-  } else if (epcResult.value) {
-    let confidenceText = "";
-    switch (epcResult.confidence) {
-      case EpcConfidenceLevels.HIGH:
-        confidenceText = "(High Confidence)";
-        break;
-      case EpcConfidenceLevels.MEDIUM:
-        confidenceText = "(Medium Confidence)";
-        break;
-      case EpcConfidenceLevels.USER_PROVIDED:
-        confidenceText = "(User Provided)";
-        break;
-    }
-    epcDisplayValue = `${epcResult.value} ${confidenceText}`.trim();
-    epcStatus = DataStatus.FOUND_POSITIVE;
-    epcAskAgentMsg = "Ask agent to confirm EPC rating?";
-    epcToolTip = `EPC Rating: ${epcResult.value}. Confidence: ${epcResult.confidence}. Source: ${epcResult.source}.`;
-  } else {
-    epcDisplayValue = "Not Found";
-    epcStatus = DataStatus.ASK_AGENT;
-    epcAskAgentMsg = "Could not determine EPC rating. Ask Agent?"
-    epcToolTip = `Could not automatically determine the EPC rating. Source: ${epcResult.source}.`;
-  }
-  if (propertyData.epc.confidence === EpcConfidenceLevels.HIGH && propertyData.epc.value && propertyData.epc.source === EpcDataSourceType.LISTING) {
-    epcDisplayValue = `${propertyData.epc.value} (High Confidence)`.trim();
-    epcStatus = DataStatus.FOUND_POSITIVE;
-    epcAskAgentMsg = "Ask agent to confirm EPC rating?";
-    epcToolTip = `EPC Rating: ${propertyData.epc.value}. Confidence: ${propertyData.epc.confidence}. Source: ${propertyData.epc.source}.`;
-  }
-
-  const checklist: PropertyDataList[] = [
+  // note - dashboard group is grouped in dashboardConsts map to seperate concerns.
+  const checklist: PropertyDataListItem[] = [
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Price",
       key: "price",
       status: getStatusFromString(propertyData.salePrice),
@@ -119,7 +84,7 @@ export function generatePropertyChecklist(
         "Not only mortgage payments and deposit, but also any stamp duty, legal and moving costs.",
     },
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Tenure",
       key: "tenure",
       status: getStatusFromString(propertyData.tenure),
@@ -131,7 +96,7 @@ export function generatePropertyChecklist(
         "Each tenure type has different responsibilities, rights, and costs associated with it.",
     },
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Location",
       key: "location",
       status: getStatusFromString(propertyData.address.displayAddress),
@@ -143,7 +108,7 @@ export function generatePropertyChecklist(
         "A prime location can enhance lifestyle and convenience, while also impacting safety and community engagement.",
     },
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Property Type",
       key: "propertyType",
       status: getStatusFromString(propertyData.propertyType),
@@ -155,7 +120,7 @@ export function generatePropertyChecklist(
         "Understanding the property type helps in assessing its value, potential use, and market demand.",
     },
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Accessibility",
       key: "accessibility",
       status: getStatusFromString(propertyData.accessibility),
@@ -166,7 +131,7 @@ export function generatePropertyChecklist(
         "Common accessible features include level access, lift access, ramped access, wet rooms, wide doorways, step-free access, level access showers, and lateral living (a property where all key rooms are on the entry level).",
     },
     {
-      group: PropertyGroups.GENERAL,
+      checklistGroup: PropertyGroups.GENERAL,
       label: "Listing history",
       key: "listingHistory",
       status: listingHistoryStatus,
@@ -179,7 +144,7 @@ export function generatePropertyChecklist(
 
     // Sales History
     {
-      group: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.SALES_HISTORY,
       label: "Price Change from last sale",
       key: "priceDiscrepancy",
       status:
@@ -197,7 +162,7 @@ export function generatePropertyChecklist(
         "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
     },
     {
-      group: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.SALES_HISTORY,
       label: "Historical Compound Annual Growth Rate (CAGR)",
       key: "compoundAnnualGrowthRate",
       status: getCAGRStatus(propertyData.salesHistory.compoundAnnualGrowthRate),
@@ -224,7 +189,7 @@ export function generatePropertyChecklist(
           : ""),
     },
     {
-      group: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.SALES_HISTORY,
       label: "Volatility",
       key: "volatility",
       status: getVolatilityStatus(
@@ -249,18 +214,11 @@ export function generatePropertyChecklist(
         "This 10% threshold is set as a benchmark for normal fluctuations in a stable market. \n\n" +
         "Keep in mind that with only a few data points available, this metric might not be fully representative and could display as 'N/A'.",
     },
-    {
-      group: PropertyGroups.UTILITIES,
-      label: "EPC Rating",
-      key: "epc",
-      status: epcStatus,
-      value: epcDisplayValue,
-      askAgentMessage: epcAskAgentMsg,
-      toolTipExplainer: epcToolTip,
-    },
+
+    epcChecklistItem,
     // Interior Details
     {
-      group: PropertyGroups.INTERIOR,
+      checklistGroup: PropertyGroups.INTERIOR,
       label: "Bedrooms",
       key: "bedrooms",
       status: propertyData.bedrooms
@@ -273,7 +231,7 @@ export function generatePropertyChecklist(
         "More bedrooms generally indicate a larger living space, which can be more valuable in the housing market.",
     },
     {
-      group: PropertyGroups.INTERIOR,
+      checklistGroup: PropertyGroups.INTERIOR,
       label: "Bathrooms",
       key: "bathrooms",
       status: propertyData.bathrooms
@@ -286,7 +244,7 @@ export function generatePropertyChecklist(
         "More bathrooms generally indicate a larger living space, which can be more valuable in the housing market.",
     },
     {
-      group: PropertyGroups.INTERIOR,
+      checklistGroup: PropertyGroups.INTERIOR,
       label: "Heating Type",
       key: "heatingType",
       status: getStatusFromString(propertyData.heating),
@@ -298,7 +256,7 @@ export function generatePropertyChecklist(
         "Understanding the heating type helps in assessing the property's energy efficiency and comfort.",
     },
     {
-      group: PropertyGroups.INTERIOR,
+      checklistGroup: PropertyGroups.INTERIOR,
       label: "Size",
       key: "size",
       status: getStatusFromString(propertyData.size),
@@ -310,7 +268,7 @@ export function generatePropertyChecklist(
         "Size can also impact the property's energy efficiency and maintenance costs.",
     },
     {
-      group: PropertyGroups.INTERIOR,
+      checklistGroup: PropertyGroups.INTERIOR,
       label: "Floor Plan",
       key: "floorPlan",
       status: getStatusFromString(propertyData.floorPlan),
@@ -321,7 +279,7 @@ export function generatePropertyChecklist(
         "It provides a visual representation of the property's layout and can be useful for understanding the property's size, layout, and potential for renovation or extension.",
     },
     {
-      group: PropertyGroups.EXTERIOR,
+      checklistGroup: PropertyGroups.EXTERIOR,
       label: "Garden",
       key: "garden",
       status: getYesNoOrMissingStatus(propertyData.garden),
@@ -332,7 +290,7 @@ export function generatePropertyChecklist(
         "It can range from a small patio or balcony to a large garden with various features like lawns, trees, and outdoor living areas.",
     },
     {
-      group: PropertyGroups.EXTERIOR,
+      checklistGroup: PropertyGroups.EXTERIOR,
       label: "Windows",
       key: "windows",
       status:
@@ -347,7 +305,7 @@ export function generatePropertyChecklist(
         "Understanding the window material and glazing can impact the property's energy efficiency and comfort.",
     },
     {
-      group: PropertyGroups.EXTERIOR,
+      checklistGroup: PropertyGroups.EXTERIOR,
       label: "Parking",
       key: "parking",
       status: getYesNoOrMissingStatus(propertyData.parking),
@@ -358,7 +316,7 @@ export function generatePropertyChecklist(
         "Factors to consider include whether a parking space is owned by you, if parking is communal, or if a permit is needed.",
     },
     {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed property",
       key: "listedProperty",
       status: propertyData.listedProperty.status ?? DataStatus.ASK_AGENT,
@@ -369,7 +327,7 @@ export function generatePropertyChecklist(
         "There are three grades of listed buildings: Grade I (exceptional interest), Grade II (special interest, most common for homes), and Grade II* (national importance).",
     },
     {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Restrictions",
       key: "restrictions",
       status: getStatusFromBoolean(propertyData.restrictions, true),
@@ -380,7 +338,7 @@ export function generatePropertyChecklist(
         "These restrictions can impact the property's value and potential use.",
     },
     {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Public right of way obligation",
       key: "publicRightOfWayObligation",
       status: getStatusFromBoolean(propertyData.publicRightOfWayObligation, true),
@@ -393,7 +351,7 @@ export function generatePropertyChecklist(
         "Property owners may be responsible for upkeep and work with the council for maintenance.",
     },
     {
-      group: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Private right of way obligation",
       key: "privateRightOfWayObligation",
       status: getStatusFromBoolean(propertyData.privateRightOfWayObligation, true),
@@ -407,7 +365,7 @@ export function generatePropertyChecklist(
     },
     // Crime Score item added to asynchronously fetch and display the crime score without blocking the initial render
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Crime Score",
       key: "crimeScore",
       status: getCrimeScoreStatus(isCrimeScoreLoading, crimeScoreData),
@@ -417,7 +375,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "This metric provides insights into the safety of the location within a 1 mile radius over the last 6 months, based on public crime data from official sources and scored by our proprietary algorithm.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Flood Defences",
       key: "floodDefences",
       status: getStatusFromBoolean(propertyData.floodDefences),
@@ -428,7 +386,7 @@ export function generatePropertyChecklist(
         "It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Flood Sources",
       key: "floodSources",
       status:
@@ -445,7 +403,7 @@ export function generatePropertyChecklist(
         "Understanding the flood sources can help assess the property's risk of flooding and the effectiveness of flood defences.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Flooded in last 5 years",
       key: "floodedInLastFiveYears",
       status: getStatusFromBoolean(propertyData.floodedInLastFiveYears, true),
@@ -458,7 +416,7 @@ export function generatePropertyChecklist(
         "Buyers should check for any past flooding incidents and existing flood defences.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Building Safety",
       key: "buildingSafety",
       status: propertyData.buildingSafety.status ?? DataStatus.ASK_AGENT,
@@ -470,7 +428,7 @@ export function generatePropertyChecklist(
         "may flag potential concerns. The absence of any mention means further clarification might be needed.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Coastal Erosion",
       key: "coastalErosion",
       status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
@@ -480,7 +438,7 @@ export function generatePropertyChecklist(
         "Coastal erosion isn't mentioned in the listing. This could mean the property isn't in a coastal area—or it might be an omission. Please confirm if there's any coastal risk.",
     },
     {
-      group: PropertyGroups.RISKS,
+      checklistGroup: PropertyGroups.RISKS,
       label: "Mining Impact",
       key: "miningImpact",
       status: propertyData.miningImpact.status ?? DataStatus.ASK_AGENT,
@@ -491,7 +449,7 @@ export function generatePropertyChecklist(
         "It's important to check the mining impact to ensure the property is not at risk of mining subsidence or other mining-related risks.",
     },
     {
-      group: PropertyGroups.UTILITIES,
+      checklistGroup: PropertyGroups.UTILITIES,
       label: "Council Tax Band",
       key: "councilTax",
       status: getStatusFromString(propertyData.councilTax, ["tbc"]),
@@ -502,7 +460,7 @@ export function generatePropertyChecklist(
         "Council tax bands are based on property value, and some exemptions apply (e.g., students).",
     },
     {
-      group: PropertyGroups.UTILITIES,
+      checklistGroup: PropertyGroups.UTILITIES,
       label: "Broadband",
       key: "broadband",
       status: propertyData.broadband
@@ -524,7 +482,7 @@ export function generatePropertyChecklist(
     },
     // Premium
     {
-      group: PropertyGroups.PREMIUM,
+      checklistGroup: PropertyGroups.PREMIUM,
       label: "Property Planning Permissions",
       key: "planningPermissions",
       status: getPropertyPlanningApplicationsStatus(
@@ -538,7 +496,7 @@ export function generatePropertyChecklist(
         "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. "
     },
     {
-      group: PropertyGroups.PREMIUM,
+      checklistGroup: PropertyGroups.PREMIUM,
       label: "Nearby Planning Permissions",
       key: "nearbyPlanningPermissions",
       status: getNearbyPlanningApplicationsStatus(

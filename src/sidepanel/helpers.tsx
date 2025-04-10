@@ -1,8 +1,9 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { CATEGORY_ITEM_MAP, DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';
-import { DataStatus, PropertyDataList } from "../types/property";
+import { CategoryScoreData, DashboardScores, DataStatus, PropertyDataListItem } from "../types/property";
 
 export const getStatusIcon = (status: DataStatus): string | React.ReactNode => {
   switch (status) {
@@ -35,8 +36,8 @@ export const getStatusColor = (status: DataStatus): string => {
 };
 
 export const filterChecklistToAllAskAgentOnlyItems = (
-  checklist: PropertyDataList[]
-): PropertyDataList[] => {
+  checklist: PropertyDataListItem[]
+): PropertyDataListItem[] => {
   return checklist.filter((item) => item.status === DataStatus.ASK_AGENT);
 };
 
@@ -73,7 +74,7 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
 }
 
 export const getValueClickHandler = (
-  item: PropertyDataList,
+  item: PropertyDataListItem,
   openNewTab: (url: string) => void,
   toggleCrimeChart: () => void,
   togglePlanningPermissionCard: () => void,
@@ -98,7 +99,7 @@ export const getValueClickHandler = (
   }
 };
 
-export const generateAgentMessage = (checklist: PropertyDataList[]): string => {
+export const generateAgentMessage = (checklist: PropertyDataListItem[]): string => {
   const askAgentItems = checklist.filter(
     (item) => item.status === DataStatus.ASK_AGENT && item.askAgentMessage
   );
@@ -107,4 +108,148 @@ export const generateAgentMessage = (checklist: PropertyDataList[]): string => {
   }
   const questions = askAgentItems.map((item) => `- ${item.askAgentMessage}`).join("\n");
   return `Regarding the property listing, could you please provide information on the following points?\n\n${questions}\n\nThank you.`;
+};
+
+// --- Helper Functions for Scoring ---
+const findItem = (items: PropertyDataListItem[], key: string): PropertyDataListItem | undefined => {
+  return items.find((item) => item.key === key);
+};
+const getItemValue = (item: PropertyDataListItem | undefined): any => {
+  return item?.value;
+};
+
+// --- Mappers (Convert raw data to numeric scores) ---
+const mapCouncilTaxToScore = (band?: string | null): number => {
+  /* ... as defined previously ... */
+  const bandMap: { [key: string]: number } = {
+    A: 10,
+    B: 20,
+    C: 30,
+    D: 45,
+    E: 60,
+    F: 75,
+    G: 90,
+    H: 100,
+    I: 100,
+  };
+  return typeof band === "string" ? (bandMap[band.toUpperCase()] ?? 50) : 50;
+};
+const mapEpcToScore = (rating?: string | null): number => {
+  if (typeof rating === "string") {
+    // Extract the first character (the grade) and convert to uppercase
+    const grade = rating.trim().charAt(0).toUpperCase();
+    const gradeMap: { [key: string]: number } = { A: 95, B: 85, C: 70, D: 55, E: 40, F: 25, G: 10 };
+    // Look up the score based on the extracted grade
+    return gradeMap[grade] ?? 0; // Default to 0 if grade is invalid
+  }
+  // Default to 0 if rating is null, undefined, or not a string/number
+  return 0;
+};
+const mapTenureToScore = (tenure?: string | null): number => {
+  /* ... as defined previously ... */
+  if (!tenure) return 50;
+  const lowerTenure = tenure.toLowerCase();
+  if (lowerTenure.includes("freehold")) return 100;
+  if (lowerTenure.includes("leasehold")) return 30;
+  return 50;
+};
+
+const calculateRunningCostsScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
+  const contributingItems = items.filter((item) => contributingKeys.includes(item.key));
+  if (contributingItems.length === 0) return undefined;
+  const councilTaxItem = findItem(contributingItems, "councilTax");
+  const epcItem = findItem(contributingItems, "epc");
+  const councilTaxScore = mapCouncilTaxToScore(getItemValue(councilTaxItem));
+  const epcEfficiencyScore = mapEpcToScore(getItemValue(epcItem));
+  const costScore = councilTaxScore * 0.6 + (100 - epcEfficiencyScore) * 0.4;
+  const finalScoreValue = Math.max(0, Math.min(100, 100 - costScore));
+  let label = "Medium Cost";
+  if (finalScoreValue > 75) label = "Low Cost";
+  else if (finalScoreValue < 40) label = "High Cost";
+  return {
+    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel: label },
+    contributingItems,
+  };
+};
+
+const calculateRiskScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RISK] || [];
+  const contributingItems = items.filter((item) => contributingKeys.includes(item.key));
+  if (contributingItems.length === 0) return undefined;
+  const tenureItem = findItem(contributingItems, "tenure");
+  const tenureScore = mapTenureToScore(getItemValue(tenureItem));
+  const finalScoreValue = tenureScore;
+  let label = "Medium Risk";
+  if (finalScoreValue > 75) label = "Low Risk";
+  else if (finalScoreValue < 40) label = "High Risk";
+  return {
+    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel: label },
+    contributingItems,
+  };
+};
+
+const calculateCompletenessScore = (
+  allItems: PropertyDataListItem[]
+): CategoryScoreData | undefined => {
+  const totalItems = allItems.length;
+  if (totalItems === 0) return undefined;
+  const askAgentItems = allItems.filter((item) => item.status === DataStatus.ASK_AGENT);
+  const knownItems = totalItems - askAgentItems.length;
+  const completenessPercentage = Math.round((knownItems / totalItems) * 100);
+  let label = "Partially Complete";
+  if (completenessPercentage > 95) label = "Very Complete";
+  else if (completenessPercentage > 75) label = "Mostly Complete";
+  else if (completenessPercentage < 50) label = "Incomplete";
+  return {
+    contributingItems: askAgentItems,
+    score: { scoreValue: completenessPercentage, maxScore: 100, scoreLabel: label },
+  };
+};
+
+// Placeholder functions - NEED IMPLEMENTATION
+const calculateSafetyScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  console.warn("Safety score calculation not implemented.");
+  return undefined;
+};
+const calculateConditionScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  console.warn("Condition score calculation not implemented.");
+  return undefined;
+};
+const calculateValueForMoneyScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  console.warn("Value for Money score calculation not implemented.");
+  return undefined;
+};
+
+export const calculateDashboardScores = (
+  checklistData: PropertyDataListItem[] | null
+): DashboardScores => {
+  if (!checklistData) return {};
+  const getItemsForCategory = (category: DashboardScoreCategory): PropertyDataListItem[] => {
+    const itemKeys = CATEGORY_ITEM_MAP[category] || [];
+    return checklistData.filter((item) => itemKeys.includes(item.key));
+  };
+  return {
+    [DashboardScoreCategory.RUNNING_COSTS]: calculateRunningCostsScore(
+      getItemsForCategory(DashboardScoreCategory.RUNNING_COSTS)
+    ),
+    [DashboardScoreCategory.SAFETY]: calculateSafetyScore(
+      getItemsForCategory(DashboardScoreCategory.SAFETY)
+    ),
+    [DashboardScoreCategory.CONDITION]: calculateConditionScore(
+      getItemsForCategory(DashboardScoreCategory.CONDITION)
+    ),
+    [DashboardScoreCategory.VALUE_FOR_MONEY]: calculateValueForMoneyScore(
+      getItemsForCategory(DashboardScoreCategory.VALUE_FOR_MONEY)
+    ),
+    [DashboardScoreCategory.RISK]: calculateRiskScore(
+      getItemsForCategory(DashboardScoreCategory.RISK)
+    ),
+    [DashboardScoreCategory.COMPLETENESS]: calculateCompletenessScore(checklistData),
+  };
+};
+
+// --- Helper to get display name ---
+export const getCategoryDisplayName = (category: DashboardScoreCategory): string => {
+  return DASHBOARD_CATEGORY_DISPLAY_NAMES[category] || category.replace(/_/g, " ");
 };

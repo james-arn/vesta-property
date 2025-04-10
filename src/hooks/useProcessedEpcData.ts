@@ -1,6 +1,6 @@
 import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { EpcProcessorResult, INITIAL_EPC_RESULT_STATE, processEpcData } from "@/lib/epcProcessing";
-import { DataStatus, EpcConfidenceLevels, EpcData } from "@/types/property";
+import { ConfidenceLevels, DataStatus, EpcData } from "@/types/property";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 
@@ -38,12 +38,12 @@ export const useProcessedEpcData = ({
       return await processEpcData(epcUrl, isEpcDebugModeOn ? epcDebugCanvasRef : undefined);
     },
     // Only run processing if URL exists AND initial confidence is NONE
-    enabled: !!epcUrl && initialEpcData?.confidence === EpcConfidenceLevels.NONE,
+    enabled: !!epcUrl && initialEpcData?.confidence === ConfidenceLevels.NONE,
     staleTime: Infinity,
     gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     initialData: () => {
       // Provide scraped data as initial if confidence is NOT NONE
-      if (initialEpcData && initialEpcData.confidence !== EpcConfidenceLevels.NONE) {
+      if (initialEpcData && initialEpcData.confidence !== ConfidenceLevels.NONE) {
         return {
           ...INITIAL_EPC_RESULT_STATE,
           ...initialEpcData,

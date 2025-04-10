@@ -1,5 +1,13 @@
-import { PriceDiscrepancyReason } from "@/constants/propertyConsts";
-import { DataStatus } from "../../types/property";
+import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
+import {
+  Confidence,
+  ConfidenceLevels,
+  DataStatus,
+  EpcData,
+  PropertyDataListItem,
+} from "@/types/property";
 import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
 import { agentMissingInfo } from "./propertyChecklist";
 
@@ -140,3 +148,74 @@ export function getCAGRStatus(cagr: number | null): DataStatus {
   }
   return cagr < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 }
+
+export const determineEpcChecklistItemDetails = (
+  propertyEpcData: EpcData,
+  epcProcessingResult: EpcProcessorResult
+): PropertyDataListItem => {
+  const { isLoading, error, value: processedValue, confidence, source } = epcProcessingResult;
+  const userProvidedValue = propertyEpcData.value;
+  const userProvidedConfidence = propertyEpcData.confidence;
+
+  const baseEpcItem = {
+    label: "EPC Rating",
+    key: "epc",
+    checklistGroup: PropertyGroups.UTILITIES,
+    dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
+  };
+
+  // --- Loading State ---
+  if (isLoading) {
+    return {
+      ...baseEpcItem,
+      value: "Loading...",
+      status: DataStatus.IS_LOADING,
+      askAgentMessage: "Processing EPC...",
+      toolTipExplainer: "Attempting to determine EPC rating.",
+    };
+  }
+
+  // --- Error State ---
+  if (error) {
+    return {
+      ...baseEpcItem,
+      value: `Error: ${error}`,
+      confidence: ConfidenceLevels.NONE,
+      status: DataStatus.ASK_AGENT,
+      askAgentMessage: `Error processing EPC (${error}). Ask Agent?`,
+      toolTipExplainer: `EPC processing failed: ${error}`,
+    };
+  }
+
+  const shouldUseUserValue =
+    (userProvidedConfidence === ConfidenceLevels.USER_PROVIDED && userProvidedValue) ||
+    (confidence !== ConfidenceLevels.HIGH && userProvidedValue);
+
+  const finalValue: string | null | undefined = shouldUseUserValue
+    ? userProvidedValue
+    : processedValue;
+
+  const finalConfidence: Confidence | null = shouldUseUserValue
+    ? ConfidenceLevels.USER_PROVIDED
+    : confidence;
+
+  if (finalValue) {
+    return {
+      ...baseEpcItem,
+      value: `${finalValue}`.trim(),
+      confidence: finalConfidence,
+      status: DataStatus.FOUND_POSITIVE,
+      askAgentMessage: "Please can you confirm the EPC rating?",
+      toolTipExplainer: `EPC Rating: ${finalValue}. Confidence: ${finalConfidence || "N/A"}. Source: ${source || "N/A"}.`,
+    };
+  }
+
+  return {
+    ...baseEpcItem,
+    value: "Not Found",
+    confidence: null,
+    status: DataStatus.ASK_AGENT,
+    askAgentMessage: "Could not determine EPC rating. Ask Agent?",
+    toolTipExplainer: `Could not automatically determine the EPC rating. Source: ${source || "N/A"}.`,
+  };
+};

@@ -1,6 +1,6 @@
 import { ActionEvents } from "@/constants/actionEvents";
 import { processEpcImageDataUrl } from "@/sidepanel/propertychecklist/epcImageUtils";
-import { DataStatus, EpcConfidenceLevels, EpcData, EpcDataSourceType } from "@/types/property";
+import { ConfidenceLevels, DataStatus, EpcData, EpcDataSourceType } from "@/types/property";
 import {
   extractAddressAndPdfDataFromText,
   renderPdfPageToDataUrl,
@@ -23,7 +23,7 @@ export const INITIAL_EPC_RESULT_STATE: EpcProcessorResult = {
   displayUrl: null,
   scores: null,
   value: null,
-  confidence: EpcConfidenceLevels.NONE,
+  confidence: ConfidenceLevels.NONE,
   source: EpcDataSourceType.NONE,
   error: null,
   isLoading: false, // Typically true when useQuery calls queryFn
@@ -220,7 +220,7 @@ const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult>
         status: extractedEpcValue ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
         scores: extractedData,
         value: extractedEpcValue,
-        confidence: extractedEpcValue ? EpcConfidenceLevels.HIGH : EpcConfidenceLevels.NONE,
+        confidence: extractedEpcValue ? ConfidenceLevels.HIGH : ConfidenceLevels.NONE,
         source: extractedEpcValue ? EpcDataSourceType.PDF : EpcDataSourceType.NONE, // Source is PDF if value found
         error: extractedEpcValue ? null : "Could not extract EPC data from PDF.",
       };
@@ -237,7 +237,7 @@ const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult>
       isLoading: false,
       status: DataStatus.ASK_AGENT,
       error: displayError,
-      confidence: EpcConfidenceLevels.NONE,
+      confidence: ConfidenceLevels.NONE,
       source: EpcDataSourceType.NONE, // No source determined on error
     };
   }
@@ -291,10 +291,10 @@ const processImageUrl = async (
         scores: result,
         value: extractedEpcValue,
         confidence: result.error
-          ? EpcConfidenceLevels.NONE
+          ? ConfidenceLevels.NONE
           : extractedEpcValue
-            ? EpcConfidenceLevels.MEDIUM
-            : EpcConfidenceLevels.NONE,
+            ? ConfidenceLevels.MEDIUM
+            : ConfidenceLevels.NONE,
         source: result.error
           ? EpcDataSourceType.NONE
           : extractedEpcValue
@@ -314,7 +314,7 @@ const processImageUrl = async (
       isLoading: false,
       status: DataStatus.ASK_AGENT,
       error: displayError,
-      confidence: EpcConfidenceLevels.NONE,
+      confidence: ConfidenceLevels.NONE,
       source: EpcDataSourceType.NONE,
       displayUrl: null, // Clear displayUrl on error
     };
@@ -352,7 +352,7 @@ export const processEpcData = async (
       isLoading: false,
       status: DataStatus.ASK_AGENT,
       error: "Unsupported URL type for EPC processing.",
-      confidence: EpcConfidenceLevels.NONE,
+      confidence: ConfidenceLevels.NONE,
       source: EpcDataSourceType.NONE,
       displayUrl: null,
     };

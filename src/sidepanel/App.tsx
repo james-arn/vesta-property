@@ -18,8 +18,10 @@ import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ConfidenceLevels,
+  EpcDataSourceType,
   ExtractedPropertyScrapingData,
-  PropertyDataList
+  PropertyDataListItem
 } from "../types/property";
 
 import {
@@ -194,7 +196,6 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  // --- Base Checklist Data Generation (Now uses processed EPC data) ---
   const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
     propertyData, // Pass the base property data
     crimeQuery,
@@ -202,20 +203,16 @@ const App: React.FC = () => {
     processedEpcResult ?? INITIAL_EPC_RESULT_STATE
   ), [propertyData, crimeQuery, premiumStreetDataQuery, processedEpcResult]);
 
-  // No need to derive displayChecklistData separately anymore,
-  // generatePropertyChecklist will use the latest EPC data directly.
-  const displayChecklistData = basePropertyChecklistData;
-
   // --- Filtering and Grouping Logic (now depends on displayChecklistData) ---
-  const initialOpenGroups = useMemo(() => displayChecklistData.reduce(
+  const initialOpenGroups = useMemo(() => basePropertyChecklistData.reduce(
     (acc, item) => {
-      if (item.group) {
-        acc[item.group] = true;
+      if (item.checklistGroup) {
+        acc[item.checklistGroup] = true;
       }
       return acc;
     },
     {} as Record<string, boolean>
-  ), [displayChecklistData]);
+  ), [basePropertyChecklistData]);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpenGroups);
 
@@ -240,7 +237,7 @@ const App: React.FC = () => {
   };
 
   const applyFilters = useCallback(
-    (checklist: PropertyDataList[], currentFilters: typeof filters) => {
+    (checklist: PropertyDataListItem[], currentFilters: typeof filters) => {
       let filteredList = [...checklist]; // Start with a copy
 
       if (currentFilters.showAskAgentOnly) {
@@ -256,8 +253,8 @@ const App: React.FC = () => {
   );
 
   const filteredChecklistData = useMemo(
-    () => applyFilters(displayChecklistData, filters),
-    [displayChecklistData, filters, applyFilters]
+    () => applyFilters(basePropertyChecklistData, filters),
+    [basePropertyChecklistData, filters, applyFilters]
   );
 
   const toggleCrimeChart = () => {
@@ -278,7 +275,7 @@ const App: React.FC = () => {
     if (renderedGroupsSet.has(group)) return null;
     renderedGroupsSet.add(group);
 
-    const itemCount = filteredChecklistData.filter(item => item.group === group).length;
+    const itemCount = filteredChecklistData.filter(item => item.checklistGroup === group).length;
     return (
       <li
         className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
@@ -298,17 +295,43 @@ const App: React.FC = () => {
   }
 
   const handleEpcValueChange = useCallback((newValue: string) => {
-    dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: { value: newValue } });
-  }, [dispatch]);
+    const updatedEpcPayload = { value: newValue };
+    dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: updatedEpcPayload });
+
+    if (propertyData.propertyId) {
+      queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
+        [REACT_QUERY_KEYS.PROPERTY_DATA, propertyData.propertyId],
+        (oldData) => {
+          if (!oldData) {
+            console.warn("Tried to update EPC cache, but no existing data found for propertyId:", propertyData.propertyId);
+            return undefined;
+          }
+          return {
+            ...oldData,
+            epc: {
+              ...oldData.epc,
+              value: newValue,
+              confidence: ConfidenceLevels.USER_PROVIDED,
+              source: oldData.epc?.source ?? EpcDataSourceType.NONE,
+              url: oldData.epc?.url ?? null,
+              displayUrl: oldData.epc?.displayUrl ?? null,
+              scores: oldData.epc?.scores ?? null,
+              error: oldData.epc?.error ?? null,
+            }
+          };
+        }
+      );
+    }
+  }, [dispatch, queryClient, propertyData.propertyId]);
 
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
 
   const handleGenerateMessageClick = useCallback(() => {
-    const message = generateAgentMessage(displayChecklistData);
+    const message = generateAgentMessage(basePropertyChecklistData);
     setAgentMessage(message);
     setIsAgentMessageModalOpen(true);
-  }, [displayChecklistData]);
+  }, [basePropertyChecklistData]);
 
   if (nonPropertyPageWarningMessage) {
     return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
@@ -337,7 +360,7 @@ const App: React.FC = () => {
         filters={filters}
         openGroups={openGroups}
         setOpenGroups={setOpenGroups}
-        propertyChecklistData={displayChecklistData}
+        propertyChecklistData={basePropertyChecklistData.map(item => ({ group: item.checklistGroup }))}
         agentDetails={propertyData.agent}
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -348,7 +371,19 @@ const App: React.FC = () => {
       <div className="flex-grow p-4 overflow-y-auto">
         {currentView === VIEWS.DASHBOARD
           ? (
-            <DashboardView checklistsData={displayChecklistData} />
+            <DashboardView
+              checklistsData={basePropertyChecklistData}
+              isPremiumDataFetched={isPremiumDataFetched}
+              processedEpcResult={processedEpcResult}
+              epcDebugCanvasRef={epcDebugCanvasRef}
+              isEpcDebugModeOn={isEpcDebugModeOn}
+              getValueClickHandler={getValueClickHandler}
+              openNewTab={openNewTab}
+              toggleCrimeChart={toggleCrimeChart}
+              togglePlanningPermissionCard={togglePlanningPermissionCard}
+              toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+              handleEpcValueChange={handleEpcValueChange}
+            />
           ) : (
             <Suspense fallback={<LoadingSpinner />}>
               <LazyChecklistView
