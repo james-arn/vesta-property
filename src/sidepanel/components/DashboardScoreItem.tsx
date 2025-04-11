@@ -23,7 +23,7 @@ type GetValueClickHandlerType = (
 interface DashboardScoreItemProps {
     title: string;
     categoryScoreData?: CategoryScoreData;
-    lowerIsBetter?: boolean;
+    invertColorScale?: boolean;
     icon?: React.ElementType;
     isPremiumDataFetched: boolean;
     epcData?: EpcProcessorResult;
@@ -40,7 +40,7 @@ interface DashboardScoreItemProps {
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     title,
     categoryScoreData,
-    lowerIsBetter = false,
+    invertColorScale = false,
     icon: IconComponent,
     isPremiumDataFetched,
     epcData,
@@ -88,7 +88,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         <div className="flex flex-col w-full text-left">
                             <h3 className="font-semibold text-slate-800 mb-1.5">{title}</h3>
                             <div className="flex items-center space-x-2 mr-1.5">
-                                <ScoreVisualisation score={score} lowerIsBetter={lowerIsBetter} />
+                                <ScoreVisualisation score={score} invertColorScale={invertColorScale} />
                                 {warningMessage && (
                                     <TooltipProvider>
                                         <Tooltip delayDuration={0}>

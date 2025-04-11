@@ -4,10 +4,9 @@ import { PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import { DashboardScoreCategory } from '@/constants/dashboardConsts';
-import { calculateDashboardScores, getCategoryDisplayName } from '@/sidepanel/helpers'; // Import calculation and display name logic
-import { DashboardScoreItem } from './DashboardScoreItem';
-// Import Lucide icons
 import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { getCategoryDisplayName } from '@/sidepanel/helpers';
+import { calculateDashboardScores } from '@/utils/scoreCalculations';
 import {
     BadgeDollarSign, // Example for Safety
     Construction, // Example for Risk
@@ -16,6 +15,7 @@ import {
     PoundSterling, // Example for Running Costs
     ShieldAlert
 } from 'lucide-react';
+import { DashboardScoreItem } from './DashboardScoreItem';
 
 type GetValueClickHandlerType = (
     item: PropertyDataListItem,
@@ -63,7 +63,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     handleEpcValueChange
 }) => {
 
-    // Calculate scores, memoize to prevent recalculation on every render
     const dashboardScores = useMemo(() => calculateDashboardScores(checklistsData), [checklistsData]);
 
     if (!checklistsData) {
@@ -85,16 +84,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {categoryOrder.map((category) => {
                 const categoryScoreData = dashboardScores[category];
                 const title = getCategoryDisplayName(category);
-                // Define which categories should treat lower scores as better
-                const lowerIsBetter = category === DashboardScoreCategory.RISK;
                 const IconComponent = categoryIcons[category]; // Get the icon component
+
+                // Determine if the color scale should be inverted for this category
+                const invertColorScale =
+                    category === DashboardScoreCategory.RISK ||
+                    category === DashboardScoreCategory.RUNNING_COSTS;
+
+                // Skip rendering if score data is missing (unless it's completeness which handles its own undefined state)
+                if (!categoryScoreData && category !== DashboardScoreCategory.COMPLETENESS) {
+                    // Optionally render a placeholder or just skip
+                    // console.log(`Skipping rendering for ${title} due to missing score data.`);
+                    // return null; // Or render a placeholder item
+
+                    // Render the item but let it display "Score data unavailable."
+                }
 
                 return (
                     <DashboardScoreItem
                         key={category}
                         title={title}
                         categoryScoreData={categoryScoreData}
-                        lowerIsBetter={lowerIsBetter}
+                        invertColorScale={invertColorScale}
                         icon={IconComponent}
                         isPremiumDataFetched={isPremiumDataFetched}
                         epcData={processedEpcResult}
