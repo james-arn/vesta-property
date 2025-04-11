@@ -134,16 +134,19 @@ const mapCouncilTaxToScore = (band?: string | null): number => {
   };
   return typeof band === "string" ? (bandMap[band.toUpperCase()] ?? 50) : 50;
 };
-const mapEpcToScore = (rating?: string | null): number => {
+const mapEpcToScore = (rating?: string | number | null): number => {
+  const averageScore = 55; // Score equivalent to 'D' rating UK average
+
+  if (typeof rating === "number") {
+    return Math.max(0, Math.min(100, rating));
+  }
   if (typeof rating === "string") {
-    // Extract the first character (the grade) and convert to uppercase
     const grade = rating.trim().charAt(0).toUpperCase();
     const gradeMap: { [key: string]: number } = { A: 95, B: 85, C: 70, D: 55, E: 40, F: 25, G: 10 };
-    // Look up the score based on the extracted grade
-    return gradeMap[grade] ?? 0; // Default to 0 if grade is invalid
+    // Return score for valid grade, otherwise return the average score
+    return gradeMap[grade] ?? averageScore;
   }
-  // Default to 0 if rating is null, undefined, or not a string/number
-  return 0;
+  return averageScore;
 };
 const mapTenureToScore = (tenure?: string | null): number => {
   /* ... as defined previously ... */
@@ -154,22 +157,103 @@ const mapTenureToScore = (tenure?: string | null): number => {
   return 50;
 };
 
+// Constants for the running costs calculation
+const RUNNING_COSTS_WEIGHTS = {
+  COUNCIL_TAX: 0.5,
+  EPC: 0.3,
+  TENURE: 0.2,
+};
+
+const TENURE_COST_SCORES = {
+  LEASEHOLD: 60, // Higher cost score for leasehold
+  UNKNOWN: 30,   // Moderate cost score for unknown/check manually
+  OTHER: 0,      // Low cost score for freehold/other positive identifications
+};
+
+const DEFAULT_EPC_COST_SCORE = 50; // Equivalent to a 'D' rating
+
 const calculateRunningCostsScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
   const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
-  const contributingItems = items.filter((item) => contributingKeys.includes(item.key));
-  if (contributingItems.length === 0) return undefined;
-  const councilTaxItem = findItem(contributingItems, "councilTax");
-  const epcItem = findItem(contributingItems, "epc");
-  const councilTaxScore = mapCouncilTaxToScore(getItemValue(councilTaxItem));
-  const epcEfficiencyScore = mapEpcToScore(getItemValue(epcItem));
-  const costScore = councilTaxScore * 0.6 + (100 - epcEfficiencyScore) * 0.4;
-  const finalScoreValue = Math.max(0, Math.min(100, 100 - costScore));
-  let label = "Medium Cost";
-  if (finalScoreValue > 75) label = "Low Cost";
-  else if (finalScoreValue < 40) label = "High Cost";
+  // Ensure we only work with items relevant to this category
+  const contributingItemsFound = items.filter((item) => contributingKeys.includes(item.key));
+
+  const councilTaxItem = findItem(contributingItemsFound, "councilTax");
+  const epcItem = findItem(contributingItemsFound, "epc");
+  const tenureItem = findItem(contributingItemsFound, "tenure"); // Added tenure item
+
+  // Council tax is essential for this score
+  if (!councilTaxItem || councilTaxItem.status === DataStatus.ASK_AGENT) {
+    // Return undefined or a default state if council tax is missing/unverified
+    // For now, returning undefined seems appropriate as it's a key component.
+    // Alternatively, could return a score with a clear warning about missing crucial data.
+    console.warn("Cannot calculate running costs score without valid council tax data.");
+    return undefined; // Or handle differently if a partial score is desired
+  }
+
+  const councilTaxValue = getItemValue(councilTaxItem);
+  const epcValue = getItemValue(epcItem);
+  const tenureValue = getItemValue(tenureItem);
+
+  // 1. Calculate individual cost scores (0-100, higher is more costly)
+  const councilTaxCostScore = mapCouncilTaxToScore(councilTaxValue); // Assumes this returns 0-100 cost score
+
+  const isValidEpcGrade = typeof epcValue === 'string' && /^[A-G]\b/i.test(epcValue.trim());
+  const epcEfficiencyScore = isValidEpcGrade ? mapEpcToScore(epcValue) : (100 - DEFAULT_EPC_COST_SCORE); // mapEpcToScore gives efficiency, higher is better
+  const epcCostScore = 100 - epcEfficiencyScore; // Invert efficiency to get cost score
+
+  const getTenureCostScore = (): number => {
+    if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
+      return TENURE_COST_SCORES.UNKNOWN;
+    }
+    if (tenureItem.status === DataStatus.FOUND_POSITIVE && typeof tenureValue === 'string') {
+      return tenureValue.toLowerCase().includes('leasehold')
+        ? TENURE_COST_SCORES.LEASEHOLD
+        : TENURE_COST_SCORES.OTHER; // Assumes non-leasehold positive is low cost (Freehold etc.)
+    }
+    return TENURE_COST_SCORES.UNKNOWN; // Default for unexpected statuses
+  };
+  const tenureCostScore = getTenureCostScore();
+
+
+  // 2. Calculate weighted total cost score
+  const totalCostScore =
+    (councilTaxCostScore * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX) +
+    (epcCostScore * RUNNING_COSTS_WEIGHTS.EPC) +
+    (tenureCostScore * RUNNING_COSTS_WEIGHTS.TENURE);
+
+  // 3. Calculate final score (higher is better/lower cost) and clamp
+  const finalScoreValue = Math.max(0, Math.min(100, 100 - totalCostScore));
+
+  // 4. Determine label
+  const getScoreLabel = (score: number): string => {
+    if (score > 75) return "Low Cost";
+    if (score < 40) return "High Cost";
+    return "Medium Cost";
+  };
+  const scoreLabel = getScoreLabel(finalScoreValue);
+
+  // 5. Generate Warnings
+  const warnings: string[] = [];
+  if (!isValidEpcGrade) {
+    warnings.push("EPC rating not found or invalid; score calculated using UK average (D).");
+  }
+  if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
+    warnings.push("Tenure could not be confirmed automatically. Leasehold properties may incur additional costs.");
+  } else if (tenureCostScore === TENURE_COST_SCORES.LEASEHOLD) {
+    warnings.push("Leasehold tenure typically involves additional costs (e.g., ground rent, service charges).");
+  }
+  const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
+
+
+  // 6. Return Structure
   return {
-    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel: label },
-    contributingItems,
+    score: {
+      scoreValue: Math.round(finalScoreValue),
+      maxScore: 100,
+      scoreLabel: scoreLabel,
+    },
+    contributingItems: contributingItemsFound, // Return all items used in calculation
+    warningMessage: combinedWarningMessage,
   };
 };
 

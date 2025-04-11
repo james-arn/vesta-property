@@ -5,9 +5,11 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ChecklistItem } from '@/components/ui/ChecklistItem';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { CategoryScoreData, DataStatus, PropertyDataListItem } from '@/types/property';
 import React from 'react';
+import { FaExclamationTriangle } from "react-icons/fa";
 import { ScoreVisualisation } from './ScoreVisualisation';
 
 type GetValueClickHandlerType = (
@@ -64,7 +66,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         );
     }
 
-    const { score, contributingItems } = categoryScoreData;
+    const { score, contributingItems, warningMessage } = categoryScoreData;
     const relevantContributingItems = contributingItems.filter(item => {
         if (title === "Listing Completeness") {
             return item.status === DataStatus.ASK_AGENT;
@@ -85,7 +87,21 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         {IconComponent && <IconComponent className="h-5 w-5 mr-3 text-slate-600 shrink-0" />}
                         <div className="flex flex-col w-full text-left">
                             <h3 className="font-semibold text-slate-800 mb-1.5">{title}</h3>
-                            <ScoreVisualisation score={score} lowerIsBetter={lowerIsBetter} />
+                            <div className="flex items-center space-x-2 mr-1.5">
+                                <ScoreVisualisation score={score} lowerIsBetter={lowerIsBetter} />
+                                {warningMessage && (
+                                    <TooltipProvider>
+                                        <Tooltip delayDuration={0}>
+                                            <TooltipTrigger asChild>
+                                                <FaExclamationTriangle className="h-3 w-3 shrink-0 text-yellow-500" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" align="center">
+                                                <p className="max-w-xs text-sm">{warningMessage}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </AccordionTrigger>

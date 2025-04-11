@@ -127,6 +127,7 @@ export interface DashboardScore {
 export interface CategoryScoreData {
   score: DashboardScore;
   contributingItems: PropertyDataListItem[];
+  warningMessage?: string; // if missing items that would affect the score
 }
 
 export type DashboardScores = {
