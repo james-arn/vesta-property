@@ -1,12 +1,13 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React from 'react';
-import { FaBolt, FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
 export interface ChecklistItemProps {
     item: PropertyDataListItem;
@@ -54,7 +55,11 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const isEpcItem = key === 'epc';
 
     const isLocked = isUnlockedWithPremium && !isPremiumDataFetched;
-    const showBoost = isBoostedWithPremium;
+    // Determine if the initial value is meaningful using the constant
+    const valueIsMeaningless = !item.value ||
+        (typeof item.value === 'string' && (Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value));
+    // Show boost only if boostable, not locked, and the initial value is meaningless
+    const showBoost = isBoostedWithPremium && !isLocked && valueIsMeaningless;
     const canUpgrade = !isPremiumDataFetched;
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
@@ -97,7 +102,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
     const renderValue = () => {
         const isClickable = isClickableItemKey(key)
-            && value !== "Not mentioned"
+            && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED
             && displayStatus !== DataStatus.IS_LOADING;
 
         // If it's a premium item without a value yet, show the premium placeholder
@@ -112,7 +117,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // Special case floor plan - always show as "Yes" when clickable
-        if ((key === "floorPlan") && value !== "Not mentioned") {
+        if ((key === "floorPlan") && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED) {
             return (
                 <span
                     onClick={onValueClick}
@@ -169,7 +174,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     onClick={onValueClick}
                     className={`${displayStatus !== DataStatus.IS_LOADING ? "cursor-pointer text-blue-500 underline" : ""}`}
                 >
-                    {value || "Not found"}
+                    {value || CHECKLIST_NO_VALUE.NOT_FOUND}
                 </span>
             );
         }
@@ -203,43 +208,43 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             console.warn(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
         }
 
-        return <span>{value || "Not found"}</span>;
+        return <span>{value || CHECKLIST_NO_VALUE.NOT_FOUND}</span>;
     };
 
     return (
         <li
-            className={`grid grid-cols-[1rem_1fr_1fr_2rem] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
+            className={`grid grid-cols-[1rem_1fr_1fr_auto] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
             <div className="flex items-center justify-start">
                 <IconComponent className={`w-4 h-4 ${color}`} />
             </div>
             <div className="flex items-center ml-2">
                 <span>{label}</span>
+            </div>
+            <div className="text-gray-800 ml-4 flex items-center">{renderValue()}</div>
+            <div className="flex items-center justify-end ml-4 space-x-1">
                 {showBoost && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={canUpgrade ? handleUpgradeClick : undefined}
-                                    className={`ml-1 p-0.5 -m-0.5 rounded-full ${canUpgrade ? 'cursor-pointer hover:bg-yellow-100' : ''} focus:outline-none focus:ring-1 focus:ring-yellow-400`}
-                                    aria-label={canUpgrade ? "Upgrade to enhance" : "Enhanced with Premium"}
+                                    className={`p-0.5 rounded-full ${canUpgrade ? 'cursor-pointer hover:bg-yellow-100' : ''} focus:outline-none focus:ring-1 focus:ring-yellow-400`}
+                                    aria-label={canUpgrade ? "Find out more with Premium" : "Premium deep dive available"}
                                 >
-                                    <FaBolt className="w-3 h-3 text-yellow-500" />
+                                    <FaSearch className="w-3 h-3 text-yellow-500" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" align="center" className="max-w-xs">
-                                Enhanced with Premium data for more accuracy{canUpgrade ? ' - Click to upgrade' : ''}.
+                                Find out in a deep dive with Premium.{canUpgrade ? ' Click to find out more' : ''}
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 )}
-            </div>
-            <div className="text-gray-800 ml-4 flex items-center">{renderValue()}</div>
-            <div className="flex items-center justify-center ml-4">
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
-                            <button className="p-1 -m-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                            <button className="p-1 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
                                 <FaInfoCircle className="cursor-pointer text-gray-500" />
                             </button>
                         </TooltipTrigger>

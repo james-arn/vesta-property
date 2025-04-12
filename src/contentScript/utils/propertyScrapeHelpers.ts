@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   accessibilityTerms,
   buildingSafetyTermsNegative,
@@ -16,7 +17,7 @@ import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 
 // --- Constants ---
-const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-]?\s*([A-G])\b/i;
+const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-]?\s*([A-G])/i;
 
 export function computeTermChecklistResult(
   termResult: TermExtractionResult | null,
@@ -25,7 +26,7 @@ export function computeTermChecklistResult(
   if (!termResult) {
     return {
       status: DataStatus.ASK_AGENT,
-      displayValue: "Not mentioned",
+      displayValue: CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: `I couldn't find any ${subject.toLowerCase()} details. Can you please confirm?`,
     };
   }
@@ -38,7 +39,7 @@ export function computeTermChecklistResult(
   if (termResult.negative.length > 0) {
     displayValueParts.push(`Negative: ${termResult.negative.join(", ")}`);
   }
-  const displayValue = displayValueParts.join(" | ") || "Not mentioned";
+  const displayValue = displayValueParts.join(" | ") || CHECKLIST_NO_VALUE.NOT_MENTIONED;
 
   // Set status: If there are any negative details or no positive details, using ASK_AGENT.
   const status =
@@ -100,7 +101,7 @@ export function getListedPropertyDetails(
   const gradeFormatted = uniqueGrades.length > 0 ? uniqueGrades.join(", ") : null;
 
   // Determine the string value based on the obligations flag and grade info.
-  let listingStatus = "Not mentioned";
+  let listingStatus: string = CHECKLIST_NO_VALUE.NOT_MENTIONED;
   if (obligations === true) {
     listingStatus = gradeFormatted ? `Yes - (${gradeFormatted})` : "Yes";
   } else if (obligations === false) {
@@ -128,7 +129,10 @@ export function getListedPropertyDetails(
       case DataStatus.ASK_AGENT:
         if (lowerCaseListing === "yes" || lowerCaseListing.startsWith("yes -")) {
           return "Are there any important details or restrictions I should know as it's a listed property?";
-        } else if (lowerCaseListing === "not mentioned" || lowerCaseListing === "ask agent") {
+        } else if (
+          lowerCaseListing === CHECKLIST_NO_VALUE.NOT_MENTIONED ||
+          lowerCaseListing === "ask agent"
+        ) {
           return "Is the property listed?";
         } else {
           return "Is the property listed?";
@@ -329,7 +333,7 @@ export function formatPropertySize(
   }[]
 ): string {
   if (!sizings || sizings.length === 0) {
-    return "Not mentioned";
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
 
   const sizeInAcres = sizings.find((sizing) => sizing.unit === "ac" && sizing.maximumSize >= 1);
@@ -361,26 +365,36 @@ export function formatPropertySize(
 export function getBroadbandInfo(pageModel: RightmovePageModelType | null): string {
   const broadbandFeature = pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
   const broadbandSpeed = getBroadbandSpeedFromDOM();
-  let result = "Not mentioned";
+  const speedValue = broadbandSpeed ? parseFloat(broadbandSpeed) : null;
+
+  if (!broadbandFeature && !broadbandSpeed) {
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  }
 
   if (broadbandFeature && broadbandSpeed) {
-    result = `${broadbandFeature}, ${broadbandSpeed}`;
-  }
-  if (broadbandFeature && !broadbandSpeed) {
-    result = broadbandFeature;
-  } else if (broadbandSpeed && !broadbandFeature) {
-    result = broadbandSpeed;
+    const baseInfo = `${broadbandFeature}, ${broadbandSpeed}`;
+    if (speedValue && speedValue <= 10) {
+      return `${baseInfo} - slow speed`;
+    }
+    if (speedValue && speedValue > 10) {
+      return `${baseInfo} - good speed`;
+    }
+    return baseInfo;
   }
 
-  const speedValue = broadbandSpeed ? parseFloat(broadbandSpeed) : null;
+  if (broadbandFeature) {
+    return broadbandFeature;
+  }
+
+  const speedInfo = broadbandSpeed as string;
   if (speedValue && speedValue <= 10) {
-    result += " - slow speed";
+    return `${speedInfo} - slow speed`;
   }
   if (speedValue && speedValue > 10) {
-    result += " - good speed";
+    return `${speedInfo} - good speed`;
   }
 
-  return result;
+  return speedInfo;
 }
 
 export function clickPropertySaleHistoryButton() {

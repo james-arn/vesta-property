@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { StorageKeys } from "@/constants/storage";
 import useSecureAuthentication from "@/hooks/useSecureAuthentication";
 import React, { useEffect, useState } from "react";
@@ -228,7 +229,7 @@ const DevTools = () => {
                         <div className="bg-white p-3 rounded-md text-sm">
                             <div className="grid grid-cols-2 gap-1">
                                 <div className="font-semibold">Email:</div>
-                                <div>{tokenInfo.email || "Not found"}</div>
+                                <div>{tokenInfo.email || CHECKLIST_NO_VALUE.NOT_FOUND}</div>
 
                                 <div className="font-semibold">Expires:</div>
                                 <div className={tokenInfo.isExpired ? "text-red-500" : ""}>

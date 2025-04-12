@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { PREMIUM_DATA_STATES } from "@/constants/propertyConsts";
 import { NearbyPlanningApplication, PlanningApplication } from "@/types/premiumStreetData";
 import { DataStatus } from "@/types/property";
@@ -108,4 +109,15 @@ export const getPlanningApplicationsStatus = (
   const totalCount = propertyCount + nearbyCount;
 
   return totalCount > 0 ? "Found" : "No data";
+};
+
+export const formatDistance = (distance: number | null | undefined): string => {
+  if (distance === null || distance === undefined) {
+    return CHECKLIST_NO_VALUE.NOT_FOUND;
+  }
+  if (distance < 1) {
+    const meters = Math.round(distance * 1000);
+    return `${meters} m`;
+  }
+  return `${distance.toFixed(1)} km`;
 };

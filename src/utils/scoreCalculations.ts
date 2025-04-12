@@ -55,8 +55,8 @@ const mapTenureToRiskScore = (tenure?: string | null): number => {
 
 // --- Constants for Scoring Logic ---
 const RUNNING_COSTS_WEIGHTS = {
-  COUNCIL_TAX: 0.5,
-  EPC: 0.3,
+  COUNCIL_TAX: 0.3,
+  EPC: 0.5,
   TENURE: 0.2,
 };
 

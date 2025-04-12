@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
@@ -12,7 +13,10 @@ import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
 import { agentMissingInfo } from "./propertyChecklist";
 
 export function getYesNoOrMissingStatus(value: string | null): DataStatus {
-  if (!value || (typeof value === "string" && value.toLowerCase() === agentMissingInfo)) {
+  if (
+    !value ||
+    (typeof value === "string" && value.toLowerCase() === agentMissingInfo.toLowerCase())
+  ) {
     return DataStatus.ASK_AGENT;
   }
   return typeof value === "string" && value.toLowerCase() !== "no"
@@ -22,7 +26,7 @@ export function getYesNoOrMissingStatus(value: string | null): DataStatus {
 
 export function getYesNoOrAskAgentStringFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Not mentioned";
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
   return value ? "Yes" : "No";
 }
@@ -86,7 +90,7 @@ export function calculateListingHistoryDetails(listingHistory: string | null): {
 
 export function getYesNoOrAskAgentFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Not mentioned";
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
   return value ? "Yes" : "No";
 }
@@ -214,7 +218,7 @@ export const determineEpcChecklistItemDetails = (
 
   return {
     ...baseEpcItem,
-    value: "Not Found",
+    value: CHECKLIST_NO_VALUE.NOT_FOUND,
     confidence: null,
     status: DataStatus.ASK_AGENT,
     askAgentMessage: "Could not determine EPC rating. Ask Agent?",

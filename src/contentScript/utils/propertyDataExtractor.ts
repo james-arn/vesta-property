@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
   formatPropertySize,
@@ -65,7 +66,7 @@ export async function extractPropertyDataFromDOM(
     pageModel?.propertyData?.floorplans?.length > 0 &&
     pageModel?.propertyData?.floorplans?.[0]?.url
       ? pageModel?.propertyData?.floorplans?.[0]?.url
-      : "Not mentioned";
+      : CHECKLIST_NO_VALUE.NOT_MENTIONED;
 
   const phoneNumber =
     pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber ||
@@ -115,17 +116,34 @@ export async function extractPropertyDataFromDOM(
 
   const isRental = isRentalProperty(pageModel);
 
-  return {
+  const propertyType = pageModel?.propertyData?.propertySubType || propertyTypeElement || null;
+  const tenure = pageModel?.propertyData?.tenure?.tenureType || tenureElement || null;
+  const listingHistory =
+    pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
+    CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  const address = {
+    displayAddress:
+      pageModel?.propertyData?.address?.displayAddress ||
+      locationElement?.textContent?.trim() ||
+      null,
+    postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
+    isAddressConfirmedByUser: false,
+  };
+  const locationCoordinates = {
+    lat: pageModel?.propertyData?.location?.latitude ?? null,
+    lng: pageModel?.propertyData?.location?.longitude ?? null,
+  };
+  const windows = windowsFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED;
+
+  const propertyData: ExtractedPropertyScrapingData = {
     propertyId: pageModel?.propertyData?.id ?? null,
     accessibility:
-      pageModel?.propertyData?.features?.accessibility &&
-      pageModel?.propertyData?.features?.accessibility?.length > 0
-        ? pageModel?.propertyData?.features?.accessibility
-            ?.map((item) => item.displayText)
-            .join(", ") ||
-          accessibilityFromUnstructuredText ||
-          "Not mentioned"
-        : "Not mentioned",
+      pageModel?.propertyData?.features?.accessibility
+        ?.map((feature: any) => feature?.displayText)
+        ?.filter(Boolean)
+        .join(", ") ||
+      accessibilityFromUnstructuredText ||
+      CHECKLIST_NO_VALUE.NOT_MENTIONED,
     agent: {
       name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
       contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
@@ -137,9 +155,9 @@ export async function extractPropertyDataFromDOM(
       bathroomFromUnstructuredText ||
       null,
     bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
-    broadband: getBroadbandInfo(pageModel),
-    buildingSafety: buildingSafetyResultFromUnstructuredText,
-    coastalErosion: coastalErosionResultFromUnstructuredText,
+    broadband: getBroadbandInfo(pageModel) || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    buildingSafety: buildingSafetyResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
     councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
     epc: epcData,
@@ -151,31 +169,21 @@ export async function extractPropertyDataFromDOM(
     garden:
       pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
       gardenFromUnstructuredText ||
-      "Not mentioned",
+      CHECKLIST_NO_VALUE.NOT_MENTIONED,
     heating:
       pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
       heatingFromUnstructuredText ||
-      "Not mentioned",
+      CHECKLIST_NO_VALUE.NOT_MENTIONED,
     isRental,
     listedProperty: listedPropertyFromUnstructuredText ?? null,
-    listingHistory: pageModel?.propertyData?.listingHistory?.listingUpdateReason || "Not mentioned",
-    address: {
-      displayAddress:
-        pageModel?.propertyData?.address?.displayAddress ||
-        locationElement?.textContent?.trim() ||
-        null,
-      postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
-      isAddressConfirmedByUser: false,
-    },
-    locationCoordinates: {
-      lat: pageModel?.propertyData?.location?.latitude ?? null,
-      lng: pageModel?.propertyData?.location?.longitude ?? null,
-    },
-    miningImpact: miningImpactResultFromUnstructuredText,
+    listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    address: address,
+    locationCoordinates: locationCoordinates,
+    miningImpact: miningImpactResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
     privateRightOfWayObligation:
       pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
-    propertyType: pageModel?.propertyData?.propertySubType || propertyTypeElement || null,
+    propertyType: propertyType,
     publicRightOfWayObligation: pageModel?.propertyData?.features?.obligations?.rightsOfWay ?? null,
     restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
     salePrice,
@@ -189,7 +197,9 @@ export async function extractPropertyDataFromDOM(
       volatility,
     },
     size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
-    tenure: pageModel?.propertyData?.tenure?.tenureType || tenureElement || null,
-    windows: windowsFromUnstructuredText || "Not mentioned",
+    tenure: tenure,
+    windows: windows,
   };
+
+  return propertyData;
 }

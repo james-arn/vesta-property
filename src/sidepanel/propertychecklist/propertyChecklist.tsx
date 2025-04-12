@@ -1,4 +1,5 @@
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
@@ -23,7 +24,7 @@ import {
   priceDiscrepancyMessages
 } from "./helpers";
 
-export const agentMissingInfo = "not mentioned";
+export const agentMissingInfo = CHECKLIST_NO_VALUE.NOT_MENTIONED;
 const askAgentWrittenByAgent = "ask agent";
 
 // Helper to determine status for a string-based property
@@ -519,7 +520,7 @@ export function generatePropertyChecklist(
       label: "Garden",
       key: "garden",
       status: getYesNoOrMissingStatus(propertyData.garden),
-      value: propertyData.garden ?? "Not mentioned",
+      value: propertyData.garden ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "Is there a garden?",
       toolTipExplainer:
         "A garden is a private outdoor space associated with a property, providing a place for relaxation, entertainment, and gardening.\n\n" +
@@ -549,7 +550,7 @@ export function generatePropertyChecklist(
       label: "Parking",
       key: "parking",
       status: getYesNoOrMissingStatus(propertyData.parking),
-      value: propertyData.parking ?? "Not mentioned",
+      value: propertyData.parking ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "Is there parking?",
       toolTipExplainer:
         "Parking can refer to how and where vehicles can be parked, and any associated costs.\n\n" +
@@ -562,7 +563,7 @@ export function generatePropertyChecklist(
       label: "Listed property",
       key: "listedProperty",
       status: propertyData.listedProperty.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.listedProperty.value ?? "Not mentioned",
+      value: propertyData.listedProperty.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.listedProperty.reason ?? "",
       toolTipExplainer:
         "A listed property is designated as being of architectural or historical interest and requires special permission before being altered.\n\n" +
@@ -623,8 +624,8 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -636,8 +637,8 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -649,8 +650,8 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "The number of years left on a leasehold agreement.\n\n" +
         "Leases under 80 years can become expensive to extend and may affect mortgage availability and resale value.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -712,8 +713,8 @@ export function generatePropertyChecklist(
           : DataStatus.ASK_AGENT,
       value:
         (propertyData.floodSources ?? []).length > 0
-          ? (propertyData.floodSources?.join(", ") ?? "Not mentioned")
-          : "Not mentioned",
+          ? (propertyData.floodSources?.join(", ") ?? CHECKLIST_NO_VALUE.NOT_MENTIONED)
+          : CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "Any flood sources?",
       toolTipExplainer:
         "Flood sources are the natural or man-made features that contribute to flooding, such as rivers, streams, dams, or levees.\n\n" +
@@ -741,7 +742,7 @@ export function generatePropertyChecklist(
       label: "Building Safety",
       key: "buildingSafety",
       status: propertyData.buildingSafety.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.buildingSafety.value ?? "Not mentioned",
+      value: propertyData.buildingSafety.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.buildingSafety.reason ?? "",
       toolTipExplainer:
         "This item identifies building safety information by scanning for key terms. " +
@@ -755,7 +756,7 @@ export function generatePropertyChecklist(
       label: "Coastal Erosion",
       key: "coastalErosion",
       status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.coastalErosion.value ?? "Not mentioned",
+      value: propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.coastalErosion.reason ?? "",
       toolTipExplainer:
         "Coastal erosion isn't mentioned in the listing. This could mean the property isn't in a coastal area—or it might be an omission. Please confirm if there's any coastal risk.",
@@ -767,7 +768,7 @@ export function generatePropertyChecklist(
       label: "Mining Impact",
       key: "miningImpact",
       status: propertyData.miningImpact.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.miningImpact.value ?? "Not mentioned",
+      value: propertyData.miningImpact.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.miningImpact.reason ?? "",
       toolTipExplainer:
         "Mining impact refers to the impact of mining on the property and the surrounding area.\n\n" +

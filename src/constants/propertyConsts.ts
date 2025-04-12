@@ -1,3 +1,5 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts"; // Corrected import path
+
 export const PropertyGroups = {
   GENERAL: "General",
   SALES_HISTORY: "Sales History",
@@ -14,12 +16,11 @@ export const PropertyGroups = {
 } as const;
 
 export const PREMIUM_DATA_STATES = {
-  NOT_FOUND: "Not found",
+  FETCHING: "Fetching premium data...",
   NO_APPLICATIONS: "No applications found",
   NO_NEARBY_APPLICATIONS: "No nearby applications found",
-  NOT_AVAILABLE: "Not available",
-  NONE: "None",
-  UNKNOWN: "Unknown",
+  ERROR: "Error fetching data",
+  NOT_FOUND: CHECKLIST_NO_VALUE.NOT_FOUND,
 } as const;
 
 export type PremiumDataStateValue = (typeof PREMIUM_DATA_STATES)[keyof typeof PREMIUM_DATA_STATES];
