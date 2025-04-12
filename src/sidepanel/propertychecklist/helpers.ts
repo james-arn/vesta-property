@@ -162,6 +162,8 @@ export const determineEpcChecklistItemDetails = (
     key: "epc",
     checklistGroup: PropertyGroups.UTILITIES,
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
+    isUnlockedWithPremium: false,
+    isBoostedWithPremium: true,
   };
 
   // --- Loading State ---

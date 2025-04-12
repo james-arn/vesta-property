@@ -4,16 +4,19 @@ import { PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import { DashboardScoreCategory } from '@/constants/dashboardConsts';
+import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
 import { calculateDashboardScores } from '@/utils/scoreCalculations';
 import {
-    BadgeDollarSign, // Example for Safety
-    Construction, // Example for Risk
-    HeartPulse, // Example for Value
-    ListChecks, // Example for Completeness
+    Home // Example for Condition
+    , // Example for Value
+    ListChecks, // Example for Risk
+    Network, // Example for Completeness
     PoundSterling, // Example for Running Costs
-    ShieldAlert
+    Scale, // Example for Legal Constraints
+    ShieldAlert, // Example for Environmental Risk?
+    TrendingUp
 } from 'lucide-react';
 import { DashboardScoreItem } from './DashboardScoreItem';
 
@@ -39,14 +42,15 @@ interface DashboardViewProps {
     handleEpcValueChange: (newValue: string) => void;
 }
 
-// Map categories to icons
+// Map NEW categories to icons
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
     [DashboardScoreCategory.RUNNING_COSTS]: PoundSterling,
-    [DashboardScoreCategory.RISK]: ShieldAlert,
-    [DashboardScoreCategory.SAFETY]: HeartPulse,
-    [DashboardScoreCategory.CONDITION]: Construction,
-    [DashboardScoreCategory.VALUE_FOR_MONEY]: BadgeDollarSign,
-    [DashboardScoreCategory.COMPLETENESS]: ListChecks,
+    [DashboardScoreCategory.INVESTMENT_VALUE]: TrendingUp,
+    [DashboardScoreCategory.CONNECTIVITY]: Network,
+    [DashboardScoreCategory.CONDITION]: Home,
+    [DashboardScoreCategory.ENVIRONMENTAL_RISK]: ShieldAlert,
+    [DashboardScoreCategory.LEGAL_CONSTRAINTS]: Scale,
+    [DashboardScoreCategory.LISTING_COMPLETENESS]: ListChecks,
 };
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -62,21 +66,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     toggleNearbyPlanningPermissionCard,
     handleEpcValueChange
 }) => {
-
     const dashboardScores = useMemo(() => calculateDashboardScores(checklistsData), [checklistsData]);
+
+    // Define the upgrade URL from config here
+    const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
     if (!checklistsData) {
         return <div className="p-4 text-center text-muted-foreground">Loading dashboard data...</div>;
     }
 
-    // Determine the order of categories for display
+    // Determine the order of NEW categories for display
     const categoryOrder: DashboardScoreCategory[] = [
         DashboardScoreCategory.RUNNING_COSTS,
-        DashboardScoreCategory.RISK,
-        DashboardScoreCategory.SAFETY, // Placeholder
-        DashboardScoreCategory.CONDITION, // Placeholder
-        DashboardScoreCategory.VALUE_FOR_MONEY, // Placeholder
-        DashboardScoreCategory.COMPLETENESS,
+        DashboardScoreCategory.INVESTMENT_VALUE,
+        DashboardScoreCategory.CONNECTIVITY,
+        DashboardScoreCategory.CONDITION,
+        DashboardScoreCategory.ENVIRONMENTAL_RISK,
+        DashboardScoreCategory.LEGAL_CONSTRAINTS,
+        DashboardScoreCategory.LISTING_COMPLETENESS,
     ];
 
     return (
@@ -84,15 +91,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {categoryOrder.map((category) => {
                 const categoryScoreData = dashboardScores[category];
                 const title = getCategoryDisplayName(category);
-                const IconComponent = categoryIcons[category]; // Get the icon component
+                const IconComponent = categoryIcons[category];
 
                 // Determine if the color scale should be inverted for this category
                 const invertColorScale =
-                    category === DashboardScoreCategory.RISK ||
-                    category === DashboardScoreCategory.RUNNING_COSTS;
+                    category === DashboardScoreCategory.RUNNING_COSTS ||
+                    category === DashboardScoreCategory.ENVIRONMENTAL_RISK ||
+                    category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
 
                 // Skip rendering if score data is missing (unless it's completeness which handles its own undefined state)
-                if (!categoryScoreData && category !== DashboardScoreCategory.COMPLETENESS) {
+                if (!categoryScoreData && category !== DashboardScoreCategory.LISTING_COMPLETENESS) {
                     // Optionally render a placeholder or just skip
                     // console.log(`Skipping rendering for ${title} due to missing score data.`);
                     // return null; // Or render a placeholder item
@@ -108,6 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         invertColorScale={invertColorScale}
                         icon={IconComponent}
                         isPremiumDataFetched={isPremiumDataFetched}
+                        upgradeUrl={upgradeUrl}
                         epcData={processedEpcResult}
                         epcDebugCanvasRef={epcDebugCanvasRef}
                         isEpcDebugModeOn={isEpcDebugModeOn}

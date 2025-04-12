@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/accordion";
 import { ChecklistItem } from '@/components/ui/ChecklistItem';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { CategoryScoreData, DataStatus, PropertyDataListItem } from '@/types/property';
 import React from 'react';
@@ -26,6 +27,7 @@ interface DashboardScoreItemProps {
     invertColorScale?: boolean;
     icon?: React.ElementType;
     isPremiumDataFetched: boolean;
+    upgradeUrl: string;
     epcData?: EpcProcessorResult;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
@@ -68,10 +70,10 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
 
     const { score, contributingItems, warningMessage } = categoryScoreData;
     const relevantContributingItems = contributingItems.filter(item => {
-        if (title === "Listing Completeness") {
+        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]) {
             return item.status === DataStatus.ASK_AGENT;
         }
-        if (title === "Legal & Risk Factors" && item.key === 'tenure' && item.status === DataStatus.FOUND_POSITIVE) {
+        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LEGAL_CONSTRAINTS] && item.key === 'tenure' && item.status === DataStatus.FOUND_POSITIVE) {
             return false;
         }
         return true;

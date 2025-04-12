@@ -60,7 +60,6 @@ const SettingsControls = () => {
     };
 
     const handleUpgrade = () => {
-        // Open the external site for purchasing/registration in a new tab
         chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
     };
 

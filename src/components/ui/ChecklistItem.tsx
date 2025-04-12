@@ -1,11 +1,12 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { isPremiumNoDataValue, PREMIUM_DATA_STATES, PREMIUM_PLACEHOLDER_DESCRIPTIONS, PropertyGroups } from "@/constants/propertyConsts";
+import { ENV_CONFIG } from "@/constants/environmentConfig";
+import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React from 'react';
-import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
+import { FaBolt, FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
 export interface ChecklistItemProps {
     item: PropertyDataListItem;
@@ -48,9 +49,20 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     epcDebugCanvasRef,
     isEpcDebugModeOn,
 }) => {
-    const { key, label, status, value, toolTipExplainer } = item;
+    const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium } = item;
 
     const isEpcItem = key === 'epc';
+
+    const isLocked = isUnlockedWithPremium && !isPremiumDataFetched;
+    const showBoost = isBoostedWithPremium;
+    const canUpgrade = !isPremiumDataFetched;
+    const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
+
+    const handleUpgradeClick = () => {
+        if (upgradeUrl) {
+            window.open(upgradeUrl, '_blank');
+        }
+    };
 
     // Check if the URL ends with a known image extension
     const isImageSourceWithUrl =
@@ -61,13 +73,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     // --- Determine Display Status and Icon ---
     const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
-    const isWarning = displayStatus === DataStatus.ASK_AGENT;
-
-    // Check if this is a premium item without proper data
-    const isPremiumField = item.checklistGroup === PropertyGroups.PREMIUM &&
-        (displayStatus === DataStatus.IS_LOADING ||
-            !value ||
-            (typeof value === 'string' && isPremiumNoDataValue(value)));
+    const isWarning = displayStatus === DataStatus.ASK_AGENT && !isLocked;
 
     const renderConfidenceIcon = () => {
         if (!isEpcItem || !epcData || !epcData.confidence || epcData.confidence === ConfidenceLevels.NONE) {
@@ -95,12 +101,12 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             && displayStatus !== DataStatus.IS_LOADING;
 
         // If it's a premium item without a value yet, show the premium placeholder
-        if (isPremiumField && !isPremiumDataFetched) {
-            const premiumDescription = PREMIUM_PLACEHOLDER_DESCRIPTIONS[key] || `${label}: Unlock with Premium`;
+        if (isLocked) {
+            const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock ${label} with Premium`;
             return (
                 <div className="flex items-center text-gray-500">
                     <FaLock className="mr-2" size={12} />
-                    <span>{premiumDescription}</span>
+                    <span>{lockedDescription}</span>
                 </div>
             );
         }
@@ -157,7 +163,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // For crimeScore, we expect a clickable link that toggles inline expansion
-        if (key === "crimeScore" && !isPremiumField) {
+        if (key === "crimeScore" && !isLocked) {
             return (
                 <span
                     onClick={onValueClick}
@@ -169,7 +175,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // For planningPermissions and nearbyPlanningPermissions
-        if ((key === "planningPermissions" || key === "nearbyPlanningPermissions") && isClickable && !isPremiumField) {
+        if ((key === "planningPermissions" || key === "nearbyPlanningPermissions") && isClickable && !isLocked) {
             // Don't make it clickable if no applications found
             const noApplicationsFound =
                 value === PREMIUM_DATA_STATES.NO_APPLICATIONS ||
@@ -190,7 +196,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // Log warning if this is a clickable key but we don't have specific rendering for it
-        if (isClickableItemKey(key) && !isPremiumField &&
+        if (isClickableItemKey(key) && !isLocked &&
             key !== "epc" && key !== "floorPlan" &&
             key !== "crimeScore" && key !== "planningPermissions" &&
             key !== "nearbyPlanningPermissions") {
@@ -202,13 +208,31 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
     return (
         <li
-            className={`grid grid-cols-[1rem_90px_1fr_2rem] items-center p-2 ${isPremiumField ? 'bg-gray-50 border border-gray-200' : 'bg-gray-100'} rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
+            className={`grid grid-cols-[1rem_1fr_1fr_2rem] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
             <div className="flex items-center justify-start">
                 <IconComponent className={`w-4 h-4 ${color}`} />
             </div>
             <div className="flex items-center ml-2">
                 <span>{label}</span>
+                {showBoost && (
+                    <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={canUpgrade ? handleUpgradeClick : undefined}
+                                    className={`ml-1 p-0.5 -m-0.5 rounded-full ${canUpgrade ? 'cursor-pointer hover:bg-yellow-100' : ''} focus:outline-none focus:ring-1 focus:ring-yellow-400`}
+                                    aria-label={canUpgrade ? "Upgrade to enhance" : "Enhanced with Premium"}
+                                >
+                                    <FaBolt className="w-3 h-3 text-yellow-500" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="center" className="max-w-xs">
+                                Enhanced with Premium data for more accuracy{canUpgrade ? ' - Click to upgrade' : ''}.
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
             </div>
             <div className="text-gray-800 ml-4 flex items-center">{renderValue()}</div>
             <div className="flex items-center justify-center ml-4">

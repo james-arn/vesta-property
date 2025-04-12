@@ -23,6 +23,8 @@ export interface PropertyDataListItem {
   toolTipExplainer: string | React.ReactNode;
   epcBandData?: EpcBandResult;
   confidence?: Confidence | null;
+  isUnlockedWithPremium: boolean;
+  isBoostedWithPremium: boolean;
 }
 
 export interface AgentDetails {

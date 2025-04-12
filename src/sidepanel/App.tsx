@@ -1,6 +1,5 @@
 import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
-import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { ActionEvents } from '@/constants/actionEvents';
 import { emptyPropertyData } from '@/constants/emptyPropertyData';
@@ -385,7 +384,7 @@ const App: React.FC = () => {
               handleEpcValueChange={handleEpcValueChange}
             />
           ) : (
-            <Suspense fallback={<LoadingSpinner />}>
+            <Suspense fallback={<SideBarLoading />}>
               <LazyChecklistView
                 filteredChecklistData={filteredChecklistData}
                 openGroups={openGroups}

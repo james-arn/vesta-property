@@ -31,7 +31,7 @@ export const isPremiumNoDataValue = (value: unknown): value is PremiumDataStateV
   );
 };
 
-export const PREMIUM_PLACEHOLDER_DESCRIPTIONS: Record<string, string> = {
+export const PREMIUM_LOCKED_DESCRIPTIONS: Record<string, string> = {
   planningPermissions: "Unlock details on applications and restrictions [Premium]",
   nearbyPlanningPermissions: "See what's happening in your area [Premium]",
   floodRisk: "See detailed risk assessment and history [Premium]",

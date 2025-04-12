@@ -44,14 +44,13 @@ const mapEpcToScore = (rating?: string | number | null): number => {
   return averageScore; // Return average if rating is null/undefined/invalid type
 };
 const mapTenureToRiskScore = (tenure?: string | null): number => {
-  // Higher score = Higher Risk
-  if (!tenure) return 50; // Neutral score if unknown
+  // Higher score = Higher Risk/Constraint Level
+  if (!tenure) return 50;
   const lowerTenure = tenure.toLowerCase();
-  if (lowerTenure.includes("freehold")) return 0; // Lowest risk
-  if (lowerTenure.includes("leasehold")) return 70; // Higher risk
-  // Assign intermediate risk for others
-  if (lowerTenure.includes("share of freehold") || lowerTenure.includes("commonhold")) return 10;
-  return 50; // Default neutral score for other/unclear tenures
+  if (lowerTenure.includes("freehold")) return 0; // Low constraint/risk
+  if (lowerTenure.includes("leasehold")) return 70; // High constraint/risk
+  if (lowerTenure.includes("share of freehold") || lowerTenure.includes("commonhold")) return 10; // Low-ish constraint
+  return 50;
 };
 
 // --- Constants for Scoring Logic ---
@@ -158,49 +157,91 @@ const calculateRunningCostsScore = (
   };
 };
 
-const calculateRiskScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
-  const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RISK] || [];
-  const contributingItems = items.filter((item) => contributingKeys.includes(item.key));
-  if (contributingItems.length === 0) return undefined;
-
-  const tenureItem = findItem(contributingItems, "tenure");
-  // Use new mapper where higher score = higher risk
-  const tenureRiskScore = mapTenureToRiskScore(getItemValue(tenureItem));
-
-  // --- TODO: Incorporate other risk factors ---
-  // Example: Add points for listedProperty, restrictions etc.
-  // let totalRiskScore = tenureRiskScore;
-  // const listedPropertyItem = findItem(contributingItems, "listedProperty");
-  // if (listedPropertyItem?.status === DataStatus.FOUND_POSITIVE) { // Assuming FOUND_POSITIVE means 'Yes' for listed
-  //     totalRiskScore += 15; // Add risk points if listed
-  // }
-  // const restrictionsItem = findItem(contributingItems, "restrictions");
-  // if (restrictionsItem?.status === DataStatus.FOUND_POSITIVE) { // Assuming FOUND_POSITIVE means restrictions exist
-  //     totalRiskScore += 10; // Add risk points for restrictions
-  // }
-  // --- End TODO ---
-
-  // For now, just use tenure risk score, clamped 0-100
-  const finalScoreValue = Math.max(0, Math.min(100, tenureRiskScore));
-
-  // Adjust label function for direct risk score (higher number = higher risk)
-  const getRiskLabel = (riskScore: number): string => {
-    if (riskScore >= 65) return "High Risk"; // e.g. 65-100
-    if (riskScore >= 50) return "Medium-High Risk"; // e.g. 50-64
-    if (riskScore >= 35) return "Medium Risk"; // e.g. 35-49
-    if (riskScore >= 20) return "Low-Medium Risk"; // e.g. 20-34
-    return "Low Risk"; // e.g. 0-19
+const calculateInvestmentValueScore = (
+  items: PropertyDataListItem[]
+): CategoryScoreData | undefined => {
+  console.warn("Investment Value score calculation not implemented.");
+  // TODO: Implement logic comparing price, estimates, trends etc.
+  // Placeholder: return a neutral score
+  return {
+    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Value" },
+    contributingItems: items,
   };
-  const scoreLabel = getRiskLabel(finalScoreValue);
+};
+
+const calculateConnectivityScore = (
+  items: PropertyDataListItem[]
+): CategoryScoreData | undefined => {
+  console.warn("Connectivity score calculation not implemented.");
+  // TODO: Implement logic based on broadband, mobile coverage, proximity etc.
+  // Placeholder: return a neutral score
+  return {
+    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Connectivity" },
+    contributingItems: items,
+  };
+};
+
+const calculateConditionScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
+  console.warn("Condition score calculation not implemented.");
+  // TODO: Implement logic based on age, materials, EPC, known issues etc.
+  // Placeholder: return a neutral score
+  return {
+    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Condition" },
+    contributingItems: items,
+  };
+};
+
+const calculateEnvironmentalRiskScore = (
+  items: PropertyDataListItem[]
+): CategoryScoreData | undefined => {
+  console.warn("Environmental Risk score calculation needs implementation beyond placeholders.");
+  // TODO: Implement logic summing risk points from flood, crime, noise, etc.
+  const crimeItem = findItem(items, "crimeScore");
+  // ... get other relevant items ...
+  let totalRiskPoints = 0;
+  // Add points based on crime score value, flood status, etc.
+  // Example: if crime score is high, add points.
+
+  const finalScoreValue = Math.max(0, Math.min(100, totalRiskPoints)); // Higher score = higher risk
+
+  const getEnvironmentalRiskLabel = (riskScore: number): string => {
+    if (riskScore >= 65) return "High Risk";
+    if (riskScore >= 50) return "Medium-High Risk";
+    if (riskScore >= 35) return "Medium Risk";
+    if (riskScore >= 20) return "Low-Medium Risk";
+    return "Low Risk";
+  };
+  const scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
 
   return {
-    score: {
-      scoreValue: Math.round(finalScoreValue),
-      maxScore: 100,
-      scoreLabel: scoreLabel,
-    },
-    contributingItems,
-    // TODO: Add warnings based on specific risk factors found
+    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
+    contributingItems: items,
+  };
+};
+
+const calculateLegalConstraintsScore = (
+  items: PropertyDataListItem[]
+): CategoryScoreData | undefined => {
+  console.warn("Legal Constraints score calculation needs implementation beyond placeholders.");
+  // TODO: Implement logic summing constraint points from tenure, listed status, restrictions etc.
+  const tenureItem = findItem(items, "tenure");
+  let totalConstraintPoints = mapTenureToRiskScore(getItemValue(tenureItem)); // Start with tenure points
+  // ... check listedProperty, restrictions, lease term < 80, etc. and add points ...
+
+  const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints)); // Higher score = more constraints
+
+  const getLegalConstraintsLabel = (constraintScore: number): string => {
+    if (constraintScore >= 65) return "Severe Constraints";
+    if (constraintScore >= 50) return "Medium-High Constraints";
+    if (constraintScore >= 35) return "Medium Constraints";
+    if (constraintScore >= 20) return "Low-Medium Constraints";
+    return "Low Constraints";
+  };
+  const scoreLabel = getLegalConstraintsLabel(finalScoreValue);
+
+  return {
+    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
+    contributingItems: items,
   };
 };
 
@@ -248,10 +289,6 @@ const calculateSafetyScore = (items: PropertyDataListItem[]): CategoryScoreData 
   // Example placeholder: return a default score or undefined
   return undefined;
 };
-const calculateConditionScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
-  console.warn("Condition score calculation not implemented.");
-  return undefined;
-};
 const calculateValueForMoneyScore = (
   items: PropertyDataListItem[]
 ): CategoryScoreData | undefined => {
@@ -277,20 +314,22 @@ export const calculateDashboardScores = (
     [DashboardScoreCategory.RUNNING_COSTS]: calculateRunningCostsScore(
       getItemsForCategory(DashboardScoreCategory.RUNNING_COSTS)
     ),
-    [DashboardScoreCategory.SAFETY]: calculateSafetyScore(
-      getItemsForCategory(DashboardScoreCategory.SAFETY)
+    [DashboardScoreCategory.INVESTMENT_VALUE]: calculateInvestmentValueScore(
+      getItemsForCategory(DashboardScoreCategory.INVESTMENT_VALUE)
+    ),
+    [DashboardScoreCategory.CONNECTIVITY]: calculateConnectivityScore(
+      getItemsForCategory(DashboardScoreCategory.CONNECTIVITY)
     ),
     [DashboardScoreCategory.CONDITION]: calculateConditionScore(
       getItemsForCategory(DashboardScoreCategory.CONDITION)
     ),
-    [DashboardScoreCategory.VALUE_FOR_MONEY]: calculateValueForMoneyScore(
-      getItemsForCategory(DashboardScoreCategory.VALUE_FOR_MONEY)
+    [DashboardScoreCategory.ENVIRONMENTAL_RISK]: calculateEnvironmentalRiskScore(
+      getItemsForCategory(DashboardScoreCategory.ENVIRONMENTAL_RISK)
     ),
-    [DashboardScoreCategory.RISK]: calculateRiskScore(
-      getItemsForCategory(DashboardScoreCategory.RISK)
+    [DashboardScoreCategory.LEGAL_CONSTRAINTS]: calculateLegalConstraintsScore(
+      getItemsForCategory(DashboardScoreCategory.LEGAL_CONSTRAINTS)
     ),
-    // Completeness score uses all checklist items
-    [DashboardScoreCategory.COMPLETENESS]: calculateCompletenessScore(checklistData),
+    [DashboardScoreCategory.LISTING_COMPLETENESS]: calculateCompletenessScore(checklistData),
   };
 
   // Filter out any categories where calculation resulted in undefined

@@ -1,57 +1,108 @@
 // Define enum for categories for type safety and mapping
 export enum DashboardScoreCategory {
   RUNNING_COSTS = "RUNNING_COSTS",
-  SAFETY = "SAFETY",
+  INVESTMENT_VALUE = "INVESTMENT_VALUE",
+  CONNECTIVITY = "CONNECTIVITY", // Placeholder
   CONDITION = "CONDITION",
-  VALUE_FOR_MONEY = "VALUE_FOR_MONEY",
-  RISK = "RISK",
-  COMPLETENESS = "COMPLETENESS",
+  ENVIRONMENTAL_RISK = "ENVIRONMENTAL_RISK",
+  LEGAL_CONSTRAINTS = "LEGAL_CONSTRAINTS",
+  LISTING_COMPLETENESS = "LISTING_COMPLETENESS",
 }
 
 // Map categories to the *keys* of checklist items contributing to them
 // **CRUCIAL**: Update these keys to match your actual PropertyDataList keys
 export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } = {
-  [DashboardScoreCategory.RUNNING_COSTS]: ["councilTax", "epc", "heatingType", "windows", "tenure"],
-  [DashboardScoreCategory.SAFETY]: [
+  [DashboardScoreCategory.RUNNING_COSTS]: [
+    "councilTax",
+    "epc", // Efficiency impacts cost
+    "heatingType", // Fuel type/efficiency impacts cost
+    "windows", // Glazing impacts heating cost
+    "tenure", // Leasehold vs freehold - leasehold may have
+    "groundRent", // Direct cost for leaseholders
+    "serviceCharge", // Direct cost for leaseholders/managed properties
+    // Consider adding broadband/mobile coverage if they have cost implications?
+  ],
+  [DashboardScoreCategory.INVESTMENT_VALUE]: [
+    "price", // Asking price
+    "listingHistory", // Price changes, time on market
+    "priceDiscrepancy", // Vs last sale
+    "compoundAnnualGrowthRate", // Historical growth
+    "volatility", // Price stability
+    "estimatedSaleValue", // AVM benchmark
+    "nearbyCompletedSales", // Comparables
+    "outcodeAvgSalesPrice", // Area benchmark
+    "outcodePriceTrend", // Market direction
+    "outcodePriceTrend12mAvg",
+    "estimatedRentalValue", // For BTL
+    "estimatedAnnualRentalYield", // For BTL
+    "yearlySalesVolume",
+    "propensityToSell",
+    "propensityToLet",
+    "nearbySalesListings",
+    "nearbyRentalListings",
+    "outcodeSalesVolume",
+  ],
+  [DashboardScoreCategory.CONNECTIVITY]: [
+    "broadband",
+    "mobileServiceCoverage",
+    "healthcareProximity",
+    "schoolProximity",
+    "trainStationProximity",
+    "policeForceProximity",
+    // premium has ferry?
+  ],
+  [DashboardScoreCategory.CONDITION]: [
+    "propertyType",
+    "accessibility",
+    "epc", // Reflects insulation, system age
+    "bedrooms",
+    "bathrooms",
+    "heatingType", // System age/type
+    "size",
+    "constructionMaterials", // Maintenance implications
+    "constructionAgeBand", // Age implies condition
+    "garden", // Presence/state
+    "windows", // Glazing/material state
+    "parking", // Presence/state
+    "buildingSafety", // Keywords might indicate condition issues (e.g., mould)
+    "occupancyStatus", // Potential wear difference
+  ],
+  [DashboardScoreCategory.ENVIRONMENTAL_RISK]: [
     "crimeScore",
     "floodDefences",
     "floodSources",
     "floodedInLastFiveYears",
-    "buildingSafety",
+    "detailedFloodRiskAssessment",
+    "buildingSafety", // Environmental hazards (e.g., asbestos)
     "coastalErosion",
     "miningImpact",
+    "airportNoiseAssessment",
+    "nationalParkProximity",
+    "policeForceProximity",
+    "healthcareProximity",
   ],
-  [DashboardScoreCategory.CONDITION]: [
-    "propertyType",
-    "bedrooms",
-    "bathrooms",
-    "size",
-    "heatingType",
-    "windows",
-    "epc",
-  ], // Example keys (EPC contributes here too)
-  [DashboardScoreCategory.VALUE_FOR_MONEY]: [
-    "salePrice",
-    "priceDiscrepancy",
-    "compoundAnnualGrowthRate",
-    "volatility",
-  ], // Example keys from salesHistory
-  [DashboardScoreCategory.RISK]: [
+  [DashboardScoreCategory.LEGAL_CONSTRAINTS]: [
     "tenure",
     "listedProperty",
     "restrictions",
     "publicRightOfWayObligation",
     "privateRightOfWayObligation",
-  ], // Example keys
-  // Completeness is calculated globally
+    "remainingLeaseTerm",
+    "titleDeedIssues",
+    "conservationAreaStatus",
+    "planningPermissions",
+    "nearbyPlanningPermissions",
+  ],
+  // LISTING_COMPLETENESS uses a global calculation, no specific keys needed here
 };
 
 // User-friendly display names for categories
 export const DASHBOARD_CATEGORY_DISPLAY_NAMES: Record<DashboardScoreCategory, string> = {
   [DashboardScoreCategory.RUNNING_COSTS]: "Running Costs",
-  [DashboardScoreCategory.SAFETY]: "Safety & Environment",
-  [DashboardScoreCategory.CONDITION]: "Property Condition",
-  [DashboardScoreCategory.VALUE_FOR_MONEY]: "Value For Money",
-  [DashboardScoreCategory.RISK]: "Legal & Risk Factors",
-  [DashboardScoreCategory.COMPLETENESS]: "Listing Completeness",
+  [DashboardScoreCategory.INVESTMENT_VALUE]: "Investment Value",
+  [DashboardScoreCategory.CONNECTIVITY]: "Connectivity",
+  [DashboardScoreCategory.CONDITION]: "Condition",
+  [DashboardScoreCategory.ENVIRONMENTAL_RISK]: "Environmental Risk",
+  [DashboardScoreCategory.LEGAL_CONSTRAINTS]: "Legal Constraints",
+  [DashboardScoreCategory.LISTING_COMPLETENESS]: "Listing Completeness",
 };
