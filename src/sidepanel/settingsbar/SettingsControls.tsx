@@ -15,7 +15,7 @@ import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import React from "react";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
-import { GoCreditCard, GoStar } from "react-icons/go";
+import { GoCreditCard } from "react-icons/go";
 import { IoSettingsOutline } from "react-icons/io5";
 import { MdManageAccounts } from "react-icons/md";
 import { VscFeedback } from "react-icons/vsc";
@@ -28,14 +28,6 @@ const SettingsIcon = () => (
             </div>
         </div>
     </TooltipProvider>
-);
-
-// Premium upgrade footer component
-const PremiumFooterCTA = ({ onClick }: { onClick: () => void }) => (
-    <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-amber-400 to-amber-600 text-white p-3 shadow-md flex items-center justify-center cursor-pointer z-10" onClick={onClick}>
-        <GoStar className="mr-2 text-amber-100" size={18} />
-        <span className="font-medium">Upgrade to Premium</span>
-    </div>
 );
 
 const SettingsControls = () => {
@@ -123,9 +115,6 @@ const SettingsControls = () => {
                     </DropdownMenuGroup>
                 </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Only show premium footer CTA when not authenticated */}
-            {!isAuthenticated && <PremiumFooterCTA onClick={handleUpgrade} />}
         </>
     );
 };

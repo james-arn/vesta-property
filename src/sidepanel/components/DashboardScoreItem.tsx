@@ -107,7 +107,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </div>
                     </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-3 pt-2 pb-3 bg-slate-50/50 border-t border-slate-100">
+                <AccordionContent className="bg-slate-50/50 border-t border-slate-100">
                     {hasRelevantContributingItems ? (
                         <ul className="list-none p-0 m-0 space-y-1">
                             {relevantContributingItems.map(item => {

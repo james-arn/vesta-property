@@ -174,9 +174,9 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
 
-    // Sales History
+    // Investment Potential
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Price Change from last sale",
       key: "priceDiscrepancy",
       status:
@@ -196,7 +196,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Historical Compound Annual Growth Rate (CAGR)",
       key: "compoundAnnualGrowthRate",
       status: getCAGRStatus(propertyData.salesHistory.compoundAnnualGrowthRate),
@@ -225,7 +225,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Volatility",
       key: "volatility",
       status: getVolatilityStatus(
@@ -253,46 +253,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Local Outcode Price Trends",
-      key: "outcodePriceTrend",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Shows the general direction of property prices within the broader postcode area (outcode).\n\n" +
-        "Helps understand if the local market is appreciating, depreciating, or stable, providing context for the asking price.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Local Outcode Price Trends (12m Avg)",
-      key: "outcodePriceTrend12mAvg",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Provides the average price trend over the last 12 months for the property's outcode.\n\n" +
-        "Offers a smoother view of market performance compared to potentially volatile shorter-term trends.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Yearly Sales Volume",
-      key: "yearlySalesVolume",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Indicates the number of properties sold annually in the area.\n\n" +
-        "High volume can suggest a dynamic market, while low volume might indicate stability or lower demand.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Sale Value",
       key: "estimatedSaleValue",
       status: DataStatus.ASK_AGENT,
@@ -305,7 +266,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Rental Value",
       key: "estimatedRentalValue",
       status: DataStatus.ASK_AGENT,
@@ -318,7 +279,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Annual Rental Yield",
       key: "estimatedAnnualRentalYield",
       status: DataStatus.ASK_AGENT,
@@ -331,7 +292,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Sell",
       key: "propensityToSell",
       status: DataStatus.ASK_AGENT,
@@ -344,7 +305,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Let",
       key: "propensityToLet",
       status: DataStatus.ASK_AGENT,
@@ -356,71 +317,111 @@ export function generatePropertyChecklist(
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Nearby Sales Listings",
-      key: "nearbySalesListings",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Information on comparable properties currently listed for sale nearby.\n\n" +
-        "Helps gauge competition, current market pricing, and relative value of the subject property.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Nearby Rental Listings",
-      key: "nearbyRentalListings",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Details of comparable properties currently available for rent in the vicinity.\n\n" +
-        "Provides context for expected rental income and demand if considering letting the property.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Nearby Completed Sales",
-      key: "nearbyCompletedSales",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Data on recent actual sale prices of comparable properties in the local area.\n\n" +
-        "Crucial for accurately assessing market value and supporting offer negotiations.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Outcode Sales Volume",
-      key: "outcodeSalesVolume",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Total number of property sales within the broader postcode area (outcode) over a recent period.\n\n" +
-        "Indicates the overall activity level and liquidity of the local market.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.SALES_HISTORY,
-      label: "Outcode Average Sales Price",
-      key: "outcodeAvgSalesPrice",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "The average price properties sold for within the outcode over a recent period.\n\n" +
-        "Provides a general benchmark for property values in the area.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
+    // TODO: Revist these in later release
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Local Outcode Price Trends",
+    //   key: "outcodePriceTrend",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Shows the general direction of property prices within the broader postcode area (outcode).\n\n" +
+    //     "Helps understand if the local market is appreciating, depreciating, or stable, providing context for the asking price.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Local Outcode Price Trends (12m Avg)",
+    //   key: "outcodePriceTrend12mAvg",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Provides the average price trend over the last 12 months for the property's outcode.\n\n" +
+    //     "Offers a smoother view of market performance compared to potentially volatile shorter-term trends.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Yearly Sales Volume",
+    //   key: "yearlySalesVolume",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Indicates the number of properties sold annually in the area.\n\n" +
+    //     "High volume can suggest a dynamic market, while low volume might indicate stability or lower demand.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Nearby Sales Listings",
+    //   key: "nearbySalesListings",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Information on comparable properties currently listed for sale nearby.\n\n" +
+    //     "Helps gauge competition, current market pricing, and relative value of the subject property.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Nearby Rental Listings",
+    //   key: "nearbyRentalListings",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Details of comparable properties currently available for rent in the vicinity.\n\n" +
+    //     "Provides context for expected rental income and demand if considering letting the property.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Nearby Completed Sales",
+    //   key: "nearbyCompletedSales",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Data on recent actual sale prices of comparable properties in the local area.\n\n" +
+    //     "Crucial for accurately assessing market value and supporting offer negotiations.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Outcode Sales Volume",
+    //   key: "outcodeSalesVolume",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Total number of property sales within the broader postcode area (outcode) over a recent period.\n\n" +
+    //     "Indicates the overall activity level and liquidity of the local market.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+    //   label: "Outcode Average Sales Price",
+    //   key: "outcodeAvgSalesPrice",
+    //   status: DataStatus.ASK_AGENT,
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "The average price properties sold for within the outcode over a recent period.\n\n" +
+    //     "Provides a general benchmark for property values in the area.",
+    //   isUnlockedWithPremium: true,
+    //   isBoostedWithPremium: false,
+    // },
     epcChecklistItem,
 
     // Interior Details

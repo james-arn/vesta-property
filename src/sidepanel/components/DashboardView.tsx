@@ -90,7 +90,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ];
 
     return (
-        <div className="dashboard-view p-4 space-y-2">
+        <div className="dashboard-view space-y-2">
             {categoryOrder.map((category) => {
                 const categoryScoreData = dashboardScores[category];
                 const title = getCategoryDisplayName(category);

@@ -2,7 +2,7 @@ import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts"; // Corrected i
 
 export const PropertyGroups = {
   GENERAL: "General",
-  SALES_HISTORY: "Sales History",
+  INVESTMENT_POTENTIAL: "Investment Potential",
   INTERIOR: "Interior",
   EXTERIOR: "Exterior",
   UTILITIES: "Utilities",
