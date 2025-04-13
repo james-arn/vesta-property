@@ -29,7 +29,7 @@ export function setupContentScriptEventListeners() {
         console.log("Content Script: Extracted property data:", propertyData);
 
         chrome.runtime.sendMessage({
-          action: ActionEvents.UPDATE_PROPERTY_DATA,
+          action: ActionEvents.PROPERTY_PAGE_OPENED,
           data: propertyData,
         });
         sendResponse({ status: "ok", message: "tab changed/extension opened, sent property data" });

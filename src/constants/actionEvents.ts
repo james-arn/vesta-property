@@ -1,6 +1,6 @@
 export const ActionEvents = {
   PAGE_MODEL_AVAILABLE: "pageModelAvailable", // note- used as magic string in injectScript.js due to import syntax issues
-  UPDATE_PROPERTY_DATA: "updatePropertyData",
+  PROPERTY_PAGE_OPENED: "propertyPageOpened",
   SHOW_WARNING: "showWarning",
   TAB_CHANGED_OR_EXTENSION_OPENED: "navigatedUrlOrTabChangedOrExtensionOpened",
   SIDE_PANEL_OPENED: "sidePanelOpened",

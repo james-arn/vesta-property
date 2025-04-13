@@ -103,6 +103,9 @@ export interface ExtractedPropertyScrapingData {
     lat: number | null;
     lng: number | null;
   };
+  leaseTerm: string | null;
+  groundRent: string | null;
+  serviceCharge: string | null;
 }
 
 export interface SaleHistoryEntry {

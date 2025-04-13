@@ -1,13 +1,12 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 // Correct import path and type
-import { PropertyDataListItem } from '@/types/property';
+import { DashboardScores, PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import { DashboardScoreCategory } from '@/constants/dashboardConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
-import { calculateDashboardScores } from '@/utils/scoreCalculations';
 import {
     Home // Example for Condition
     , // Example for Value
@@ -20,6 +19,11 @@ import {
 } from 'lucide-react';
 import { DashboardScoreItem } from './DashboardScoreItem';
 
+interface DashboardCalculationData {
+    calculatedLeaseMonths: number | null;
+    epcScoreForCalculation: number;
+}
+
 type GetValueClickHandlerType = (
     item: PropertyDataListItem,
     openNewTab: (url: string) => void,
@@ -30,6 +34,7 @@ type GetValueClickHandlerType = (
 
 interface DashboardViewProps {
     checklistsData: PropertyDataListItem[] | null;
+    dashboardScores: DashboardScores;
     isPremiumDataFetched: boolean;
     processedEpcResult?: EpcProcessorResult;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
@@ -55,6 +60,7 @@ const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
     checklistsData,
+    dashboardScores,
     isPremiumDataFetched,
     processedEpcResult,
     epcDebugCanvasRef,
@@ -66,8 +72,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     toggleNearbyPlanningPermissionCard,
     handleEpcValueChange
 }) => {
-    const dashboardScores = useMemo(() => calculateDashboardScores(checklistsData), [checklistsData]);
-
     // Define the upgrade URL from config here
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
@@ -75,7 +79,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         return <div className="p-4 text-center text-muted-foreground">Loading dashboard data...</div>;
     }
 
-    // Determine the order of NEW categories for display
     const categoryOrder: DashboardScoreCategory[] = [
         DashboardScoreCategory.RUNNING_COSTS,
         DashboardScoreCategory.INVESTMENT_VALUE,

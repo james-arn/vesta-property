@@ -76,4 +76,7 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
     lat: null,
     lng: null,
   },
+  leaseTerm: null,
+  groundRent: null,
+  serviceCharge: null,
 };

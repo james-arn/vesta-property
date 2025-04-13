@@ -6,6 +6,18 @@ import {
   PropertyDataListItem,
 } from "@/types/property";
 
+interface CalculationData {
+  calculatedLeaseMonths: number | null;
+  epcScoreForCalculation: number;
+}
+
+// Define a default/unavailable score structure
+const UNAVAILABLE_SCORE_DATA: CategoryScoreData = {
+  score: { scoreValue: 0, maxScore: 100, scoreLabel: "Unavailable" },
+  contributingItems: [],
+  warningMessage: "Required data missing for calculation.",
+};
+
 // --- Helper Functions used only within this file ---
 const findItem = (items: PropertyDataListItem[], key: string): PropertyDataListItem | undefined => {
   return items.find((item) => item.key === key);
@@ -29,7 +41,8 @@ const mapCouncilTaxToScore = (band?: string | null): number => {
   };
   return typeof band === "string" ? (bandMap[band.trim().toUpperCase()] ?? 50) : 50;
 };
-const mapEpcToScore = (rating?: string | number | null): number => {
+
+export const mapEpcToScore = (rating?: string | number | null): number => {
   const averageScore = 55; // Score equivalent to 'D' rating UK average
 
   if (typeof rating === "number") {
@@ -43,6 +56,7 @@ const mapEpcToScore = (rating?: string | number | null): number => {
   }
   return averageScore; // Return average if rating is null/undefined/invalid type
 };
+
 const mapTenureToRiskScore = (tenure?: string | null): number => {
   // Higher score = Higher Risk/Constraint Level
   if (!tenure) return 50;
@@ -71,8 +85,9 @@ const DEFAULT_EPC_COST_SCORE = 50; // Equivalent to a 'D' rating
 // --- Individual Category Score Calculations ---
 
 const calculateRunningCostsScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
+  items: PropertyDataListItem[],
+  calculationData: CalculationData
+): CategoryScoreData => {
   const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
   const contributingItemsFound = items.filter((item) => contributingKeys.includes(item.key));
 
@@ -80,23 +95,22 @@ const calculateRunningCostsScore = (
   const epcItem = findItem(contributingItemsFound, "epc");
   const tenureItem = findItem(contributingItemsFound, "tenure");
 
-  // Council tax is essential for this score calculation approach
+  // Council tax is essential
   if (!councilTaxItem || councilTaxItem.status === DataStatus.ASK_AGENT) {
     console.warn("Cannot calculate running costs score without valid council tax data.");
-    return undefined;
+    // Return a default unavailable score object
+    return {
+      ...UNAVAILABLE_SCORE_DATA,
+      contributingItems: contributingItemsFound, // Still show contributing items
+      warningMessage: "Valid council tax data needed for Running Costs score.",
+    };
   }
 
   const councilTaxValue = getItemValue(councilTaxItem);
   const epcValue = getItemValue(epcItem);
   const tenureValue = getItemValue(tenureItem);
 
-  // Calculate individual cost scores (0-100, higher is more costly)
-  const councilTaxCostScore = mapCouncilTaxToScore(councilTaxValue);
-  const isValidEpcGrade = typeof epcValue === "string" && /^[A-G]\b/i.test(epcValue.trim());
-  const epcEfficiencyScore = isValidEpcGrade
-    ? mapEpcToScore(epcValue)
-    : 100 - DEFAULT_EPC_COST_SCORE;
-  const epcCostScore = 100 - epcEfficiencyScore;
+  const epcCostScore = 100 - calculationData.epcScoreForCalculation;
 
   const getTenureCostScore = (): number => {
     if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
@@ -113,7 +127,7 @@ const calculateRunningCostsScore = (
 
   // Calculate weighted total cost score
   const totalCostScore =
-    councilTaxCostScore * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX +
+    mapCouncilTaxToScore(councilTaxValue) * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX +
     epcCostScore * RUNNING_COSTS_WEIGHTS.EPC +
     tenureCostScore * RUNNING_COSTS_WEIGHTS.TENURE;
 
@@ -132,7 +146,7 @@ const calculateRunningCostsScore = (
 
   // Generate Warnings
   const warnings: string[] = [];
-  if (!isValidEpcGrade) {
+  if (!epcItem || epcItem.status === DataStatus.ASK_AGENT) {
     warnings.push("EPC rating not found or invalid; score calculated using UK average (D).");
   }
   if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
@@ -220,15 +234,24 @@ const calculateEnvironmentalRiskScore = (
 };
 
 const calculateLegalConstraintsScore = (
-  items: PropertyDataListItem[]
+  items: PropertyDataListItem[],
+  calculationData: CalculationData // Accept calculationData
 ): CategoryScoreData | undefined => {
   console.warn("Legal Constraints score calculation needs implementation beyond placeholders.");
-  // TODO: Implement logic summing constraint points from tenure, listed status, restrictions etc.
   const tenureItem = findItem(items, "tenure");
-  let totalConstraintPoints = mapTenureToRiskScore(getItemValue(tenureItem)); // Start with tenure points
-  // ... check listedProperty, restrictions, lease term < 80, etc. and add points ...
+  let totalConstraintPoints = mapTenureToRiskScore(getItemValue(tenureItem));
 
-  const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints)); // Higher score = more constraints
+  // --- Use calculatedLeaseMonths ---
+  const leaseMonths = calculationData.calculatedLeaseMonths;
+  if (leaseMonths !== null && leaseMonths < 12 * 80) {
+    // Check if less than 80 years (in months)
+    console.log("Lease term less than 80 years, adding constraint points.");
+    totalConstraintPoints += 30; // Example: Add significant points for short lease
+  }
+
+  // ... check listedProperty, restrictions, etc. and add points ...
+
+  const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints));
 
   const getLegalConstraintsLabel = (constraintScore: number): string => {
     if (constraintScore >= 65) return "Severe Constraints";
@@ -298,21 +321,21 @@ const calculateValueForMoneyScore = (
 
 // --- Main Orchestration Function ---
 export const calculateDashboardScores = (
-  checklistData: PropertyDataListItem[] | null
+  checklistData: PropertyDataListItem[] | null,
+  calculationData: CalculationData
 ): DashboardScores => {
   if (!checklistData) return {};
 
-  // Helper to get only items relevant to a specific category
   const getItemsForCategory = (category: DashboardScoreCategory): PropertyDataListItem[] => {
     const itemKeys = CATEGORY_ITEM_MAP[category] || [];
     // Filter checklistData based on the keys defined for the category
     return checklistData.filter((item) => itemKeys.includes(item.key));
   };
 
-  // Calculate scores for each category
-  const scores: DashboardScores = {
+  const scores: Partial<DashboardScores> = {
     [DashboardScoreCategory.RUNNING_COSTS]: calculateRunningCostsScore(
-      getItemsForCategory(DashboardScoreCategory.RUNNING_COSTS)
+      getItemsForCategory(DashboardScoreCategory.RUNNING_COSTS),
+      calculationData
     ),
     [DashboardScoreCategory.INVESTMENT_VALUE]: calculateInvestmentValueScore(
       getItemsForCategory(DashboardScoreCategory.INVESTMENT_VALUE)
@@ -327,16 +350,18 @@ export const calculateDashboardScores = (
       getItemsForCategory(DashboardScoreCategory.ENVIRONMENTAL_RISK)
     ),
     [DashboardScoreCategory.LEGAL_CONSTRAINTS]: calculateLegalConstraintsScore(
-      getItemsForCategory(DashboardScoreCategory.LEGAL_CONSTRAINTS)
+      getItemsForCategory(DashboardScoreCategory.LEGAL_CONSTRAINTS),
+      calculationData // Pass calculationData
     ),
-    [DashboardScoreCategory.LISTING_COMPLETENESS]: calculateCompletenessScore(checklistData),
+    [DashboardScoreCategory.LISTING_COMPLETENESS]: calculateCompletenessScore(checklistData), // Doesn't need it
   };
 
-  // Filter out any categories where calculation resulted in undefined
+  // Filter out undefined/default scores before returning if desired,
+  // or let the DashboardView handle displaying the "Unavailable" state.
+  // For now, let's return everything, including potential unavailable ones.
   const finalScores = Object.entries(scores).reduce((acc, [key, value]) => {
-    if (value !== undefined) {
-      acc[key as DashboardScoreCategory] = value;
-    }
+    // Keep all results, even if they are the 'Unavailable' default
+    acc[key as DashboardScoreCategory] = value ?? UNAVAILABLE_SCORE_DATA;
     return acc;
   }, {} as DashboardScores);
 

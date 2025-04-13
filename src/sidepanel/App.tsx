@@ -2,16 +2,13 @@ import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { ActionEvents } from '@/constants/actionEvents';
-import { emptyPropertyData } from '@/constants/emptyPropertyData';
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import VIEWS from '@/constants/views';
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
-import { useProcessedEpcData } from '@/hooks/useProcessedEpcData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
-import { INITIAL_EPC_RESULT_STATE } from "@/lib/epcProcessing";
 import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,18 +16,17 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import {
   ConfidenceLevels,
   EpcDataSourceType,
-  ExtractedPropertyScrapingData,
-  PropertyDataListItem
+  ExtractedPropertyScrapingData
 } from "../types/property";
 
 import {
-  extractPropertyIdFromUrl,
-  filterChecklistToAllAskAgentOnlyItems,
   generateAgentMessage,
   getValueClickHandler
 } from "./helpers";
 
-import { generatePropertyChecklist } from "./propertychecklist/propertyChecklist";
+import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
+import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
+import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import SettingsBar from "./settingsbar/SettingsBar";
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
@@ -43,22 +39,33 @@ const LazyChecklistView = lazy(() =>
 );
 
 const App: React.FC = () => {
-  // 1. Property data starts empty and is updated via rightmove scrape
-  const { propertyData, dispatch } = usePropertyData()
-  const [isPropertyDataLoading, setIsPropertyDataLoading] = useState<boolean>(true);
-  const [nonPropertyPageWarningMessage, setNonPropertyPageWarningMessage] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    showAskAgentOnly: false,
-  });
+  // 1. We start by getting the scraped proerty data from the DOM (from contentscript.ts via background.ts)
+  const { propertyData, dispatch } = usePropertyData();
+  const queryClient = useQueryClient();
+  const { isPropertyDataLoading, nonPropertyPageWarningMessage } =
+    useBackgroundMessageHandler(dispatch, queryClient);
+
+  // --- Define Refs and State *before* hooks that use them --- 
   const epcDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isEpcDebugModeOn = process.env.IS_EPC_DEBUG_MODE === "true";
-
   const [currentView, setCurrentView] = useState<typeof VIEWS[keyof typeof VIEWS]>(
     VIEWS.DASHBOARD
   );
+  const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
+  const crimeContentRef = useRef<HTMLDivElement>(null);
+  const [crimeContentHeight, setCrimeContentHeight] = useState(0);
+  const [planningPermissionCardExpanded, setPlanningPermissionCardExpanded] = useState(false);
+  const planningPermissionContentRef = useRef<HTMLDivElement>(null);
+  const [planningPermissionContentHeight, setPlanningPermissionContentHeight] = useState(0);
+  const [nearbyPlanningPermissionCardExpanded, setNearbyPlanningPermissionCardExpanded] = useState(false);
+  const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
+  const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
+  const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
+  const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
+  const [agentMessage, setAgentMessage] = useState("");
 
+  // Destructure coords and immediately calculate memoized strings
   const { lat, lng } = propertyData.locationCoordinates;
-
   const latStr = useMemo(() => lat?.toString() ?? '', [lat]);
   const lngStr = useMemo(() => lng?.toString() ?? '', [lng]);
 
@@ -78,9 +85,6 @@ const App: React.FC = () => {
 
   useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
 
-  // 3. On premium click, building validation modal is used to confirm the building name/number of the property
-  const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
-
   // 4. Once confirmed address state is updated, Premium (paid) street data uses confirmed address to get the enhanced data of the property
   const premiumStreetDataQuery = usePremiumStreetData(
     propertyData.address.isAddressConfirmedByUser,
@@ -92,90 +96,53 @@ const App: React.FC = () => {
     lngStr
   );
 
-  const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
-  const crimeContentRef = useRef<HTMLDivElement>(null);
-  const [crimeContentHeight, setCrimeContentHeight] = useState(0);
-
-  const [planningPermissionCardExpanded, setPlanningPermissionCardExpanded] = useState(false);
-  const planningPermissionContentRef = useRef<HTMLDivElement>(null);
-  const [planningPermissionContentHeight, setPlanningPermissionContentHeight] = useState(0);
-
-  const [nearbyPlanningPermissionCardExpanded, setNearbyPlanningPermissionCardExpanded] = useState(false);
-  const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
-  const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
-
   useFeedbackAutoPrompt(propertyData.propertyId);
-  const queryClient = useQueryClient();
 
+  // --- Use the hook for checklist/dashboard data --- 
   const {
-    processedEpcResult,
-  } = useProcessedEpcData({
-    initialEpcData: propertyData.epc,
-    epcUrl: propertyData.epc?.url,
+    basePropertyChecklistData,
+    dashboardScores,
+    processedEpcResult
+  } = useChecklistAndDashboardData({
+    propertyData,
+    crimeScoreQuery: crimeQuery,
+    premiumStreetDataQuery,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
   });
+
+  // --- Use the hook for checklist display logic --- 
+  const {
+    filters,
+    openGroups,
+    filteredChecklistData,
+    toggleFilter,
+    toggleGroup,
+    setOpenGroups
+  } = useChecklistDisplayLogic(basePropertyChecklistData);
+
+  // --- Redefine Handlers needed by views --- 
+  const openNewTab = (url: string) => {
+    chrome.tabs.create({ url });
+  };
+
+  const toggleCrimeChart = () => {
+    setCrimeChartExpanded((prev) => !prev);
+  };
+
+  const togglePlanningPermissionCard = () => {
+    setPlanningPermissionCardExpanded((prev) => !prev);
+  };
+
+  const toggleNearbyPlanningPermissionCard = () => {
+    setNearbyPlanningPermissionCardExpanded((prev) => !prev);
+  };
 
   useEffect(function tellBackgroundSideBarOpened() {
     chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
       console.log('SIDE_PANEL_OPENED response:', response);
     });
   }, [])
-
-  useEffect(function handleMessages() {
-    const handleMessage = (
-      message: { action: string; data?: any },
-      sender: chrome.runtime.MessageSender,
-      sendResponse: (response: any) => void
-    ) => {
-      console.log("[Side Panel] Received message:", message);
-
-      if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
-        console.log('TAB_CHANGED_OR_EXTENSION_OPENED hit')
-        const propertyIdFromTabUrl = extractPropertyIdFromUrl(message.data);
-        // If no valid property ID is found, show the warning message.
-        if (!propertyIdFromTabUrl) {
-          console.log('!propertyIdFromTabUrl')
-          setNonPropertyPageWarningMessage("Please open a property page on rightmove.co.uk.");
-          setIsPropertyDataLoading(false);
-          dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
-        } else {
-          // URL is valid – clear any existing warning and try to load cached data.
-          setNonPropertyPageWarningMessage(null);
-          setIsPropertyDataLoading(true);
-          const cachedPropertyData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
-            REACT_QUERY_KEYS.PROPERTY_DATA,
-            propertyIdFromTabUrl,
-          ]);
-          if (cachedPropertyData) {
-            console.log('cached')
-            dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: cachedPropertyData });
-            setIsPropertyDataLoading(false);
-          } else {
-            console.log('not-cached')
-            dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
-          }
-        }
-      } else if (message.action === ActionEvents.UPDATE_PROPERTY_DATA) {
-        // Once data is updated, update cache
-        queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, message.data.propertyId], message.data);
-        dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: message.data });
-        setIsPropertyDataLoading(false);
-        setNonPropertyPageWarningMessage(null);
-        console.log("[Side Panel] Property data updated:", message.data);
-      } else if (message.action === ActionEvents.SHOW_WARNING) {
-        console.log('showing warning')
-        setNonPropertyPageWarningMessage(message.data || null);
-        setIsPropertyDataLoading(false);
-        dispatch({ type: PropertyReducerActionTypes.SET_FULL_PROPERTY_DATA, payload: emptyPropertyData });
-        console.log("[Side Panel] Warning message set:", message.data);
-      }
-      sendResponse({ status: "acknowledged", action: message.action });
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [queryClient, dispatch]);
 
   useEffect(function updateCrimeContentHeight() {
     if (crimeContentRef.current) {
@@ -194,97 +161,6 @@ const App: React.FC = () => {
       setNearbyPlanningPermissionContentHeight(nearbyPlanningPermissionContentRef.current.scrollHeight);
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
-
-  const basePropertyChecklistData = useMemo(() => generatePropertyChecklist(
-    propertyData, // Pass the base property data
-    crimeQuery,
-    premiumStreetDataQuery,
-    processedEpcResult ?? INITIAL_EPC_RESULT_STATE
-  ), [propertyData, crimeQuery, premiumStreetDataQuery, processedEpcResult]);
-
-  // --- Filtering and Grouping Logic (now depends on displayChecklistData) ---
-  const initialOpenGroups = useMemo(() => basePropertyChecklistData.reduce(
-    (acc, item) => {
-      if (item.checklistGroup) {
-        acc[item.checklistGroup] = true;
-      }
-      return acc;
-    },
-    {} as Record<string, boolean>
-  ), [basePropertyChecklistData]);
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpenGroups);
-
-  const toggleGroup = useCallback((group: string) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [group]: !prev[group],
-    }));
-  }, []);
-
-  let lastGroup = "";
-
-  const openNewTab = (url: string) => {
-    chrome.tabs.create({ url });
-  };
-
-  const toggleFilter = (filterName: keyof typeof filters) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterName]: !prev[filterName],
-    }));
-  };
-
-  const applyFilters = useCallback(
-    (checklist: PropertyDataListItem[], currentFilters: typeof filters) => {
-      let filteredList = [...checklist]; // Start with a copy
-
-      if (currentFilters.showAskAgentOnly) {
-        filteredList = filterChecklistToAllAskAgentOnlyItems(filteredList);
-      }
-
-      // Future filters can be added here...
-      // if (currentFilters.someOtherFilter) { ... }
-
-      return filteredList;
-    },
-    [] // Dependencies for useCallback if filters logic changes
-  );
-
-  const filteredChecklistData = useMemo(
-    () => applyFilters(basePropertyChecklistData, filters),
-    [basePropertyChecklistData, filters, applyFilters]
-  );
-
-  const toggleCrimeChart = () => {
-    setCrimeChartExpanded((prev) => !prev);
-  };
-
-  const togglePlanningPermissionCard = () => {
-    setPlanningPermissionCardExpanded((prev) => !prev);
-  };
-
-  const toggleNearbyPlanningPermissionCard = () => {
-    setNearbyPlanningPermissionCardExpanded((prev) => !prev);
-  };
-
-  const renderedGroupsSet = new Set<string>();
-
-  const renderGroupHeading = useCallback((group: string) => {
-    if (renderedGroupsSet.has(group)) return null;
-    renderedGroupsSet.add(group);
-
-    const itemCount = filteredChecklistData.filter(item => item.checklistGroup === group).length;
-    return (
-      <li
-        className="mt-5 font-bold text-base cursor-pointer flex justify-between items-center"
-        onClick={() => toggleGroup(group)}
-      >
-        <span>{group} {!openGroups[group] && `(${itemCount})`}</span>
-        <span className="mr-2">{openGroups[group] ? "▼" : "▲"}</span>
-      </li>
-    );
-  }, [filteredChecklistData, openGroups, toggleGroup]);
 
   const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
     dispatch({
@@ -323,9 +199,6 @@ const App: React.FC = () => {
     }
   }, [dispatch, queryClient, propertyData.propertyId]);
 
-  const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
-  const [agentMessage, setAgentMessage] = useState("");
-
   const handleGenerateMessageClick = useCallback(() => {
     const message = generateAgentMessage(basePropertyChecklistData);
     setAgentMessage(message);
@@ -355,7 +228,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SettingsBar
-        toggleFilter={() => toggleFilter('showAskAgentOnly')}
+        toggleFilter={toggleFilter}
         filters={filters}
         openGroups={openGroups}
         setOpenGroups={setOpenGroups}
@@ -372,6 +245,7 @@ const App: React.FC = () => {
           ? (
             <DashboardView
               checklistsData={basePropertyChecklistData}
+              dashboardScores={dashboardScores}
               isPremiumDataFetched={isPremiumDataFetched}
               processedEpcResult={processedEpcResult}
               epcDebugCanvasRef={epcDebugCanvasRef}

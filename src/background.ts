@@ -142,7 +142,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Messages FROM Content Script or Background TO Side Panel (UI Updates)
   if (
     !isFromSidePanel && // Don't forward messages from side panel back to itself
-    (request.action === ActionEvents.UPDATE_PROPERTY_DATA ||
+    (request.action === ActionEvents.PROPERTY_PAGE_OPENED ||
       request.action === ActionEvents.SHOW_WARNING ||
       request.action === ActionEvents.AUTHENTICATION_COMPLETE ||
       request.action === ActionEvents.LOGOUT_COMPLETE)

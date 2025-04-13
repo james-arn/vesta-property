@@ -180,3 +180,34 @@ When publishing your extension to the Chrome Web Store, you only need to upload 
 2. Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
 3. Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
 4. Upload that zip file during the extension submission process.
+
+## Frontend Data Flow
+
+A key aspect of this extension's architecture is the separation between preparing data for UI display and preparing data for internal calculations (like the dashboard scores). This ensures maintainability and clear responsibilities.
+
+The primary data flow is orchestrated within `src/sidepanel/App.tsx`:
+
+1.  **Raw Data Acquisition:**
+
+    - `App.tsx` manages the state for scraped property data (`propertyData` via `usePropertyData` context), premium API query results (`usePremiumStreetData`, `useCrimeScore`), and processed EPC data (`useProcessedEpcData`).
+    - Messages from the background script update the `propertyData` state.
+
+2.  **Data Processing Hook (`useChecklistAndDashboardData`):**
+
+    - To keep `App.tsx` clean, the custom hook `src/hooks/useChecklistAndDashboardData.ts` takes the raw data sources as input.
+    - **Checklist Generation:** Inside the hook, `src/sidepanel/propertychecklist/propertyChecklist.ts -> generatePropertyChecklist` is called. This function's primary role is to create the `PropertyDataListItem[]` array needed by the UI. It transforms raw data points into appropriate _display strings_ and determines the correct `DataStatus` based on the best available information (preferring premium data if available and valid, falling back to scraped data).
+    - **Calculation Data Preparation:** The hook also prepares a specific `calculationData` object containing values needed for scoring, formatted numerically or in a specific way required by the calculation logic (e.g., `calculatedLeaseMonths: number | null`, `epcScoreForCalculation: number`). This uses helpers like `calculateRemainingLeaseTerm` and `mapEpcToScore`.
+    - **Score Calculation:** The hook then calls `src/utils/scoreCalculations.ts -> calculateDashboardScores`, passing it both the `basePropertyChecklistData` (for looking up simpler values like council tax band) and the prepared `calculationData` (for complex/derived values like lease months and EPC score).
+    - **Return:** The hook returns the `basePropertyChecklistData` and the final calculated `dashboardScores`.
+
+3.  **Rendering in `App.tsx`:**
+    - `App.tsx` receives the `basePropertyChecklistData` and `dashboardScores` from the hook.
+    - It passes `basePropertyChecklistData` (or a filtered version) to `src/sidepanel/components/ChecklistView.tsx` for rendering the detailed checklist.
+    - It passes `dashboardScores` (and potentially `basePropertyChecklistData` if needed by child components) to `src/sidepanel/components/DashboardView.tsx` for rendering the dashboard summary.
+
+**Benefits of this Approach:**
+
+- **Separation of Concerns:** UI display logic (`generatePropertyChecklist`) is distinct from calculation logic (`calculateDashboardScores` and the preparation in the hook).
+- **Maintainability:** Changes to UI formatting are less likely to break calculations, and vice-versa.
+- **Clear Data Flow:** `App.tsx` uses the hook as a clear source for processed data needed by the different views.
+- **Correct Data Types:** Calculations use appropriate numeric/specific types prepared in `calculationData`, while the UI uses display strings from `PropertyDataListItem`.

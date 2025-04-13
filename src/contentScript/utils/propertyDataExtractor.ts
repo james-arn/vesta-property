@@ -34,6 +34,9 @@ export async function extractPropertyDataFromDOM(
     miningImpact: miningImpactResultFromUnstructuredText,
     listedProperty: listedPropertyFromUnstructuredText,
     epcRating: epcRatingFromText,
+    leaseTerm: leaseTermFromText,
+    groundRent: groundRentFromText,
+    serviceCharge: serviceChargeFromText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
   // Attempt to extract EPC value directly from page model or DOM first
@@ -199,6 +202,9 @@ export async function extractPropertyDataFromDOM(
     size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
     tenure: tenure,
     windows: windows,
+    leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    serviceCharge: serviceChargeFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
   };
 
   return propertyData;

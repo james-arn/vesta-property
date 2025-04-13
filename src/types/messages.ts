@@ -15,7 +15,7 @@ export interface ShowWarningMessage extends MessageRequest {
 }
 
 export interface UpdatePropertyDataMessage extends MessageRequest {
-  action: typeof ActionEvents.UPDATE_PROPERTY_DATA;
+  action: typeof ActionEvents.PROPERTY_PAGE_OPENED;
   data: any;
 }
 

@@ -15,6 +15,7 @@ import {
 } from "../../types/property";
 import {
   calculateListingHistoryDetails,
+  calculateRemainingLeaseTerm,
   determineEpcChecklistItemDetails,
   getCAGRStatus,
   getStatusFromBoolean,
@@ -65,6 +66,11 @@ export function generatePropertyChecklist(
   const premiumStreetData = premiumStreetDataQuery?.data?.data;
   const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
   const premiumStreetDataError = premiumStreetDataQuery?.error;
+  const premiumLeaseDetails = premiumStreetData?.attributes.tenure?.lease_details;
+  const premiumLeaseEndDate = premiumLeaseDetails?.calculated_end_of_lease;
+  const hasFetchedPremiumLease = premiumStreetDataQuery?.isSuccess && !!premiumLeaseEndDate;
+  const { formatted: premiumFormattedLeaseTerm } =
+    calculateRemainingLeaseTerm(premiumLeaseEndDate);
 
   const epcChecklistItem = determineEpcChecklistItemDetails(
     propertyData.epc,
@@ -618,35 +624,61 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Ground Rent",
       key: "groundRent",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
+      status:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? getStatusFromString(propertyData.groundRent)
+          : DataStatus.NOT_APPLICABLE,
+      value:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? propertyData.groundRent
+          : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
+      askAgentMessage: "What is the ground rent per annum?",
       toolTipExplainer:
         "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+      isBoostedWithPremium: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Service Charge",
       key: "serviceCharge",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
+      status:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? getStatusFromString(propertyData.serviceCharge)
+          : DataStatus.NOT_APPLICABLE,
+      value:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? propertyData.serviceCharge
+          : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
+      askAgentMessage: "What is the service charge per annum?",
       toolTipExplainer:
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+      isBoostedWithPremium: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Remaining Lease Term",
       key: "remainingLeaseTerm",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
-      askAgentMessage: "",
+      status:
+        hasFetchedPremiumLease ? DataStatus.FOUND_POSITIVE :
+          isPremiumStreetDataLoading ? DataStatus.IS_LOADING :
+            getStatusFromString(propertyData.leaseTerm),
+      value: (() => {
+        if (hasFetchedPremiumLease) {
+          return premiumFormattedLeaseTerm;
+        }
+
+        const leaseTermStatus = getStatusFromString(propertyData.leaseTerm);
+        if (leaseTermStatus !== DataStatus.ASK_AGENT) {
+          return propertyData.leaseTerm;
+        }
+
+        return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+      })(),
+      askAgentMessage: "What is the remaining term on the lease?",
       toolTipExplainer:
         "The number of years left on a leasehold agreement.\n\n" +
         "Leases under 80 years can become expensive to extend and may affect mortgage availability and resale value.",

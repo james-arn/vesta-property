@@ -9,15 +9,19 @@ import {
   miningImpactTermsPositive,
   windowTerms,
 } from "@/constants/keyTerms";
+import {
+  EPC_RATING_REGEX,
+  GROUND_RENT_REGEX,
+  LEASE_TERM_REGEX,
+  SERVICE_CHARGE_ANNUAL_REGEX,
+  SERVICE_CHARGE_REGEX,
+} from "@/constants/propertyScrapeConsts";
 import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
 import { TermExtractionResult } from "@/types/domScraping";
 import { DataStatus, PropertyItem } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
-
-// --- Constants ---
-const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-]?\s*([A-G])/i;
 
 export function computeTermChecklistResult(
   termResult: TermExtractionResult | null,
@@ -152,53 +156,70 @@ export function getListedPropertyDetails(
 export function extractInfoFromPageModelKeyFeaturesAndDescription(
   pageModel: RightmovePageModelType | null
 ) {
-  // TODO: Create back up if pageModel isn't available grabbing the text from the DOM
   const keyFeatures = pageModel?.propertyData?.keyFeatures || "";
   const description = pageModel?.propertyData?.text?.description || "";
-  const combinedText = `${keyFeatures} ${description}`.toLowerCase();
+  const combinedText = `${keyFeatures} ${description}`;
+  const combinedTextLower = combinedText.toLowerCase();
 
   // --- Extract EPC from combined text ---
-  const epcMatch = combinedText.match(EPC_RATING_REGEX);
+  const epcMatch = combinedTextLower.match(EPC_RATING_REGEX);
   const epcRatingFromText = epcMatch && epcMatch[1] ? epcMatch[1].toUpperCase() : null;
 
-  const heatingMatches = combinedText.match(heatingRegex);
-  const gardenMatches = combinedText.match(gardenRegex);
-  const parkingMatches = combinedText.match(parkingRegex);
-  const windowMatches = windowTerms.filter((term) => combinedText.includes(term));
-  const accessibilityMatches = accessibilityTerms.filter((term) => combinedText.includes(term));
+  const heatingMatches = combinedTextLower.match(heatingRegex);
+  const gardenMatches = combinedTextLower.match(gardenRegex);
+  const parkingMatches = combinedTextLower.match(parkingRegex);
+  const windowMatches = windowTerms.filter((term) => combinedTextLower.includes(term));
+  const accessibilityMatches = accessibilityTerms.filter((term) =>
+    combinedTextLower.includes(term)
+  );
 
   const bathroomRegex = /(?:en[-\s]?suite\s*bathroom|ensuite\s*bathroom|bathroom)/gi;
-  const bathroomMatches = combinedText.match(bathroomRegex);
+  const bathroomMatches = combinedTextLower.match(bathroomRegex);
   const bathroomFormatted = bathroomMatches
     ? capitaliseFirstLetterAndCleanString([...new Set(bathroomMatches)].join(", "))
     : null;
 
   const buildingSafetyResult = extractTermInfo(
     "Building Safety",
-    combinedText,
+    combinedTextLower,
     buildingSafetyTermsPositive,
     buildingSafetyTermsNegative
   );
 
   const coastalErosionResult = extractTermInfo(
     "Coastal Erosion",
-    combinedText,
+    combinedTextLower,
     coastalErosionTermsPositive,
     coastalErosionTermsNegative
   );
 
   const miningImpactResult = extractTermInfo(
     "Mining Impact",
-    combinedText,
+    combinedTextLower,
     miningImpactTermsPositive,
     miningImpactTermsNegative
   );
 
-  const hasCommunalGarden = combinedText.includes("communal garden");
+  const hasCommunalGarden = combinedTextLower.includes("communal garden");
 
-  const listedProperty = getListedPropertyDetails(pageModel, combinedText);
+  const listedProperty = getListedPropertyDetails(pageModel, combinedTextLower);
 
-  console.log("[property scrape helpers] garden matches found:", gardenMatches);
+  const leaseTermMatch = combinedTextLower.match(LEASE_TERM_REGEX);
+  const leaseTermValue = leaseTermMatch && leaseTermMatch[1] ? `${leaseTermMatch[1]} years` : null;
+
+  const groundRentMatch = combinedTextLower.match(GROUND_RENT_REGEX);
+  const groundRentValue = groundRentMatch && groundRentMatch[1] ? groundRentMatch[1] : null;
+
+  const serviceChargeAnnualMatch = combinedTextLower.match(SERVICE_CHARGE_ANNUAL_REGEX);
+  const serviceChargeMatch = combinedTextLower.match(SERVICE_CHARGE_REGEX);
+  let serviceChargeValue = null;
+  if (serviceChargeAnnualMatch && serviceChargeAnnualMatch[1]) {
+    // Prioritize explicit annual amount
+    serviceChargeValue = serviceChargeAnnualMatch[1];
+  } else if (serviceChargeMatch && serviceChargeMatch[1]) {
+    // Fallback to general service charge amount
+    serviceChargeValue = serviceChargeMatch[1];
+  }
 
   return {
     heating: heatingMatches
@@ -209,7 +230,7 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       : gardenMatches
         ? capitaliseFirstLetterAndCleanString([...new Set(gardenMatches)].join(", "))
         : null,
-    parking: parkingMatches ? [...new Set(parkingMatches)] : null,
+    parking: parkingMatches ? [...new Set(parkingMatches)].join(", ") : null,
     windows: windowMatches
       ? capitaliseFirstLetterAndCleanString([...new Set(windowMatches)].join(", "))
       : null,
@@ -234,6 +255,9 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       reason: miningImpactResult.askAgentMessage,
     },
     epcRating: epcRatingFromText,
+    leaseTerm: leaseTermValue,
+    groundRent: groundRentValue,
+    serviceCharge: serviceChargeValue,
   };
 }
 
