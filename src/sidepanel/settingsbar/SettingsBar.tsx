@@ -3,7 +3,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import VIEWS from "@/constants/views";
 import { AgentDetails } from "@/types/property";
 import React from "react";
-import { FaMagic } from "react-icons/fa";
+import { FaPaperPlane, FaSearchPlus } from "react-icons/fa";
 import { FilterControls } from "./FilterControls";
 import SettingsControls from "./SettingsControls";
 
@@ -17,6 +17,7 @@ interface SettingsBarProps {
   currentView: typeof VIEWS[keyof typeof VIEWS];
   setCurrentView: (view: typeof VIEWS[keyof typeof VIEWS]) => void;
   onGenerateMessageClick: () => void;
+  onPremiumSearchClick: () => void;
 }
 
 const SettingsBar: React.FC<SettingsBarProps> = ({
@@ -29,6 +30,7 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
   currentView,
   setCurrentView,
   onGenerateMessageClick,
+  onPremiumSearchClick,
 }) => {
   return (
     <div className="flex justify-between items-center p-2 bg-gray-100 rounded-md shadow-md space-x-4">
@@ -53,9 +55,25 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
               <Button
                 size="icon"
                 variant="outline"
+                onClick={onPremiumSearchClick}
+              >
+                <FaSearchPlus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Unlock enhanced property data with Premium Search</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="outline"
                 onClick={onGenerateMessageClick}
               >
-                <FaMagic className="h-4 w-4" />
+                <FaPaperPlane className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

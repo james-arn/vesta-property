@@ -257,7 +257,7 @@ export function generatePropertyChecklist(
       label: "Estimated Sale Value",
       key: "estimatedSaleValue",
       status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      value: premiumStreetData?.attributes.estimated_values?.[0]?.estimated_market_value_rounded ?? "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
         "An automated valuation model (AVM) estimate of the property's current market value.\n\n" +
@@ -270,7 +270,7 @@ export function generatePropertyChecklist(
       label: "Estimated Rental Value",
       key: "estimatedRentalValue",
       status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      value: premiumStreetData?.attributes.estimated_rental_value?.estimated_monthly_rental_value ?? "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
         "An estimate of the potential monthly rent the property could achieve in the current market.\n\n" +
@@ -283,7 +283,7 @@ export function generatePropertyChecklist(
       label: "Estimated Annual Rental Yield",
       key: "estimatedAnnualRentalYield",
       status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      value: premiumStreetData?.attributes.estimated_rental_value?.estimated_annual_rental_yield ?? "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
         "Calculates the potential annual rental income as a percentage of the property's estimated value.\n\n" +
@@ -296,7 +296,7 @@ export function generatePropertyChecklist(
       label: "Propensity To Sell",
       key: "propensityToSell",
       status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      value: premiumStreetData?.attributes.propensity_to_sell_score ?? "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
         "An indicator of how likely similar properties in the area are to be listed for sale.\n\n" +
@@ -309,7 +309,7 @@ export function generatePropertyChecklist(
       label: "Propensity To Let",
       key: "propensityToLet",
       status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      value: premiumStreetData?.attributes.propensity_to_let_score ?? "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
         "An indicator of the likelihood that similar properties in the area are listed for rent.\n\n" +
@@ -318,19 +318,19 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
     },
     // TODO: Revist these in later release
-    // {
-    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
-    //   label: "Local Outcode Price Trends",
-    //   key: "outcodePriceTrend",
-    //   status: DataStatus.ASK_AGENT,
-    //   value: "Not Available",
-    //   askAgentMessage: "",
-    //   toolTipExplainer:
-    //     "Shows the general direction of property prices within the broader postcode area (outcode).\n\n" +
-    //     "Helps understand if the local market is appreciating, depreciating, or stable, providing context for the asking price.",
-    //   isUnlockedWithPremium: true,
-    //   isBoostedWithPremium: false,
-    // },
+    {
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+      label: "Outcode Average Sales Price",
+      key: "outcodeAvgSalesPrice",
+      status: DataStatus.ASK_AGENT,
+      value: premiumStreetData?.attributes.market_statistics?.outcode?.average_price_properties_sold_last_12_months ?? "Not Available",
+      askAgentMessage: "",
+      toolTipExplainer:
+        "The average price properties sold for within the outcode over a recent period.\n\n" +
+        "Provides a general benchmark for property values in the area.",
+      isUnlockedWithPremium: true,
+      isBoostedWithPremium: false,
+    },
     // {
     //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
     //   label: "Local Outcode Price Trends (12m Avg)",
@@ -409,19 +409,7 @@ export function generatePropertyChecklist(
     //   isUnlockedWithPremium: true,
     //   isBoostedWithPremium: false,
     // },
-    // {
-    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
-    //   label: "Outcode Average Sales Price",
-    //   key: "outcodeAvgSalesPrice",
-    //   status: DataStatus.ASK_AGENT,
-    //   value: "Not Available",
-    //   askAgentMessage: "",
-    //   toolTipExplainer:
-    //     "The average price properties sold for within the outcode over a recent period.\n\n" +
-    //     "Provides a general benchmark for property values in the area.",
-    //   isUnlockedWithPremium: true,
-    //   isBoostedWithPremium: false,
-    // },
+
     epcChecklistItem,
 
     // Interior Details

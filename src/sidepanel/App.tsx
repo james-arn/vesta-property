@@ -19,23 +19,30 @@ import {
   ExtractedPropertyScrapingData
 } from "../types/property";
 
+import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
+import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
+import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
+import { usePremiumFlow } from '@/hooks/usePremiumFlow';
+import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
 import {
   generateAgentMessage,
   getValueClickHandler
 } from "./helpers";
-
-import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
-import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
-import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import SettingsBar from "./settingsbar/SettingsBar";
+const LazyChecklistView = lazy(() =>
+  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
+);
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
 );
 const LazyAgentMessageModal = lazy(() =>
   import('./components/AgentMessageModal').then(module => ({ default: module.AgentMessageModal }))
 );
-const LazyChecklistView = lazy(() =>
-  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
+const LazyUpsellModal = lazy(() =>
+  import('@/components/ui/Premium/UpsellModal').then(module => ({ default: module.UpsellModal }))
+);
+const LazyPremiumConfirmationModal = lazy(() =>
+  import('@/components/ui/Premium/PremiumConfirmationModal').then(module => ({ default: module.PremiumConfirmationModal }))
 );
 
 const App: React.FC = () => {
@@ -44,8 +51,8 @@ const App: React.FC = () => {
   const queryClient = useQueryClient();
   const { isPropertyDataLoading, nonPropertyPageWarningMessage } =
     useBackgroundMessageHandler(dispatch, queryClient);
+  const { isAuthenticated, isCheckingAuth } = useSecureAuthentication();
 
-  // --- Define Refs and State *before* hooks that use them --- 
   const epcDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isEpcDebugModeOn = process.env.IS_EPC_DEBUG_MODE === "true";
   const [currentView, setCurrentView] = useState<typeof VIEWS[keyof typeof VIEWS]>(
@@ -63,6 +70,36 @@ const App: React.FC = () => {
   const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
+  const [premiumSearchActivated, setPremiumSearchActivated] = useState(false);
+
+
+  const premiumStreetDataQuery = usePremiumStreetData({
+    isAddressConfirmedByUser: propertyData.address.isAddressConfirmedByUser,
+    premiumSearchActivated: premiumSearchActivated,
+    address: propertyData.address.displayAddress ?? '',
+    postcode: propertyData.address.postcode ?? ''
+  });
+
+  // --- Handler to activate premium search ---
+  const handleConfirmAndActivate = useCallback(() => {
+    setPremiumSearchActivated(true);
+  }, []);
+
+  // --- Premium Flow Hook ---
+  const {
+    triggerPremiumFlow,
+    showUpsellModal,
+    setShowUpsellModal,
+    showPremiumConfirmationModal,
+    setShowPremiumConfirmationModal,
+    premiumConfirmationHandler,
+    notifyAddressConfirmed,
+  } = usePremiumFlow({
+    isAuthenticated,
+    isAddressConfirmed: propertyData.address.isAddressConfirmedByUser,
+    openAddressConfirmationModal: useCallback(() => setShowBuildingValidationModal(true), []),
+    onConfirmAndActivate: handleConfirmAndActivate,
+  });
 
   // Destructure coords and immediately calculate memoized strings
   const { lat, lng } = propertyData.locationCoordinates;
@@ -86,11 +123,6 @@ const App: React.FC = () => {
   useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
 
   // 4. Once confirmed address state is updated, Premium (paid) street data uses confirmed address to get the enhanced data of the property
-  const premiumStreetDataQuery = usePremiumStreetData(
-    propertyData.address.isAddressConfirmedByUser,
-    propertyData.address.displayAddress ?? '',
-    propertyData.address.postcode ?? ''
-  );
   const crimeQuery = useCrimeScore(
     latStr,
     lngStr
@@ -167,6 +199,8 @@ const App: React.FC = () => {
       type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
       payload: { displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true },
     });
+    setShowBuildingValidationModal(false);
+    notifyAddressConfirmed();
   }
 
   const handleEpcValueChange = useCallback((newValue: string) => {
@@ -208,7 +242,7 @@ const App: React.FC = () => {
   if (nonPropertyPageWarningMessage) {
     return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
   }
-  if (isPropertyDataLoading) {
+  if (isPropertyDataLoading || isCheckingAuth) {
     return <SideBarLoading />;
   }
 
@@ -237,6 +271,7 @@ const App: React.FC = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         onGenerateMessageClick={handleGenerateMessageClick}
+        onPremiumSearchClick={triggerPremiumFlow}
       />
 
       {/* MAIN CONTENT AREA */}
@@ -290,7 +325,7 @@ const App: React.FC = () => {
         }
       </div>
 
-      {/* Modals etc. */}
+      {/* Modals */}
       {showBuildingValidationModal && (
         <Suspense fallback={null}>
           <LazyBuildingConfirmationDialog
@@ -308,6 +343,24 @@ const App: React.FC = () => {
           message={agentMessage}
         />
       </Suspense>
+      {showUpsellModal && (
+        <Suspense fallback={null}>
+          <LazyUpsellModal
+            open={showUpsellModal}
+            onOpenChange={setShowUpsellModal}
+          />
+        </Suspense>
+      )}
+      {showPremiumConfirmationModal && isAuthenticated && (
+        <Suspense fallback={null}>
+          <LazyPremiumConfirmationModal
+            open={showPremiumConfirmationModal}
+            onOpenChange={setShowPremiumConfirmationModal}
+            isAddressConfirmed={propertyData.address.isAddressConfirmedByUser}
+            onConfirmPremiumSearch={premiumConfirmationHandler}
+          />
+        </Suspense>
+      )}
       <DevTools />
     </div>
   );

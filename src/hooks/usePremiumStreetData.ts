@@ -3,11 +3,23 @@ import { useApiAuth } from "@/hooks/useApiAuth";
 import { useQuery } from "@tanstack/react-query";
 import { PremiumStreetDataResponse } from "../types/premiumStreetData";
 
-export function usePremiumStreetData(
-  isAddressConfirmedByUser: boolean,
-  address?: string,
-  postcode?: string
-) {
+interface UsePremiumStreetDataOptions {
+  isAddressConfirmedByUser: boolean;
+  premiumSearchActivated: boolean;
+  address?: string;
+  postcode?: string;
+  enabled?: boolean; // Allow overriding enabled logic if needed externally
+}
+
+// This function is used to fetch the premium street data for a given address and postcode
+export function usePremiumStreetData({
+  isAddressConfirmedByUser,
+  premiumSearchActivated,
+  address,
+  postcode,
+  enabled = !!address && !!postcode && isAddressConfirmedByUser && premiumSearchActivated,
+}: UsePremiumStreetDataOptions) {
+  // Use the options object
   const { fetchWithAuth } = useApiAuth();
 
   const fetchPremiumStreetData = async (
@@ -67,7 +79,8 @@ export function usePremiumStreetData(
   return useQuery({
     queryKey: [REACT_QUERY_KEYS.PREMIUM_STREET_DATA, address, postcode],
     queryFn: () => fetchPremiumStreetData(address ?? "", postcode ?? ""),
-    enabled: !!address && !!postcode && isAddressConfirmedByUser,
+    // Use the calculated/passed enabled flag
+    enabled: enabled,
     staleTime: 24 * 60 * 60 * 1000, // cache for 1 day
     refetchOnWindowFocus: false,
     refetchOnMount: false,
