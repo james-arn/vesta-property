@@ -70,6 +70,10 @@ export const useSecureAuthentication = () => {
         logoutUrl.searchParams.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
         logoutUrl.searchParams.append("logout_uri", ENV_CONFIG.LOGOUT_URI);
 
+        // --- Add Log Here ---
+        console.log("[signOut] Constructed Cognito Logout URL:", logoutUrl.toString());
+        // --------------------
+
         // Open a tab to complete the Cognito logout process
         chrome.tabs.create({ url: logoutUrl.toString() }, (tab) => {
           console.log("logoutUrl", logoutUrl.toString());

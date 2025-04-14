@@ -1,5 +1,6 @@
 import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers";
 import { ActionEvents } from "./constants/actionEvents";
+import { ENV_CONFIG } from "./constants/environmentConfig";
 import { StorageKeys } from "./constants/storage";
 import {
   MessageRequest,
@@ -234,55 +235,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Auth Listener for redirect URL
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
-    const redirectUri = `https://${chrome.runtime.id}.chromiumapp.org/`;
-    if (tab.url.startsWith(redirectUri)) {
+    console.log(`[Auth Listener] Status complete for URL: ${tab.url}`); // Log URL being checked
+    const redirectUri = ENV_CONFIG.REDIRECT_URI;
+    if (tab.url.split("?")[0] === redirectUri) {
+      console.log(`[Auth Listener] Detected redirect URI: ${tab.url}`); // Log redirect detected
       const url = new URL(tab.url);
       const code = url.searchParams.get("code");
 
       if (code) {
-        console.log("[background.ts] Auth code received:", code);
+        console.log(`[Auth Listener] Auth code received: ${code}`); // Log received code
         showSystemNotification("Vesta", "Processing authentication...");
         try {
-          // Need codeVerifier from storage here!
+          console.log("[Auth Listener] Attempting to retrieve code verifier from storage...");
           const storageResult = await chrome.storage.local.get([StorageKeys.AUTH_CODE_VERIFIER]);
           const codeVerifier = storageResult[StorageKeys.AUTH_CODE_VERIFIER];
 
           if (!codeVerifier) {
+            console.error("[Auth Listener] CRITICAL: Missing code verifier in storage.");
             throw new Error("Missing code verifier in storage.");
           }
+          console.log("[Auth Listener] Code verifier found:", codeVerifier ? "Exists" : "MISSING!"); // Log verifier found
 
-          // Pass code and verifier to exchange function
+          console.log("[Auth Listener] Attempting to exchange code for tokens...");
           const tokenResponse = await exchangeCodeForTokens(code, codeVerifier);
-          // Pass the full token response object to storeAuthTokens
+          console.log(
+            "[Auth Listener] exchangeCodeForTokens successful. Response received (tokens exist):",
+            {
+              id_token: !!tokenResponse.id_token,
+              access_token: !!tokenResponse.access_token,
+              refresh_token: !!tokenResponse.refresh_token,
+            }
+          ); // Log success + existence of tokens
+
+          console.log("[Auth Listener] Attempting to store tokens...");
           await storeAuthTokens(tokenResponse);
-          console.log("[background.ts] Tokens stored successfully.");
+          console.log("[Auth Listener] storeAuthTokens successful."); // Log token storage success
+
+          console.log("[Auth Listener] Tokens stored successfully. Notifying UI.");
           // Notify the UI about successful authentication
           chrome.runtime.sendMessage({
             action: ActionEvents.AUTHENTICATION_COMPLETE,
             data: { isAuthenticated: true },
           });
           // Close the auth tab
+          console.log(`[Auth Listener] Closing auth tab: ${tabId}`);
           chrome.tabs.remove(tabId);
           showSystemNotification("Vesta", "Authentication successful!");
         } catch (error) {
-          console.error("[background.ts] Error exchanging code for tokens:", error);
+          console.error("[Auth Listener] Error during token exchange/storage process:", error); // Log the actual error
           logErrorToSentry(
             `Error exchanging code for tokens: ${error instanceof Error ? error.message : String(error)}`,
             "error"
           );
           showSystemNotification("Vesta", "Authentication failed. Please try again.");
-          // Optionally, redirect to an error page or display error in the auth tab
         }
       } else {
         const error = url.searchParams.get("error");
         if (error) {
-          console.error("[background.ts] Authentication error from provider:", error);
+          console.error(`[Auth Listener] Authentication error parameter found in URL: ${error}`); // Log error from URL parameter
           logErrorToSentry(`Authentication error from provider: ${error}`, "error");
           showSystemNotification("Vesta", `Authentication failed: ${error}`);
           // Handle error display, maybe close tab or redirect
+          console.log(`[Auth Listener] Closing auth tab due to error parameter: ${tabId}`);
           chrome.tabs.remove(tabId);
+        } else {
+          console.warn(
+            `[Auth Listener] Redirect URI detected, but no 'code' or 'error' parameter found in URL: ${tab.url}`
+          ); // Log if no code/error
         }
       }
+    } else {
+      // Optional: Log URLs that are 'complete' but don't match the redirect URI
+      // console.log(`[Auth Listener] URL complete but not the redirect URI: ${tab.url}`);
     }
   }
 });

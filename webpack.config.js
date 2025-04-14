@@ -72,6 +72,8 @@ module.exports = {
           from: path.join(nodeModulesPath, "tesseract.js-core"),
           to: "./tesseract-core",
         },
+        { from: "public/*.html", to: "[name][ext]" },
+        { from: "public/*.js", to: "[name][ext]" },
       ],
     }),
     new Dotenv({

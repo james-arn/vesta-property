@@ -55,4 +55,4 @@ const apiConfig = {
 export const ENV_CONFIG = {
   ...authConfig,
   ...apiConfig,
-};
+} as const;
