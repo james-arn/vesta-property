@@ -1,9 +1,8 @@
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { useProcessedEpcData } from "@/hooks/useProcessedEpcData";
 import { EpcProcessorResult, INITIAL_EPC_RESULT_STATE } from "@/lib/epcProcessing";
-import { calculateRemainingLeaseTerm } from "@/sidepanel/propertychecklist/helpers";
 import { generatePropertyChecklist } from "@/sidepanel/propertychecklist/propertyChecklist";
-import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import { PremiumStreetDataResponse, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
 import {
   DashboardScores,
   ExtractedPropertyScrapingData,
@@ -12,6 +11,7 @@ import {
 import { calculateDashboardScores, mapEpcToScore } from "@/utils/scoreCalculations";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 
 interface CalculationData {
   calculatedLeaseMonths: number | null;
@@ -31,6 +31,7 @@ interface UseChecklistAndDashboardDataResult {
   dashboardCalculationData: CalculationData;
   dashboardScores: DashboardScores;
   processedEpcResult: EpcProcessorResult;
+  processedPremiumData: ProcessedPremiumStreetData;
 }
 
 export const useChecklistAndDashboardData = ({
@@ -40,6 +41,7 @@ export const useChecklistAndDashboardData = ({
   epcDebugCanvasRef,
   isEpcDebugModeOn,
 }: UseChecklistAndDashboardDataArgs): UseChecklistAndDashboardDataResult => {
+  // 1. preProccess data where required before generating checklist and dashboard
   const { processedEpcResult } = useProcessedEpcData({
     initialEpcData: propertyData?.epc,
     epcUrl: propertyData?.epc?.url,
@@ -47,23 +49,28 @@ export const useChecklistAndDashboardData = ({
     isEpcDebugModeOn,
   });
 
-  // 1. Generate Checklist for UI
+  const processedPremiumData = useMemo(() => {
+    return processPremiumStreetData(
+      premiumStreetDataQuery?.data,
+      premiumStreetDataQuery?.status ?? "idle" // Provide default status if query undefined
+    );
+  }, [premiumStreetDataQuery?.data, premiumStreetDataQuery?.status]);
+
+  // 2. Generate Checklist for UI
   const basePropertyChecklistData = useMemo(() => {
     if (!propertyData) return [];
     return generatePropertyChecklist(
       propertyData,
       crimeScoreQuery,
-      premiumStreetDataQuery,
+      processedPremiumData, // Pass processed data
       processedEpcResult ?? INITIAL_EPC_RESULT_STATE
     );
-  }, [propertyData, crimeScoreQuery, premiumStreetDataQuery, processedEpcResult]);
+  }, [propertyData, crimeScoreQuery, processedPremiumData, processedEpcResult]);
 
-  // 2. Prepare Data for Dashboard Calculations
+  // 3. Prepare Data for Dashboard Calculations
   const dashboardCalculationData = useMemo((): CalculationData => {
-    const premiumLeaseDetails =
-      premiumStreetDataQuery?.data?.data?.attributes.tenure?.lease_details;
-    const premiumLeaseEndDate = premiumLeaseDetails?.calculated_end_of_lease;
-    const { totalMonths: calculatedLeaseMonths } = calculateRemainingLeaseTerm(premiumLeaseEndDate);
+    // Use processed data for lease term calculation
+    const calculatedLeaseMonths = processedPremiumData.premiumLeaseTotalMonths;
 
     const finalEpcValue = processedEpcResult?.value;
     const epcScoreForCalculation = mapEpcToScore(finalEpcValue);
@@ -72,9 +79,9 @@ export const useChecklistAndDashboardData = ({
       calculatedLeaseMonths: calculatedLeaseMonths,
       epcScoreForCalculation: epcScoreForCalculation,
     };
-  }, [premiumStreetDataQuery?.data, processedEpcResult]);
+  }, [processedPremiumData.premiumLeaseTotalMonths, processedEpcResult]);
 
-  // 3. Calculate Final Dashboard Scores
+  // 4. Calculate Final Dashboard Scores
   const dashboardScores = useMemo(() => {
     // Pass both checklist (for simple lookups) and calc data (for specific values)
     return calculateDashboardScores(basePropertyChecklistData, dashboardCalculationData);
@@ -85,5 +92,6 @@ export const useChecklistAndDashboardData = ({
     dashboardCalculationData,
     dashboardScores,
     processedEpcResult: processedEpcResult ?? INITIAL_EPC_RESULT_STATE,
+    processedPremiumData,
   };
 };

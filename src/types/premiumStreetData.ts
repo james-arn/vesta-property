@@ -55,6 +55,7 @@ export interface PropertyAttributes {
   estimated_rental_value?: RentalEstimate;
   propensity_to_sell_score?: number;
   propensity_to_let_score?: number;
+  energy_performance?: EnergyPerformance | null;
 }
 
 export interface Address {
@@ -62,6 +63,13 @@ export interface Address {
   street_group_format: StreetGroupFormat;
   simplified_format: SimplifiedFormat;
   is_none_residential: boolean;
+  premiumLeaseEndDate: string | null;
+  formattedPremiumLeaseTerm: string | null;
+  premiumLeaseTotalMonths: number | null;
+  constructionMaterials: ConstructionMaterials | null;
+  constructionAgeBand: string | null;
+  titleDeedIssues: unknown | null;
+  conservationAreaStatus: string | null;
 }
 
 export interface RoyalMailFormat {
@@ -318,7 +326,110 @@ export interface MarketStatisticsNational {
   // Additional market statistics fields may be added here.
 }
 
+// --- New Energy Performance Types Start ---
+
+export interface EnvironmentalImpact {
+  current_impact: number;
+  potential_impact: number;
+}
+
+export interface EnergyEfficiency {
+  current_rating: string | null;
+  potential_rating: string | null;
+  current_efficiency: number | null;
+  potential_efficiency: number | null;
+}
+
+export interface EnergyPerformanceMeta {
+  data_type: "actual" | "predicted" | string | null; // Allow for other strings if needed
+  source: string | null;
+  attribution_string: string | null;
+}
+
+export interface EnergyPerformance {
+  lmk_key: string | null;
+  lodgement_date: string | null; // ISO date string ideally, but string for safety
+  expiry_date: string | null; // ISO date string ideally, but string for safety
+  address1: string | null;
+  address2: string | null;
+  address3: string | null;
+  postcode: string | null;
+  number_habitable_rooms: number | null;
+  number_heated_rooms: number | null;
+  extension_count: number | null;
+  total_floor_area: number | null;
+  floor_level: string | null;
+  floor_height: number | null;
+  flat_top_storey: "Y" | "N" | string | null; // Assuming Y/N but allow other strings
+  flat_storey_count: number | null;
+  main_fuel: string | null;
+  mains_gas_flag: "Y" | "N" | string | null; // Assuming Y/N but allow other strings
+  mainheat_description: string | null;
+  mainheat_energy_eff: string | null;
+  main_heating_controls: unknown | null; // Type unknown from example
+  secondheat_description: string | null;
+  hotwater_description: string | null;
+  hot_water_energy_eff: string | null;
+  windows_description: string | null;
+  windows_energy_eff: string | null;
+  glazed_area: string | null;
+  glazed_type: string | null;
+  walls_description: string | null;
+  walls_energy_eff: string | null;
+  roof_description: string | null;
+  roof_energy_eff: string | null;
+  floor_description: string | null;
+  floor_energy_eff: string | null;
+  lighting_description: string | null;
+  lighting_energy_eff: string | null;
+  sheating_energy_eff: string | null; // Corrected typo from 'sheating' if applicable in source
+  wind_turbine_count: string | number | null;
+  environmental_impact: EnvironmentalImpact | null;
+  energy_efficiency: EnergyEfficiency | null;
+  meta: EnergyPerformanceMeta | null;
+}
+
+export interface ConstructionMaterials {
+  walls: string | null;
+  roof: string | null;
+  floor: string | null;
+  windows: string | null;
+}
+
+// --- New Energy Performance Types End ---
+
 export type PremiumStreetDataResponse = {
   data: AddressMatchData;
   meta: AddressMatchMeta;
 };
+
+export type ProcessedPremiumDataStatus = "loading" | "success" | "error" | "idle" | "pending";
+
+export interface ProcessedPremiumStreetData {
+  status: ProcessedPremiumDataStatus;
+  estimatedSaleValue: number | null;
+  estimatedRentalValue: number | null;
+  estimatedAnnualRentalYield: number | null;
+  propensityToSell: number | null;
+  propensityToLet: number | null;
+  outcodeMarketActivity: number | null; // Based on count_total_properties_sold_last_12_months
+  premiumLeaseEndDate: string | null;
+  formattedPremiumLeaseTerm: string | null;
+  premiumLeaseTotalMonths: number | null;
+  constructionMaterials: ConstructionMaterials | null;
+  constructionAgeBand: string | null;
+  titleDeedIssues: unknown | null;
+  conservationAreaStatus: string | null;
+  detailedFloodRiskAssessment: unknown | null; // Placeholder type
+  airportNoiseAssessment: AirportNoise | null;
+  nationalParkProximity: string | null;
+  policeForceProximity: string | null;
+  mobileServiceCoverage: unknown | null; // Placeholder type
+  propertyPlanningApplications: PlanningApplication[] | null;
+  nearbyPlanningApplications: NearbyPlanningApplication[] | null;
+  occupancyStatus: string | null;
+  healthcareProximity: unknown | null; // Placeholder type
+  trainStationProximity: unknown | null; // Placeholder type
+  schoolProximity: unknown | null; // Placeholder type
+  outcodeAvgSalesPrice: number | null;
+}

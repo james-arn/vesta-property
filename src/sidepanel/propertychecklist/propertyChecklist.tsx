@@ -4,7 +4,10 @@ import { PropertyGroups } from "@/constants/propertyConsts";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import {
+  ProcessedPremiumStreetData
+} from "@/types/premiumStreetData";
+import { formatCurrencyGBP, formatPercentage } from "@/utils/formatting";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -15,14 +18,14 @@ import {
 } from "../../types/property";
 import {
   calculateListingHistoryDetails,
-  calculateRemainingLeaseTerm,
   determineEpcChecklistItemDetails,
   getCAGRStatus,
+  getPremiumStatus,
   getStatusFromBoolean,
   getVolatilityStatus,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
-  priceDiscrepancyMessages
+  priceDiscrepancyMessages,
 } from "./helpers";
 
 export const agentMissingInfo = CHECKLIST_NO_VALUE.NOT_MENTIONED;
@@ -48,7 +51,7 @@ const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
 export function generatePropertyChecklist(
   propertyData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
-  premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined,
+  processedPremiumData: ProcessedPremiumStreetData,
   epcResult: EpcProcessorResult
 ): PropertyDataListItem[] {
   if (!propertyData) {
@@ -63,14 +66,9 @@ export function generatePropertyChecklist(
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
   const crimeScoreError = crimeScoreQuery?.error;
 
-  const premiumStreetData = premiumStreetDataQuery?.data?.data;
-  const isPremiumStreetDataLoading = premiumStreetDataQuery?.isLoading ?? false;
-  const premiumStreetDataError = premiumStreetDataQuery?.error;
-  const premiumLeaseDetails = premiumStreetData?.attributes.tenure?.lease_details;
-  const premiumLeaseEndDate = premiumLeaseDetails?.calculated_end_of_lease;
-  const hasFetchedPremiumLease = premiumStreetDataQuery?.isSuccess && !!premiumLeaseEndDate;
-  const { formatted: premiumFormattedLeaseTerm } =
-    calculateRemainingLeaseTerm(premiumLeaseEndDate);
+  const hasFetchedPremiumLease =
+    processedPremiumData.status === "success" &&
+    !!processedPremiumData.formattedPremiumLeaseTerm;
 
   const epcChecklistItem = determineEpcChecklistItemDetails(
     propertyData.epc,
@@ -164,8 +162,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.GENERAL,
       label: "Occupancy Status",
       key: "occupancyStatus",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.occupancyStatus
+      ),
+      value: processedPremiumData.occupancyStatus ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "Indicates if the property is currently owner-occupied or rented out.\n\n" +
@@ -256,8 +257,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Sale Value",
       key: "estimatedSaleValue",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.estimated_values?.[0]?.estimated_market_value_rounded ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.estimatedSaleValue
+      ),
+      value: formatCurrencyGBP(processedPremiumData.estimatedSaleValue),
       askAgentMessage: "",
       toolTipExplainer:
         "An automated valuation model (AVM) estimate of the property's current market value.\n\n" +
@@ -269,8 +273,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Rental Value",
       key: "estimatedRentalValue",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.estimated_rental_value?.estimated_monthly_rental_value ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.estimatedRentalValue
+      ),
+      value: formatCurrencyGBP(processedPremiumData.estimatedRentalValue),
       askAgentMessage: "",
       toolTipExplainer:
         "An estimate of the potential monthly rent the property could achieve in the current market.\n\n" +
@@ -282,8 +289,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Annual Rental Yield",
       key: "estimatedAnnualRentalYield",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.estimated_rental_value?.estimated_annual_rental_yield ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.estimatedAnnualRentalYield
+      ),
+      value: formatPercentage(processedPremiumData.estimatedAnnualRentalYield),
       askAgentMessage: "",
       toolTipExplainer:
         "Calculates the potential annual rental income as a percentage of the property's estimated value.\n\n" +
@@ -295,8 +305,14 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Sell",
       key: "propensityToSell",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.propensity_to_sell_score ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.propensityToSell
+      ),
+      value:
+        processedPremiumData.propensityToSell !== null
+          ? formatPercentage(processedPremiumData.propensityToSell)
+          : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "An indicator of how likely similar properties in the area are to be listed for sale.\n\n" +
@@ -308,8 +324,14 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Let",
       key: "propensityToLet",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.propensity_to_let_score ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.propensityToLet
+      ),
+      value:
+        processedPremiumData.propensityToLet !== null
+          ? formatPercentage(processedPremiumData.propensityToLet)
+          : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "An indicator of the likelihood that similar properties in the area are listed for rent.\n\n" +
@@ -322,12 +344,35 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Outcode Average Sales Price",
       key: "outcodeAvgSalesPrice",
-      status: DataStatus.ASK_AGENT,
-      value: premiumStreetData?.attributes.market_statistics?.outcode?.average_price_properties_sold_last_12_months ?? "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.outcodeAvgSalesPrice
+      ),
+      value: formatCurrencyGBP(processedPremiumData.outcodeAvgSalesPrice),
       askAgentMessage: "",
       toolTipExplainer:
         "The average price properties sold for within the outcode over a recent period.\n\n" +
         "Provides a general benchmark for property values in the area.",
+      isUnlockedWithPremium: true,
+      isBoostedWithPremium: false,
+    },
+    // Uncommented and updated Outcode Market Activity
+    {
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+      label: "Outcode Market Activity",
+      key: "outcodeMarketActivity",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.outcodeMarketActivity
+      ),
+      value:
+        processedPremiumData.outcodeMarketActivity !== null
+          ? `${processedPremiumData.outcodeMarketActivity} sales in last 12m`
+          : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      askAgentMessage: "",
+      toolTipExplainer:
+        "Indicates the total number of property sales within the broader postcode area (outcode) over the last 12 months.\n\n" +
+        "Reflects the overall activity level and liquidity of the local market. Higher numbers suggest a more active market.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
@@ -488,8 +533,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Construction Materials",
       key: "constructionMaterials",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.constructionMaterials
+      ),
+      value: `Floor: ${processedPremiumData.constructionMaterials?.floor ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Walls: ${processedPremiumData.constructionMaterials?.walls ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Roof: ${processedPremiumData.constructionMaterials?.roof ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Windows: ${processedPremiumData.constructionMaterials?.windows ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}`,
       askAgentMessage: "",
       toolTipExplainer:
         "The primary materials used to build the property (e.g., brick, timber frame, concrete).\n\n" +
@@ -501,8 +549,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Construction Age Band",
       key: "constructionAgeBand",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.constructionAgeBand
+      ),
+      value: processedPremiumData.constructionAgeBand ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "The approximate period when the property was built (e.g., pre-1900, 1950s, 2000s).\n\n" +
@@ -651,20 +702,26 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Remaining Lease Term",
       key: "remainingLeaseTerm",
-      status:
-        hasFetchedPremiumLease ? DataStatus.FOUND_POSITIVE :
-          isPremiumStreetDataLoading ? DataStatus.IS_LOADING :
-            getStatusFromString(propertyData.leaseTerm),
+      status: (() => {
+        if (hasFetchedPremiumLease) {
+          return DataStatus.FOUND_POSITIVE;
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        if (processedPremiumData.status === "error") {
+          return getStatusFromString(propertyData.leaseTerm);
+        }
+        return getStatusFromString(propertyData.leaseTerm);
+      })(),
       value: (() => {
         if (hasFetchedPremiumLease) {
-          return premiumFormattedLeaseTerm;
+          return processedPremiumData.formattedPremiumLeaseTerm ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE;
         }
-
         const leaseTermStatus = getStatusFromString(propertyData.leaseTerm);
         if (leaseTermStatus !== DataStatus.ASK_AGENT) {
           return propertyData.leaseTerm;
         }
-
         return CHECKLIST_NO_VALUE.NOT_MENTIONED;
       })(),
       askAgentMessage: "What is the remaining term on the lease?",
@@ -678,7 +735,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Title Deed Issues",
       key: "titleDeedIssues",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.titleDeedIssues
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
@@ -691,8 +751,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Conservation Area Status",
       key: "conservationAreaStatus",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.conservationAreaStatus
+      ),
+      value: processedPremiumData.conservationAreaStatus ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "Indicates if the property is located within an area designated for preservation due to special architectural or historic interest.\n\n" +
@@ -801,7 +864,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "Detailed Flood Risk Assessment",
       key: "detailedFloodRiskAssessment",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.detailedFloodRiskAssessment
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
@@ -814,8 +880,12 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "Airport Noise Assessment",
       key: "airportNoiseAssessment",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.airportNoiseAssessment
+      ),
+      value:
+        processedPremiumData.airportNoiseAssessment?.category ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "Evaluates the level of noise pollution from nearby airports and flight paths.\n\n" +
@@ -827,8 +897,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "National Park Proximity",
       key: "nationalParkProximity",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.nationalParkProximity
+      ),
+      value: processedPremiumData.nationalParkProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "Indicates if the property is located near or within a designated National Park boundary.\n\n" +
@@ -840,8 +913,11 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "Police Force Proximity",
       key: "policeForceProximity",
-      status: DataStatus.ASK_AGENT,
-      value: "Not Available",
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.policeForceProximity
+      ),
+      value: processedPremiumData.policeForceProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "Information about the nearest police station and local policing team presence.\n\n" +
@@ -890,7 +966,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Mobile Service Coverage",
       key: "mobileServiceCoverage",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.mobileServiceCoverage
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
@@ -904,9 +983,11 @@ export function generatePropertyChecklist(
       label: "Property Planning Permissions",
       key: "planningPermissions",
       status: getPropertyPlanningApplicationsStatus(
-        premiumStreetData?.attributes.planning_applications,
+        processedPremiumData.propertyPlanningApplications
       ),
-      value: getPropertyPlanningApplicationsValue(premiumStreetData?.attributes.planning_applications),
+      value: getPropertyPlanningApplicationsValue(
+        processedPremiumData.propertyPlanningApplications
+      ),
       askAgentMessage: "I noticed there are quite a few planning permissions on the property. Do you have more information on this?",
       toolTipExplainer:
         "Planning permission is a key aspect of property regulation in the UK.\n\n" +
@@ -920,9 +1001,11 @@ export function generatePropertyChecklist(
       label: "Nearby Planning Permissions",
       key: "nearbyPlanningPermissions",
       status: getNearbyPlanningApplicationsStatus(
-        premiumStreetData?.attributes.nearby_planning_applications,
+        processedPremiumData.nearbyPlanningApplications
       ),
-      value: getNearbyPlanningApplicationsValue(premiumStreetData?.attributes.nearby_planning_applications),
+      value: getNearbyPlanningApplicationsValue(
+        processedPremiumData.nearbyPlanningApplications
+      ),
       askAgentMessage: "I noticed there are quite a few planning permissions on property nearby. Is there anything I should know about this?",
       toolTipExplainer:
         "Planning permission is a key aspect of property regulation in the UK.\n\n" +
@@ -935,7 +1018,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Healthcare Proximity",
       key: "healthcareProximity",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.healthcareProximity
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
@@ -948,7 +1034,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Train Station Proximity",
       key: "trainStationProximity",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.trainStationProximity
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
@@ -961,7 +1050,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "School Proximity",
       key: "schoolProximity",
-      status: DataStatus.ASK_AGENT,
+      status: getPremiumStatus(
+        processedPremiumData.status,
+        processedPremiumData.schoolProximity
+      ),
       value: "Not Available",
       askAgentMessage: "",
       toolTipExplainer:
