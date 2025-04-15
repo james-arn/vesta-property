@@ -547,7 +547,7 @@ export async function getNearbySchools(): Promise<NearbySchool[]> {
         let distance: number | null = null;
         let unit: string | null = null;
         if (distanceText) {
-          const match = distanceText.trim().match(/^([\d.]+)\s*(.*)$/);
+          const match = distanceText.trim().match(/([\d.]+)\s*([a-zA-Z]+)$/);
           if (match) {
             distance = parseFloat(match[1]);
             unit = match[2] || null; // Capture the unit (e.g., "miles")

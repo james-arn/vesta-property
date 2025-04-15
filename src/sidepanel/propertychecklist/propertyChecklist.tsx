@@ -964,7 +964,6 @@ export function generatePropertyChecklist(
                     {school.type && <span>{school.type}</span>}
                     {school.ratingLabel && (
                       <span>
-                        {school.ratingBody ? `${school.ratingBody}: ` : ""}
                         {school.ratingLabel}
                       </span>
                     )}
