@@ -1,6 +1,7 @@
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
+import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
@@ -11,6 +12,7 @@ import { formatCurrencyGBP, formatPercentage } from "@/utils/formatting";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
+import React from "react";
 import {
   DataStatus,
   ExtractedPropertyScrapingData,
@@ -339,7 +341,69 @@ export function generatePropertyChecklist(
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
-    // TODO: Revist these in later release
+    {
+      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+      label: "Market Activity (Turnover Rate)",
+      key: "marketTurnoverRate",
+      status: (() => {
+        const turnoverRate = processedPremiumData.outcodeTurnoverRate;
+        const baseStatus = getPremiumStatus(
+          processedPremiumData.status,
+          turnoverRate !== null // Success if rate is calculated
+        );
+
+        if (baseStatus === DataStatus.FOUND_POSITIVE && turnoverRate !== null) {
+          // If rate is low, flag as ASK_AGENT
+          return turnoverRate < LOW_TURNOVER_THRESHOLD
+            ? DataStatus.ASK_AGENT
+            : DataStatus.FOUND_POSITIVE;
+        } else if (baseStatus === DataStatus.FOUND_POSITIVE && turnoverRate === null) {
+          // If status is success but rate is null (e.g., total props was 0), flag as ASK_AGENT
+          return DataStatus.ASK_AGENT;
+        }
+        return baseStatus;
+      })(),
+      value: (() => {
+        const sales = processedPremiumData.outcodeMarketActivity;
+        const total = processedPremiumData.outcodeTotalProperties;
+        const outcode = processedPremiumData.outcodeIdentifier || "area";
+        const rate = processedPremiumData.outcodeTurnoverRate;
+
+        if (rate !== null && sales !== null && total !== null) {
+          return (
+            <>
+              Sales (12m): {sales}<br />
+              Properties: {total}<br />
+              Turnover Rate: {(rate * 100).toFixed(1)}%<br />
+              Area: {outcode}
+            </>
+          );
+        } else if (sales !== null) {
+          return (
+            <>
+              Sales (12m): {sales}<br />
+              Properties: Unknown<br />
+              Area: {outcode}
+            </>
+          )
+        } else if (total !== null) {
+          return (
+            <>
+              Sales (12m): Unknown<br />
+              Properties: {total}<br />
+              Area: {outcode}
+            </>
+          )
+        }
+        return CHECKLIST_NO_VALUE.NOT_AVAILABLE;
+      })(),
+      askAgentMessage: "Market turnover seems low (<3%). Is there a reason for this?",
+      toolTipExplainer:
+        "Compares the number of sales in the last 12 months to the total number of properties in the postcode area (e.g., M5).\n\n" +
+        "A higher percentage (turnover rate) indicates a more liquid/active market. Typical UK average is around 4-5%.",
+      isUnlockedWithPremium: true,
+      isBoostedWithPremium: false,
+    },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Outcode Average Sales Price",
@@ -353,26 +417,6 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "The average price properties sold for within the outcode over a recent period.\n\n" +
         "Provides a general benchmark for property values in the area.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    // Uncommented and updated Outcode Market Activity
-    {
-      checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
-      label: "Outcode Market Activity",
-      key: "outcodeMarketActivity",
-      status: getPremiumStatus(
-        processedPremiumData.status,
-        processedPremiumData.outcodeMarketActivity
-      ),
-      value:
-        processedPremiumData.outcodeMarketActivity !== null
-          ? `${processedPremiumData.outcodeMarketActivity} sales in last 12m`
-          : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Indicates the total number of property sales within the broader postcode area (outcode) over the last 12 months.\n\n" +
-        "Reflects the overall activity level and liquidity of the local market. Higher numbers suggest a more active market.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
@@ -441,19 +485,6 @@ export function generatePropertyChecklist(
     //   isUnlockedWithPremium: true,
     //   isBoostedWithPremium: false,
     // },
-    // {
-    //   checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
-    //   label: "Outcode Sales Volume",
-    //   key: "outcodeSalesVolume",
-    //   status: DataStatus.ASK_AGENT,
-    //   value: "Not Available",
-    //   askAgentMessage: "",
-    //   toolTipExplainer:
-    //     "Total number of property sales within the broader postcode area (outcode) over a recent period.\n\n" +
-    //     "Indicates the overall activity level and liquidity of the local market.",
-    //   isUnlockedWithPremium: true,
-    //   isBoostedWithPremium: false,
-    // },
 
     epcChecklistItem,
 
@@ -492,15 +523,33 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Heating Type",
       key: "heatingType",
-      status: getStatusFromString(propertyData.heating),
-      value: propertyData.heating,
+      status: (() => {
+        const premiumHeating = processedPremiumData.constructionMaterials?.heating;
+        if (processedPremiumData.status === "success" && premiumHeating) {
+          // Assuming any description found is positive, adjust if needed
+          return DataStatus.FOUND_POSITIVE;
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        // Fallback if premium loading failed, or succeeded but had no heating info
+        return getStatusFromString(propertyData.heating);
+      })(),
+      value: (() => {
+        const premiumHeating = processedPremiumData.constructionMaterials?.heating;
+        if (processedPremiumData.status === "success" && premiumHeating) {
+          return premiumHeating;
+        }
+        // Fallback if premium loading failed, or succeeded but had no heating info
+        return propertyData.heating ?? CHECKLIST_NO_VALUE.NOT_MENTIONED;
+      })(),
       askAgentMessage: "What's the heating type?",
       toolTipExplainer:
         "Heating type refers to the method of heating used in the property, such as gas central heating, electric heating, or underfloor heating.\n\n" +
         "It can also include specific types like boilers, radiators, or heat pumps.\n\n" +
-        "Understanding the heating type helps in assessing the property's energy efficiency and comfort.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+        "Understanding the heating type helps in assessing the property's energy efficiency and comfort. Premium data provides specifics from the Energy Performance Certificate when available.",
+      isUnlockedWithPremium: false, // Data exists in free tier
+      isBoostedWithPremium: true, // More specific data from premium
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -578,18 +627,35 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.EXTERIOR,
       label: "Windows",
       key: "windows",
-      status:
-        typeof propertyData.windows === "string" &&
+      status: (() => {
+        const premiumWindows = processedPremiumData.constructionMaterials?.windows;
+        if (processedPremiumData.status === "success" && premiumWindows) {
+          // Assuming any description found is positive
+          return DataStatus.FOUND_POSITIVE;
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        // Fallback if premium loading failed, or succeeded but had no window info
+        return typeof propertyData.windows === "string" &&
           propertyData.windows.toLowerCase() !== agentMissingInfo
           ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value: propertyData.windows,
+          : DataStatus.ASK_AGENT;
+      })(),
+      value: (() => {
+        const premiumWindows = processedPremiumData.constructionMaterials?.windows;
+        if (processedPremiumData.status === "success" && premiumWindows) {
+          return premiumWindows;
+        }
+        // Fallback
+        return propertyData.windows ?? CHECKLIST_NO_VALUE.NOT_MENTIONED;
+      })(),
       askAgentMessage: "Windows - material & glazing?",
       toolTipExplainer:
         "The key information to know is the materials, such as wood, aluminium, or uPVC, and the glazing, such as single or double-glazed windows.\n\n" +
-        "Understanding the window material and glazing can impact the property's energy efficiency and comfort.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+        "Understanding the window material and glazing can impact the property's energy efficiency and comfort. Premium data provides specifics from the Energy Performance Certificate when available.",
+      isUnlockedWithPremium: false, // Data exists in free tier
+      isBoostedWithPremium: true, // More specific data from premium
     },
     {
       checklistGroup: PropertyGroups.EXTERIOR,
@@ -621,29 +687,62 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Restrictions",
       key: "restrictions",
-      status: getStatusFromBoolean(propertyData.restrictions, true),
-      value: getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions),
+      status: (() => {
+        const premiumCovenants = processedPremiumData.restrictiveCovenants;
+        if (processedPremiumData.status === "success" && premiumCovenants) {
+          // Found premium data: Status depends on whether covenants exist
+          return premiumCovenants.length > 0 ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        // Fallback to scraped data status
+        return getStatusFromBoolean(propertyData.restrictions, true);
+      })(),
+      value: (() => {
+        const premiumCovenants = processedPremiumData.restrictiveCovenants;
+        if (processedPremiumData.status === "success" && premiumCovenants) {
+          return premiumCovenants.length > 0 ? "Yes - Check details" : "No known covenants";
+        }
+        // Fallback to scraped data
+        return getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions);
+      })(),
       askAgentMessage: "Any restrictions?",
       toolTipExplainer:
-        "Restrictions are legal constraints on what can be done with the property, such as building height limits, conservation area regulations, or planning permissions.\n\n" +
-        "These restrictions can impact the property's value and potential use.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+        "Restrictions are legal constraints on what can be done with the property, potentially including restrictive covenants found in deeds. \n\n" +
+        "These can impact the property's value, potential use, and alterations. Premium data can identify known covenants.",
+      isUnlockedWithPremium: false, // Data exists in free tier
+      isBoostedWithPremium: true, // More specific data from premium
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Public right of way obligation",
-      key: "publicRightOfWayObligation",
-      status: getStatusFromBoolean(propertyData.publicRightOfWayObligation, true),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        propertyData.publicRightOfWayObligation
-      ),
+      label: "Public Right of Way",
+      key: "publicRightOfWay",
+      status: (() => {
+        const premiumRightOfWay = processedPremiumData.publicRightOfWay;
+        if (processedPremiumData.status === "success" && premiumRightOfWay !== null && premiumRightOfWay?.has_public_right_of_way !== null) {
+          return getStatusFromBoolean(premiumRightOfWay.has_public_right_of_way, true);
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        // Fallback to scraped data status
+        return getStatusFromBoolean(propertyData.publicRightOfWayObligation, true);
+      })(),
+      value: (() => {
+        const premiumRightOfWay = processedPremiumData.publicRightOfWay;
+        if (processedPremiumData.status === "success" && premiumRightOfWay !== null && premiumRightOfWay?.has_public_right_of_way !== null) {
+          return premiumRightOfWay.has_public_right_of_way ? "Yes" : "No";
+        }
+        // Fallback to scraped data
+        return getYesNoOrAskAgentStringFromBoolean(propertyData.publicRightOfWayObligation);
+      })(),
       askAgentMessage: "Public right of way obligation?",
       toolTipExplainer:
-        "Public Rights of Way are legal obligations requiring access to private property, such as footpaths or bridleways.\n\n" +
-        "Property owners may be responsible for upkeep and work with the council for maintenance.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+        "Public Rights of Way are legal obligations requiring access across private property, such as footpaths or bridleways.\n\n" +
+        "Property owners may be responsible for upkeep. Premium data can confirm the presence of known public rights of way affecting the property.",
+      isUnlockedWithPremium: false, // Data exists in free tier
+      isBoostedWithPremium: true, // More specific data from premium
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -730,22 +829,6 @@ export function generatePropertyChecklist(
         "Leases under 80 years can become expensive to extend and may affect mortgage availability and resale value.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
-    },
-    {
-      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Title Deed Issues",
-      key: "titleDeedIssues",
-      status: getPremiumStatus(
-        processedPremiumData.status,
-        processedPremiumData.titleDeedIssues
-      ),
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Potential problems found within the property's legal title documents.\n\n" +
-        "Could include boundary disputes, unclear ownership, or restrictive covenants impacting property use or modifications.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -839,13 +922,31 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "Coastal Erosion",
       key: "coastalErosion",
-      status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
+      status: (() => {
+        const premiumErosion = processedPremiumData.coastalErosionRisk;
+        if (processedPremiumData.status === "success" && premiumErosion !== null && premiumErosion?.can_have_erosion_plan !== null) {
+          // Premium data available: Status depends on whether a plan can exist (implies potential risk)
+          return premiumErosion.can_have_erosion_plan ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
+        }
+        if (processedPremiumData.status === "loading" || processedPremiumData.status === "pending") {
+          return DataStatus.IS_LOADING;
+        }
+        // Fallback to scraped data status
+        return propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT;
+      })(),
+      value: (() => {
+        const premiumErosion = processedPremiumData.coastalErosionRisk;
+        if (processedPremiumData.status === "success" && premiumErosion !== null && premiumErosion?.can_have_erosion_plan !== null) {
+          return premiumErosion.can_have_erosion_plan ? "Risk indicated (plan possible)" : "No erosion plan applicable";
+        }
+        // Fallback to scraped data
+        return propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED;
+      })(),
       askAgentMessage: propertyData.coastalErosion.reason ?? "",
       toolTipExplainer:
-        "Coastal erosion isn't mentioned in the listing. This could mean the property isn't in a coastal area—or it might be an omission. Please confirm if there's any coastal risk.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+        "Indicates if the property is in an area potentially susceptible to coastal erosion. Premium data checks official records regarding erosion management plans.",
+      isUnlockedWithPremium: false, // Data exists in free tier
+      isBoostedWithPremium: true, // More specific data from premium
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -1014,54 +1115,38 @@ export function generatePropertyChecklist(
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
-    {
-      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-      label: "Healthcare Proximity",
-      key: "healthcareProximity",
-      status: getPremiumStatus(
-        processedPremiumData.status,
-        processedPremiumData.healthcareProximity
-      ),
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Details on the distance and accessibility of nearby GP surgeries, hospitals, and other healthcare facilities.\n\n" +
-        "Essential for assessing convenience and access to medical care.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-      label: "Train Station Proximity",
-      key: "trainStationProximity",
-      status: getPremiumStatus(
-        processedPremiumData.status,
-        processedPremiumData.trainStationProximity
-      ),
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Details on the distance and accessibility of nearby train stations.\n\n" +
-        "Essential for assessing convenience and access to public transport.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
-    },
-    {
-      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-      label: "School Proximity",
-      key: "schoolProximity",
-      status: getPremiumStatus(
-        processedPremiumData.status,
-        processedPremiumData.schoolProximity
-      ),
-      value: "Not Available",
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Details on the distance and accessibility of nearby schools.\n\n" +
-        "Essential for assessing convenience and access to education.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
-    },
+    // {
+    //   checklistGroup: PropertyGroups.NEIGHBOURHOOD,
+    //   label: "Train Station Proximity",
+    //   key: "trainStationProximity",
+    //   status: getPremiumStatus(
+    //     processedPremiumData.status,
+    //     processedPremiumData.transport?.public.
+    //   ),
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Details on the distance and accessibility of nearby train stations.\n\n" +
+    //     "Essential for assessing convenience and access to public transport.",
+    //   isUnlockedWithPremium: false,
+    //   isBoostedWithPremium: true,
+    // },
+    // {
+    //   checklistGroup: PropertyGroups.NEIGHBOURHOOD,
+    //   label: "School Proximity",
+    //   key: "schoolProximity",
+    //   status: getPremiumStatus(
+    //     processedPremiumData.status,
+    //     processedPremiumData.schoolProximity
+    //   ),
+    //   value: "Not Available",
+    //   askAgentMessage: "",
+    //   toolTipExplainer:
+    //     "Details on the distance and accessibility of nearby schools.\n\n" +
+    //     "Essential for assessing convenience and access to education.",
+    //   isUnlockedWithPremium: false,
+    //   isBoostedWithPremium: true,
+    // },
   ];
 
   // Filter out items not applicable based on property type (e.g., councilTax for non-residential)

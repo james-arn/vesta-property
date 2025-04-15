@@ -62,7 +62,7 @@ export const useChecklistAndDashboardData = ({
     return generatePropertyChecklist(
       propertyData,
       crimeScoreQuery,
-      processedPremiumData, // Pass processed data
+      processedPremiumData,
       processedEpcResult ?? INITIAL_EPC_RESULT_STATE
     );
   }, [propertyData, crimeScoreQuery, processedPremiumData, processedEpcResult]);
@@ -84,8 +84,12 @@ export const useChecklistAndDashboardData = ({
   // 4. Calculate Final Dashboard Scores
   const dashboardScores = useMemo(() => {
     // Pass both checklist (for simple lookups) and calc data (for specific values)
-    return calculateDashboardScores(basePropertyChecklistData, dashboardCalculationData);
-  }, [basePropertyChecklistData, dashboardCalculationData]);
+    return calculateDashboardScores(
+      basePropertyChecklistData,
+      dashboardCalculationData,
+      processedPremiumData
+    );
+  }, [basePropertyChecklistData, dashboardCalculationData, processedPremiumData]);
 
   return {
     basePropertyChecklistData,

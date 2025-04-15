@@ -41,21 +41,33 @@ export const processPremiumStreetData = (
     (attributes?.nearby_planning_applications as NearbyPlanningApplication[]) ?? null;
   const outcodeAvgSalesPrice =
     attributes?.market_statistics?.outcode?.average_price_properties_sold_last_12_months ?? null;
+  const outcodeTotalProperties =
+    attributes?.market_statistics?.outcode?.count_of_properties ?? null;
+  const outcodeIdentifier = attributes?.market_statistics?.outcode?.outcode ?? null;
   const { formatted: formattedPremiumLeaseTerm, totalMonths: premiumLeaseTotalMonths } =
     calculateRemainingLeaseTerm(premiumLeaseEndDate);
+
+  // Calculate Turnover Rate (as decimal)
+  const outcodeTurnoverRate =
+    outcodeMarketActivity !== null && outcodeTotalProperties !== null && outcodeTotalProperties > 0
+      ? outcodeMarketActivity / outcodeTotalProperties
+      : null;
+
   const constructionMaterials = {
     walls: attributes?.energy_performance?.walls_description ?? null,
     roof: attributes?.energy_performance?.roof_description ?? null,
     floor: attributes?.energy_performance?.floor_description ?? null,
     windows: attributes?.energy_performance?.windows_description ?? null,
+    heating: attributes?.energy_performance?.mainheat_description ?? null,
   };
+  const restrictiveCovenants = attributes?.restrictive_covenants ?? null;
+  const detailedFloodRiskAssessment = attributes?.flood_risk ?? null;
+  const mobileServiceCoverage = attributes?.mobile_service_coverage ?? null;
+  const transport = attributes?.transport ?? null;
+  const schoolProximity = attributes?.education ?? null;
 
-  const titleDeedIssues = null; // Placeholder - requires specific logic/source
-  const detailedFloodRiskAssessment = null; // Placeholder - requires specific logic/source
-  const mobileServiceCoverage = null; // Placeholder - requires specific logic/source
-  const healthcareProximity = null; // Placeholder - requires specific logic/source
-  const trainStationProximity = null; // Placeholder - requires specific logic/source
-  const schoolProximity = null; // Placeholder - requires specific logic/source
+  const coastalErosionRisk = attributes?.coastal_erosion ?? null;
+  const publicRightOfWay = attributes?.right_of_way ?? null;
 
   return {
     status: queryStatus,
@@ -70,7 +82,6 @@ export const processPremiumStreetData = (
     premiumLeaseTotalMonths,
     constructionMaterials,
     constructionAgeBand,
-    titleDeedIssues,
     conservationAreaStatus,
     detailedFloodRiskAssessment,
     airportNoiseAssessment,
@@ -80,9 +91,14 @@ export const processPremiumStreetData = (
     propertyPlanningApplications,
     nearbyPlanningApplications,
     occupancyStatus,
-    healthcareProximity,
-    trainStationProximity,
+    transport,
     schoolProximity,
     outcodeAvgSalesPrice,
+    outcodeTotalProperties,
+    outcodeIdentifier,
+    outcodeTurnoverRate,
+    restrictiveCovenants,
+    coastalErosionRisk,
+    publicRightOfWay,
   };
 };

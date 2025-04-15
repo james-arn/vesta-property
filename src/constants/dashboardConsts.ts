@@ -25,7 +25,6 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
   [DashboardScoreCategory.INVESTMENT_VALUE]: [
     "price", // Asking price
     "listingHistory", // Price changes, time on market
-    "priceDiscrepancy", // Vs last sale
     "compoundAnnualGrowthRate", // Historical growth
     "volatility", // Price stability
     "estimatedSaleValue", // AVM benchmark
@@ -40,7 +39,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "propensityToLet",
     "nearbySalesListings",
     "nearbyRentalListings",
-    "outcodeSalesVolume",
+    "marketTurnoverRate",
   ],
   [DashboardScoreCategory.CONNECTIVITY]: [
     "broadband",

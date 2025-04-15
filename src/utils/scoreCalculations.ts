@@ -1,47 +1,27 @@
 import { CATEGORY_ITEM_MAP, DashboardScoreCategory } from "@/constants/dashboardConsts";
-import {
-  CategoryScoreData,
-  DashboardScores,
-  DataStatus,
-  PropertyDataListItem,
-} from "@/types/property";
+import { ProcessedPremiumStreetData } from "@/types/premiumStreetData";
+import { CategoryScoreData, DashboardScores, PropertyDataListItem } from "@/types/property";
+import { calculateCompletenessScore } from "./scoreCalculations/calculateCompletenessScore";
+import { calculateConditionScore } from "./scoreCalculations/calculateConditionScore";
+import { calculateConnectivityScore } from "./scoreCalculations/calculateConnectivityScore";
+import { calculateEnvironmentalRiskScore } from "./scoreCalculations/calculateEnvironmentalRiskScore";
+import { calculateInvestmentValueScore } from "./scoreCalculations/calculateInvestmentValueScore";
+import { calculateLegalConstraintsScore } from "./scoreCalculations/calculateLegalConstraintsScore";
+import { calculateRunningCostsScore } from "./scoreCalculations/calculateRunningCostsScore";
 
+// Shared type definition (needed by orchestrator and specific calculators)
 interface CalculationData {
   calculatedLeaseMonths: number | null;
   epcScoreForCalculation: number;
 }
 
-// Define a default/unavailable score structure
 const UNAVAILABLE_SCORE_DATA: CategoryScoreData = {
   score: { scoreValue: 0, maxScore: 100, scoreLabel: "Unavailable" },
   contributingItems: [],
   warningMessage: "Required data missing for calculation.",
 };
 
-// --- Helper Functions used only within this file ---
-const findItem = (items: PropertyDataListItem[], key: string): PropertyDataListItem | undefined => {
-  return items.find((item) => item.key === key);
-};
-const getItemValue = (item: PropertyDataListItem | undefined): any => {
-  return item?.value;
-};
-
-// --- Mappers (Convert raw data to numeric scores) ---
-const mapCouncilTaxToScore = (band?: string | null): number => {
-  const bandMap: { [key: string]: number } = {
-    A: 10,
-    B: 20,
-    C: 30,
-    D: 45,
-    E: 60,
-    F: 75,
-    G: 90,
-    H: 100,
-    I: 100,
-  };
-  return typeof band === "string" ? (bandMap[band.trim().toUpperCase()] ?? 50) : 50;
-};
-
+// Keep shared mappers here for now
 export const mapEpcToScore = (rating?: string | number | null): number => {
   const averageScore = 55; // Score equivalent to 'D' rating UK average
 
@@ -57,289 +37,33 @@ export const mapEpcToScore = (rating?: string | number | null): number => {
   return averageScore; // Return average if rating is null/undefined/invalid type
 };
 
-const mapTenureToRiskScore = (tenure?: string | null): number => {
-  // Higher score = Higher Risk/Constraint Level
-  if (!tenure) return 50;
-  const lowerTenure = tenure.toLowerCase();
-  if (lowerTenure.includes("freehold")) return 0; // Low constraint/risk
-  if (lowerTenure.includes("leasehold")) return 70; // High constraint/risk
-  if (lowerTenure.includes("share of freehold") || lowerTenure.includes("commonhold")) return 10; // Low-ish constraint
-  return 50;
-};
-
-// --- Constants for Scoring Logic ---
-const RUNNING_COSTS_WEIGHTS = {
-  COUNCIL_TAX: 0.3,
-  EPC: 0.5,
-  TENURE: 0.2,
-};
-
-const TENURE_COST_SCORES = {
-  LEASEHOLD: 60, // Higher cost score for leasehold
-  UNKNOWN: 30, // Moderate cost score for unknown/check manually
-  OTHER: 0, // Low cost score for freehold/other positive identifications
-};
-
-const DEFAULT_EPC_COST_SCORE = 50; // Equivalent to a 'D' rating
-
-// --- Individual Category Score Calculations ---
-
-const calculateRunningCostsScore = (
-  items: PropertyDataListItem[],
-  calculationData: CalculationData
-): CategoryScoreData => {
-  const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
-  const contributingItemsFound = items.filter((item) => contributingKeys.includes(item.key));
-
-  const councilTaxItem = findItem(contributingItemsFound, "councilTax");
-  const epcItem = findItem(contributingItemsFound, "epc");
-  const tenureItem = findItem(contributingItemsFound, "tenure");
-
-  // Council tax is essential
-  if (!councilTaxItem || councilTaxItem.status === DataStatus.ASK_AGENT) {
-    console.warn("Cannot calculate running costs score without valid council tax data.");
-    // Return a default unavailable score object
-    return {
-      ...UNAVAILABLE_SCORE_DATA,
-      contributingItems: contributingItemsFound, // Still show contributing items
-      warningMessage: "Valid council tax data needed for Running Costs score.",
-    };
-  }
-
-  const councilTaxValue = getItemValue(councilTaxItem);
-  const epcValue = getItemValue(epcItem);
-  const tenureValue = getItemValue(tenureItem);
-
-  const epcCostScore = 100 - calculationData.epcScoreForCalculation;
-
-  const getTenureCostScore = (): number => {
-    if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
-      return TENURE_COST_SCORES.UNKNOWN;
-    }
-    if (tenureItem.status === DataStatus.FOUND_POSITIVE && typeof tenureValue === "string") {
-      return tenureValue.toLowerCase().includes("leasehold")
-        ? TENURE_COST_SCORES.LEASEHOLD
-        : TENURE_COST_SCORES.OTHER;
-    }
-    return TENURE_COST_SCORES.UNKNOWN;
-  };
-  const tenureCostScore = getTenureCostScore();
-
-  // Calculate weighted total cost score
-  const totalCostScore =
-    mapCouncilTaxToScore(councilTaxValue) * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX +
-    epcCostScore * RUNNING_COSTS_WEIGHTS.EPC +
-    tenureCostScore * RUNNING_COSTS_WEIGHTS.TENURE;
-
-  // Clamp the raw cost score (higher = more costly)
-  const finalScoreValue = Math.max(0, Math.min(100, totalCostScore));
-
-  // Adjust label function to work with direct cost score (higher number = higher cost)
-  const getRunningCostScoreLabel = (costScore: number): string => {
-    if (costScore >= 65) return "High Cost"; // e.g. 65-100
-    if (costScore >= 50) return "Medium-High Cost"; // e.g. 50-64
-    if (costScore >= 35) return "Medium Cost"; // e.g. 35-49
-    if (costScore >= 20) return "Low-Medium Cost"; // e.g. 20-34
-    return "Low Cost"; // e.g. 0-19
-  };
-  const scoreLabel = getRunningCostScoreLabel(finalScoreValue);
-
-  // Generate Warnings
-  const warnings: string[] = [];
-  if (!epcItem || epcItem.status === DataStatus.ASK_AGENT) {
-    warnings.push("EPC rating not found or invalid; score calculated using UK average (D).");
-  }
-  if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
-    warnings.push(
-      "Tenure could not be confirmed automatically. Leasehold properties may incur additional costs."
-    );
-  } else if (tenureCostScore === TENURE_COST_SCORES.LEASEHOLD) {
-    warnings.push(
-      "Leasehold tenure typically involves additional costs (e.g., ground rent, service charges)."
-    );
-  }
-  const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
-
-  return {
-    score: {
-      scoreValue: Math.round(finalScoreValue),
-      maxScore: 100,
-      scoreLabel: scoreLabel,
-    },
-    contributingItems: contributingItemsFound,
-    warningMessage: combinedWarningMessage,
-  };
-};
-
-const calculateInvestmentValueScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
-  console.warn("Investment Value score calculation not implemented.");
-  // TODO: Implement logic comparing price, estimates, trends etc.
-  // Placeholder: return a neutral score
-  return {
-    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Value" },
-    contributingItems: items,
-  };
-};
-
-const calculateConnectivityScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
-  console.warn("Connectivity score calculation not implemented.");
-  // TODO: Implement logic based on broadband, mobile coverage, proximity etc.
-  // Placeholder: return a neutral score
-  return {
-    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Connectivity" },
-    contributingItems: items,
-  };
-};
-
-const calculateConditionScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
-  console.warn("Condition score calculation not implemented.");
-  // TODO: Implement logic based on age, materials, EPC, known issues etc.
-  // Placeholder: return a neutral score
-  return {
-    score: { scoreValue: 50, maxScore: 100, scoreLabel: "Medium Condition" },
-    contributingItems: items,
-  };
-};
-
-const calculateEnvironmentalRiskScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
-  console.warn("Environmental Risk score calculation needs implementation beyond placeholders.");
-  // TODO: Implement logic summing risk points from flood, crime, noise, etc.
-  const crimeItem = findItem(items, "crimeScore");
-  // ... get other relevant items ...
-  let totalRiskPoints = 0;
-  // Add points based on crime score value, flood status, etc.
-  // Example: if crime score is high, add points.
-
-  const finalScoreValue = Math.max(0, Math.min(100, totalRiskPoints)); // Higher score = higher risk
-
-  const getEnvironmentalRiskLabel = (riskScore: number): string => {
-    if (riskScore >= 65) return "High Risk";
-    if (riskScore >= 50) return "Medium-High Risk";
-    if (riskScore >= 35) return "Medium Risk";
-    if (riskScore >= 20) return "Low-Medium Risk";
-    return "Low Risk";
-  };
-  const scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
-
-  return {
-    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
-    contributingItems: items,
-  };
-};
-
-const calculateLegalConstraintsScore = (
-  items: PropertyDataListItem[],
-  calculationData: CalculationData // Accept calculationData
-): CategoryScoreData | undefined => {
-  console.warn("Legal Constraints score calculation needs implementation beyond placeholders.");
-  const tenureItem = findItem(items, "tenure");
-  let totalConstraintPoints = mapTenureToRiskScore(getItemValue(tenureItem));
-
-  // --- Use calculatedLeaseMonths ---
-  const leaseMonths = calculationData.calculatedLeaseMonths;
-  if (leaseMonths !== null && leaseMonths < 12 * 80) {
-    // Check if less than 80 years (in months)
-    console.log("Lease term less than 80 years, adding constraint points.");
-    totalConstraintPoints += 30; // Example: Add significant points for short lease
-  }
-
-  // ... check listedProperty, restrictions, etc. and add points ...
-
-  const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints));
-
-  const getLegalConstraintsLabel = (constraintScore: number): string => {
-    if (constraintScore >= 65) return "Severe Constraints";
-    if (constraintScore >= 50) return "Medium-High Constraints";
-    if (constraintScore >= 35) return "Medium Constraints";
-    if (constraintScore >= 20) return "Low-Medium Constraints";
-    return "Low Constraints";
-  };
-  const scoreLabel = getLegalConstraintsLabel(finalScoreValue);
-
-  return {
-    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
-    contributingItems: items,
-  };
-};
-
-const calculateCompletenessScore = (
-  allItems: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
-  const totalItems = allItems.length;
-  if (totalItems === 0) return undefined;
-
-  // Filter out items that don't have an askAgentMessage, as they aren't expected to be found
-  const relevantItems = allItems.filter((item) => item.askAgentMessage);
-  const relevantTotal = relevantItems.length;
-  if (relevantTotal === 0)
-    return {
-      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
-      contributingItems: [],
-    }; // Avoid division by zero if no relevant items
-
-  const askAgentItems = relevantItems.filter((item) => item.status === DataStatus.ASK_AGENT);
-  const knownItems = relevantTotal - askAgentItems.length;
-  const completenessPercentage = Math.round((knownItems / relevantTotal) * 100);
-
-  const getCompletenessLabel = (percentage: number): string => {
-    if (percentage >= 95) return "Very Complete";
-    if (percentage >= 75) return "Mostly Complete";
-    if (percentage < 50) return "Incomplete";
-    return "Partially Complete";
-  };
-  const scoreLabel = getCompletenessLabel(completenessPercentage);
-
-  return {
-    contributingItems: askAgentItems, // Items contributing negatively (missing)
-    score: {
-      scoreValue: completenessPercentage,
-      maxScore: 100,
-      scoreLabel: scoreLabel,
-    },
-  };
-};
-
-// --- Placeholder Functions ---
-// These need proper implementation based on defined logic and contributing factors
-const calculateSafetyScore = (items: PropertyDataListItem[]): CategoryScoreData | undefined => {
-  console.warn("Safety score calculation not implemented.");
-  // Example placeholder: return a default score or undefined
-  return undefined;
-};
-const calculateValueForMoneyScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
-  console.warn("Value for Money score calculation not implemented.");
-  return undefined;
-};
-
-// --- Main Orchestration Function ---
+// --- Main Orchestration Function --- //
 export const calculateDashboardScores = (
   checklistData: PropertyDataListItem[] | null,
-  calculationData: CalculationData
+  calculationData: CalculationData,
+  processedPremiumData: ProcessedPremiumStreetData
 ): DashboardScores => {
   if (!checklistData) return {};
 
+  const outcodeTurnoverRate = processedPremiumData.outcodeTurnoverRate;
+
+  // Helper to get items relevant to a specific category score
   const getItemsForCategory = (category: DashboardScoreCategory): PropertyDataListItem[] => {
     const itemKeys = CATEGORY_ITEM_MAP[category] || [];
     // Filter checklistData based on the keys defined for the category
     return checklistData.filter((item) => itemKeys.includes(item.key));
   };
 
+  // Call individual calculation functions
   const scores: Partial<DashboardScores> = {
     [DashboardScoreCategory.RUNNING_COSTS]: calculateRunningCostsScore(
       getItemsForCategory(DashboardScoreCategory.RUNNING_COSTS),
       calculationData
     ),
-    [DashboardScoreCategory.INVESTMENT_VALUE]: calculateInvestmentValueScore(
-      getItemsForCategory(DashboardScoreCategory.INVESTMENT_VALUE)
-    ),
+    [DashboardScoreCategory.INVESTMENT_VALUE]: calculateInvestmentValueScore({
+      items: getItemsForCategory(DashboardScoreCategory.INVESTMENT_VALUE),
+      outcodeTurnoverRate,
+    }),
     [DashboardScoreCategory.CONNECTIVITY]: calculateConnectivityScore(
       getItemsForCategory(DashboardScoreCategory.CONNECTIVITY)
     ),
@@ -353,15 +77,12 @@ export const calculateDashboardScores = (
       getItemsForCategory(DashboardScoreCategory.LEGAL_CONSTRAINTS),
       calculationData // Pass calculationData
     ),
-    [DashboardScoreCategory.LISTING_COMPLETENESS]: calculateCompletenessScore(checklistData), // Doesn't need it
+    [DashboardScoreCategory.LISTING_COMPLETENESS]: calculateCompletenessScore(checklistData), // Uses all items
   };
 
-  // Filter out undefined/default scores before returning if desired,
-  // or let the DashboardView handle displaying the "Unavailable" state.
-  // For now, let's return everything, including potential unavailable ones.
-  const finalScores = Object.entries(scores).reduce((acc, [key, value]) => {
-    // Keep all results, even if they are the 'Unavailable' default
-    acc[key as DashboardScoreCategory] = value ?? UNAVAILABLE_SCORE_DATA;
+  // Ensure all categories have a score object, using UNAVAILABLE_SCORE_DATA as default
+  const finalScores = Object.values(DashboardScoreCategory).reduce((acc, category) => {
+    acc[category] = scores[category] ?? { ...UNAVAILABLE_SCORE_DATA }; // Use spread for default
     return acc;
   }, {} as DashboardScores);
 

@@ -56,6 +56,13 @@ export interface PropertyAttributes {
   propensity_to_sell_score?: number;
   propensity_to_let_score?: number;
   energy_performance?: EnergyPerformance | null;
+  flood_risk?: FloodRisk | null;
+  mobile_service_coverage?: MobileServiceCoverage[] | null;
+  education?: Education | null;
+  transport?: Transport | null;
+  restrictive_covenants?: RestrictiveCovenant[] | null;
+  coastal_erosion?: CoastalErosion | null;
+  right_of_way?: RightOfWay | null;
 }
 
 export interface Address {
@@ -70,6 +77,15 @@ export interface Address {
   constructionAgeBand: string | null;
   titleDeedIssues: unknown | null;
   conservationAreaStatus: string | null;
+  detailedFloodRiskAssessment: FloodRisk | null;
+  airportNoiseAssessment: AirportNoise | null;
+  nationalParkProximity: string | null;
+  policeForceProximity: string | null;
+  schoolProximity: Education | null;
+  outcodeAvgSalesPrice: number | null;
+  restrictiveCovenants: RestrictiveCovenant[] | null;
+  coastalErosionRisk: CoastalErosion | null;
+  publicRightOfWay: RightOfWay | null;
 }
 
 export interface RoyalMailFormat {
@@ -326,7 +342,37 @@ export interface MarketStatisticsNational {
   // Additional market statistics fields may be added here.
 }
 
-// --- New Energy Performance Types Start ---
+// --- New Flood Risk Types Start ---
+
+export interface FloodRiskDetailMeta {
+  data_type: "actual" | "predicted" | string | null;
+  source: string | null;
+  attribution_string: string | null;
+}
+
+export interface FloodRiskDetail {
+  risk: string | null;
+  risk_interpretation: string | null;
+  risk_suitability?: string | null; // Optional as not present in surface_water
+  meta: FloodRiskDetailMeta | null;
+}
+
+export interface FloodRisk {
+  rivers_and_seas: FloodRiskDetail | null;
+  surface_water: FloodRiskDetail | null;
+}
+
+export interface MobileServiceCoverage {
+  network: string | null;
+  data_indoor_4g: number | null;
+  data_outdoor_4g: number | null;
+  data_indoor_no_4g: number | null;
+  data_outdoor_no_4g: number | null;
+  voice_indoor_4g: number | null;
+  voice_outdoor_4g: number | null;
+  voice_indoor_no_4g: number | null;
+  voice_outdoor_no_4g: number | null;
+}
 
 export interface EnvironmentalImpact {
   current_impact: number;
@@ -394,13 +440,131 @@ export interface ConstructionMaterials {
   roof: string | null;
   floor: string | null;
   windows: string | null;
+  heating: string | null;
 }
 
 // --- New Energy Performance Types End ---
 
+// --- New Mobile Service Coverage Types End ---
+
+// --- New Education Types Start ---
+
+export interface EducationLocation {
+  coordinates: {
+    longitude: number;
+    latitude: number;
+  };
+  type: "property" | string | null; // Assuming 'property' or other strings
+}
+
+export interface School {
+  name: string | null;
+  location: EducationLocation | null;
+  school_rating: string | null; // e.g., "Good", "Requires improvement", "Inadequate", "Outstanding"
+  postcode: string | null;
+  school_types: string[] | null; // e.g., ["Nursery", "Primary"], ["Secondary"]
+  distance_in_metres: number | null;
+}
+
+export interface Education {
+  nursery?: School[] | null;
+  primary?: School[] | null;
+  secondary?: School[] | null;
+  post_16?: School[] | null;
+  all_through?: School[] | null;
+  pupil_referral_units?: School[] | null;
+  special?: School[] | null;
+  independent?: School[] | null;
+  universities?: School[] | null;
+}
+
+export interface Transport {
+  public?: PublicTransport | null;
+  road_network?: RoadNetwork | null;
+}
+
+// Public Transport Categories
+export interface PublicTransport {
+  bus_coach?: TransportStop[] | null;
+  rail?: TransportStop[] | null;
+  taxi?: TransportStop[] | null;
+  air?: TransportStop[] | null;
+  tram_metro?: TransportStop[] | null;
+  ferry?: TransportStop[] | null;
+}
+
+// Road Network Details
+export interface RoadNetwork {
+  closest_motorway_junction?: MotorwayJunction | null;
+}
+
+// Generic Transport Stop/Station
+export interface TransportStop {
+  atco_code: string | null;
+  stop_name: string | null;
+  location: TransportLocation | null;
+  distance_in_metres: number | null;
+}
+
+// Motorway Junction Details
+export interface MotorwayJunction {
+  name: string | null;
+  description: string | null;
+  location: MotorwayJunctionLocation | null;
+  distance_in_metres: number | null;
+}
+
+// Location for Transport Stops
+export interface TransportLocation {
+  coordinates: {
+    longitude: number;
+    latitude: number;
+  };
+  type: "property" | string | null;
+}
+
+// Location for Motorway Junction
+export interface MotorwayJunctionLocation {
+  coordinates: {
+    longitude: number;
+    latitude: number;
+  };
+}
+
+// --- New Transport Types End ---
+
+// --- New Legal/Risk Types Start ---
+
+export interface RestrictiveCovenant {
+  unique_identifier: string | null;
+  associated_property_description: string | null;
+}
+
+export interface CoastalErosion {
+  can_have_erosion_plan: boolean | null;
+  plans: unknown | null; // Type unknown, assuming null or complex object
+}
+
+export interface RightOfWayDetail {
+  // Structure unknown from provided data (empty array), define if structure becomes clear
+  [key: string]: unknown;
+}
+
+export interface RightOfWay {
+  has_public_right_of_way: boolean | null;
+  right_of_way_details: RightOfWayDetail[] | null;
+}
+
+// --- New Legal/Risk Types End ---
+
 export type PremiumStreetDataResponse = {
   data: AddressMatchData;
   meta: AddressMatchMeta;
+  education?: Education | null;
+  transport?: Transport | null;
+  restrictive_covenants?: RestrictiveCovenant[] | null;
+  coastal_erosion?: CoastalErosion | null;
+  right_of_way?: RightOfWay | null;
 };
 
 export type ProcessedPremiumDataStatus = "loading" | "success" | "error" | "idle" | "pending";
@@ -418,18 +582,22 @@ export interface ProcessedPremiumStreetData {
   premiumLeaseTotalMonths: number | null;
   constructionMaterials: ConstructionMaterials | null;
   constructionAgeBand: string | null;
-  titleDeedIssues: unknown | null;
   conservationAreaStatus: string | null;
-  detailedFloodRiskAssessment: unknown | null; // Placeholder type
+  detailedFloodRiskAssessment: FloodRisk | null;
   airportNoiseAssessment: AirportNoise | null;
   nationalParkProximity: string | null;
   policeForceProximity: string | null;
-  mobileServiceCoverage: unknown | null; // Placeholder type
+  mobileServiceCoverage: MobileServiceCoverage[] | null;
   propertyPlanningApplications: PlanningApplication[] | null;
   nearbyPlanningApplications: NearbyPlanningApplication[] | null;
   occupancyStatus: string | null;
-  healthcareProximity: unknown | null; // Placeholder type
-  trainStationProximity: unknown | null; // Placeholder type
-  schoolProximity: unknown | null; // Placeholder type
+  transport: Transport | null;
+  schoolProximity: Education | null;
   outcodeAvgSalesPrice: number | null;
+  outcodeTotalProperties: number | null;
+  outcodeIdentifier: string | null;
+  outcodeTurnoverRate: number | null; // Added pre-calculated rate
+  restrictiveCovenants: RestrictiveCovenant[] | null;
+  coastalErosionRisk: CoastalErosion | null;
+  publicRightOfWay: RightOfWay | null;
 }
