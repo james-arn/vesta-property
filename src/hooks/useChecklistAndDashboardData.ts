@@ -1,24 +1,18 @@
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
-import { useProcessedEpcData } from "@/hooks/useProcessedEpcData";
-import { EpcProcessorResult, INITIAL_EPC_RESULT_STATE } from "@/lib/epcProcessing";
 import { generatePropertyChecklist } from "@/sidepanel/propertychecklist/propertyChecklist";
-import { PremiumStreetDataResponse, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
+import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import {
   DashboardScores,
   ExtractedPropertyScrapingData,
+  PreprocessedData,
   PropertyDataListItem,
 } from "@/types/property";
-import { calculateDashboardScores, mapEpcToScore } from "@/utils/scoreCalculations";
+import { calculateDashboardScores } from "@/utils/scoreCalculations";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
+import { usePreprocessedPropertyData } from "./usePreprocessedPropertyData";
 
-interface CalculationData {
-  calculatedLeaseMonths: number | null;
-  epcScoreForCalculation: number;
-}
-
-interface UseChecklistAndDashboardDataArgs {
+export interface UseChecklistAndDashboardDataArgs {
   propertyData: ExtractedPropertyScrapingData | null;
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined;
   premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined;
@@ -26,12 +20,10 @@ interface UseChecklistAndDashboardDataArgs {
   isEpcDebugModeOn: boolean;
 }
 
-interface UseChecklistAndDashboardDataResult {
-  basePropertyChecklistData: PropertyDataListItem[];
-  dashboardCalculationData: CalculationData;
-  dashboardScores: DashboardScores;
-  processedEpcResult: EpcProcessorResult;
-  processedPremiumData: ProcessedPremiumStreetData;
+export interface UseChecklistAndDashboardDataResult {
+  propertyChecklistData: PropertyDataListItem[];
+  dashboardScores: DashboardScores | undefined;
+  preprocessedData: PreprocessedData;
 }
 
 export const useChecklistAndDashboardData = ({
@@ -41,61 +33,32 @@ export const useChecklistAndDashboardData = ({
   epcDebugCanvasRef,
   isEpcDebugModeOn,
 }: UseChecklistAndDashboardDataArgs): UseChecklistAndDashboardDataResult => {
-  // 1. preProccess data where required before generating checklist and dashboard
-  const { processedEpcResult } = useProcessedEpcData({
-    initialEpcData: propertyData?.epc,
-    epcUrl: propertyData?.epc?.url,
+  const preprocessedData = usePreprocessedPropertyData({
+    propertyData,
+    premiumStreetDataQuery,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
   });
 
-  const processedPremiumData = useMemo(() => {
-    return processPremiumStreetData(
-      premiumStreetDataQuery?.data,
-      premiumStreetDataQuery?.status ?? "idle" // Provide default status if query undefined
-    );
-  }, [premiumStreetDataQuery?.data, premiumStreetDataQuery?.status]);
+  const propertyChecklistData = useMemo(() => {
+    if (
+      !propertyData ||
+      preprocessedData.isPreprocessedDataLoading ||
+      preprocessedData.preprocessedDataError
+    )
+      return [];
+    return generatePropertyChecklist(propertyData, crimeScoreQuery, preprocessedData);
+  }, [propertyData, crimeScoreQuery, preprocessedData]);
 
-  // 2. Generate Checklist for UI
-  const basePropertyChecklistData = useMemo(() => {
-    if (!propertyData) return [];
-    return generatePropertyChecklist(
-      propertyData,
-      crimeScoreQuery,
-      processedPremiumData,
-      processedEpcResult ?? INITIAL_EPC_RESULT_STATE
-    );
-  }, [propertyData, crimeScoreQuery, processedPremiumData, processedEpcResult]);
-
-  // 3. Prepare Data for Dashboard Calculations
-  const dashboardCalculationData = useMemo((): CalculationData => {
-    // Use processed data for lease term calculation
-    const calculatedLeaseMonths = processedPremiumData.premiumLeaseTotalMonths;
-
-    const finalEpcValue = processedEpcResult?.value;
-    const epcScoreForCalculation = mapEpcToScore(finalEpcValue);
-
-    return {
-      calculatedLeaseMonths: calculatedLeaseMonths,
-      epcScoreForCalculation: epcScoreForCalculation,
-    };
-  }, [processedPremiumData.premiumLeaseTotalMonths, processedEpcResult]);
-
-  // 4. Calculate Final Dashboard Scores
   const dashboardScores = useMemo(() => {
-    // Pass both checklist (for simple lookups) and calc data (for specific values)
-    return calculateDashboardScores(
-      basePropertyChecklistData,
-      dashboardCalculationData,
-      processedPremiumData
-    );
-  }, [basePropertyChecklistData, dashboardCalculationData, processedPremiumData]);
+    if (preprocessedData.isPreprocessedDataLoading || preprocessedData.preprocessedDataError)
+      return undefined;
+    return calculateDashboardScores(propertyChecklistData, preprocessedData);
+  }, [propertyChecklistData, preprocessedData]);
 
   return {
-    basePropertyChecklistData,
-    dashboardCalculationData,
+    propertyChecklistData,
     dashboardScores,
-    processedEpcResult: processedEpcResult ?? INITIAL_EPC_RESULT_STATE,
-    processedPremiumData,
+    preprocessedData,
   };
 };

@@ -1,7 +1,9 @@
 import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
+import { ProcessedPremiumStreetData } from "./premiumStreetData";
 import { Station } from "./rightmovePageModel";
 
 export enum DataStatus {
@@ -18,7 +20,6 @@ export interface PropertyDataListItem {
   value: React.ReactNode;
   key: string;
   checklistGroup: string;
-  dashboardGroup?: DashboardScoreCategory;
   selected?: boolean;
   askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
@@ -140,3 +141,22 @@ export interface CategoryScoreData {
 export type DashboardScores = {
   [key in DashboardScoreCategory]?: CategoryScoreData;
 };
+
+export enum ScoreQuality {
+  GOOD = "GOOD",
+  AVERAGE = "AVERAGE",
+  POOR = "POOR",
+  UNKNOWN = "UNKNOWN",
+}
+
+export interface PreprocessedData {
+  isPreprocessedDataLoading: boolean;
+  preprocessedDataError: Error | null;
+  processedEpcResult: EpcProcessorResult | null;
+  processedPremiumData: ProcessedPremiumStreetData | null;
+  finalEpcValue: string | null;
+  finalEpcConfidence: Confidence | null;
+  finalEpcSource: EpcDataSourceType | null;
+  epcScoreForCalculation: number | null;
+  calculatedLeaseMonths: number | null;
+}

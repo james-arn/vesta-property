@@ -1,5 +1,7 @@
 export const BASE_SCORE = 50;
 export const MAX_SCORE = 100;
+export const MIN_EPC_SCORE = 1;
+export const MAX_EPC_SCORE = 100;
 
 // Investment Score Thresholds
 export const LOW_CAGR_THRESHOLD = 0.03; // 3%

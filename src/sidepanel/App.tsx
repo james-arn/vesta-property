@@ -16,7 +16,8 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import {
   ConfidenceLevels,
   EpcDataSourceType,
-  ExtractedPropertyScrapingData
+  ExtractedPropertyScrapingData,
+  PropertyDataListItem
 } from "../types/property";
 
 import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
@@ -132,9 +133,9 @@ const App: React.FC = () => {
 
   // --- Use the hook for checklist/dashboard data --- 
   const {
-    basePropertyChecklistData,
+    propertyChecklistData,
     dashboardScores,
-    processedEpcResult
+    preprocessedData
   } = useChecklistAndDashboardData({
     propertyData,
     crimeScoreQuery: crimeQuery,
@@ -151,7 +152,7 @@ const App: React.FC = () => {
     toggleFilter,
     toggleGroup,
     setOpenGroups
-  } = useChecklistDisplayLogic(basePropertyChecklistData);
+  } = useChecklistDisplayLogic(propertyChecklistData);
 
   // --- Redefine Handlers needed by views --- 
   const openNewTab = (url: string) => {
@@ -234,10 +235,10 @@ const App: React.FC = () => {
   }, [dispatch, queryClient, propertyData.propertyId]);
 
   const handleGenerateMessageClick = useCallback(() => {
-    const message = generateAgentMessage(basePropertyChecklistData);
+    const message = generateAgentMessage(propertyChecklistData);
     setAgentMessage(message);
     setIsAgentMessageModalOpen(true);
-  }, [basePropertyChecklistData]);
+  }, [propertyChecklistData]);
 
   if (nonPropertyPageWarningMessage) {
     return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
@@ -266,7 +267,7 @@ const App: React.FC = () => {
         filters={filters}
         openGroups={openGroups}
         setOpenGroups={setOpenGroups}
-        propertyChecklistData={basePropertyChecklistData.map(item => ({ group: item.checklistGroup }))}
+        propertyChecklistData={propertyChecklistData.map((item: PropertyDataListItem) => ({ group: item.checklistGroup }))}
         agentDetails={propertyData.agent}
         currentView={currentView}
         setCurrentView={setCurrentView}
@@ -276,13 +277,14 @@ const App: React.FC = () => {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-grow p-4 overflow-y-auto">
-        {currentView === VIEWS.DASHBOARD
+        {currentView === VIEWS.DASHBOARD && dashboardScores
           ? (
+
             <DashboardView
-              checklistsData={basePropertyChecklistData}
+              checklistsData={propertyChecklistData}
               dashboardScores={dashboardScores}
               isPremiumDataFetched={isPremiumDataFetched}
-              processedEpcResult={processedEpcResult}
+              processedEpcResult={preprocessedData.processedEpcResult}
               epcDebugCanvasRef={epcDebugCanvasRef}
               isEpcDebugModeOn={isEpcDebugModeOn}
               getValueClickHandler={getValueClickHandler}
@@ -304,7 +306,7 @@ const App: React.FC = () => {
                 togglePlanningPermissionCard={togglePlanningPermissionCard}
                 toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
                 isPremiumDataFetched={isPremiumDataFetched}
-                processedEpcResult={processedEpcResult}
+                processedEpcResult={preprocessedData.processedEpcResult}
                 handleEpcValueChange={handleEpcValueChange}
                 isEpcDebugModeOn={isEpcDebugModeOn}
                 epcDebugCanvasRef={epcDebugCanvasRef}

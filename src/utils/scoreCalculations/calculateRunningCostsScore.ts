@@ -1,21 +1,14 @@
-import { CATEGORY_ITEM_MAP, DashboardScoreCategory } from "@/constants/dashboardConsts";
-import { RUNNING_COSTS_WEIGHTS, TENURE_COST_SCORES } from "@/constants/scoreConstants";
-import { CategoryScoreData, DataStatus, PropertyDataListItem } from "@/types/property"; // Adjust path as needed
+import { MAX_SCORE, RUNNING_COSTS_WEIGHTS, TENURE_COST_SCORES } from "@/constants/scoreConstants";
+import {
+  CategoryScoreData,
+  DataStatus,
+  PreprocessedData,
+  PropertyDataListItem,
+} from "@/types/property";
 import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
+import { calculateEpcScoreValue } from "./scoreCalculationHelpers"; // Import the helper
 
-// Define locally needed types/consts (move to shared types if needed by others)
-interface CalculationData {
-  calculatedLeaseMonths: number | null;
-  epcScoreForCalculation: number;
-}
-
-const UNAVAILABLE_SCORE_DATA: CategoryScoreData = {
-  score: { scoreValue: 0, maxScore: 100, scoreLabel: "Unavailable" },
-  contributingItems: [],
-  warningMessage: "Required data missing for calculation.",
-};
-
-// Helper specific to this calculation (if needed, or move if general)
+// Helper specific to council tax calculation (remains local)
 const mapCouncilTaxToScore = (band?: string | null): number => {
   const bandMap: { [key: string]: number } = {
     A: 10,
@@ -28,39 +21,54 @@ const mapCouncilTaxToScore = (band?: string | null): number => {
     H: 100,
     I: 100,
   };
-  return typeof band === "string" ? (bandMap[band.trim().toUpperCase()] ?? 50) : 50;
+  const defaultScore = 50; // Default score if band is unknown or not standard
+  return typeof band === "string"
+    ? (bandMap[band.trim().toUpperCase()] ?? defaultScore)
+    : defaultScore;
 };
 
 export const calculateRunningCostsScore = (
   items: PropertyDataListItem[],
-  calculationData: CalculationData
-): CategoryScoreData => {
-  const contributingKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
-  const contributingItemsFound = items.filter((item) => contributingKeys.includes(item.key));
+  preprocessedData: PreprocessedData // Use PreprocessedData
+): CategoryScoreData | undefined => {
+  const councilTaxItem = findItemByKey(items, "councilTax");
+  const epcItem = findItemByKey(items, "epc");
+  const tenureItem = findItemByKey(items, "tenure");
+  const heatingItem = findItemByKey(items, "heatingType"); // Keep track of heating
 
-  const councilTaxItem = findItemByKey(contributingItemsFound, "councilTax");
-  const epcItem = findItemByKey(contributingItemsFound, "epc");
-  const tenureItem = findItemByKey(contributingItemsFound, "tenure");
-
-  // Council tax is essential
-  if (!councilTaxItem || councilTaxItem.status === DataStatus.ASK_AGENT) {
-    console.warn("Cannot calculate running costs score without valid council tax data.");
-    // Return a default unavailable score object
+  // If essential data (like EPC score from preprocessed) is missing, we might return undefined or a default score
+  if (
+    preprocessedData.epcScoreForCalculation === null ||
+    preprocessedData.epcScoreForCalculation === undefined
+  ) {
+    console.warn("EPC score for calculation is missing in preprocessedData.");
+    // Decide handling: return undefined or a default score with warning?
+    // Let's return a score indicating uncertainty
+    // Collect available items
+    const contributingItems = [councilTaxItem, epcItem, tenureItem, heatingItem].filter(
+      Boolean
+    ) as PropertyDataListItem[];
     return {
-      ...UNAVAILABLE_SCORE_DATA,
-      contributingItems: contributingItemsFound, // Still show contributing items
-      warningMessage: "Valid council tax data needed for Running Costs score.",
+      score: { scoreValue: 50, maxScore: MAX_SCORE, scoreLabel: "Running Costs Uncertain" },
+      contributingItems,
+      warningMessage: "EPC data missing, Running Costs score is an estimate.",
     };
   }
 
+  // Calculate score components
+  const epcEfficiencyScore = calculateEpcScoreValue(preprocessedData.epcScoreForCalculation); // Use helper
+  const epcCostScore = MAX_SCORE - epcEfficiencyScore; // Invert: higher efficiency = lower cost score
+
   const councilTaxValue = getItemValue(councilTaxItem);
-  const epcValue = getItemValue(epcItem);
+  const councilTaxCostScore = mapCouncilTaxToScore(councilTaxValue);
+
   const tenureValue = getItemValue(tenureItem);
-
-  const epcCostScore = 100 - calculationData.epcScoreForCalculation;
-
   const getTenureCostScore = (): number => {
-    if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
+    if (
+      !tenureItem ||
+      tenureItem.status === DataStatus.ASK_AGENT ||
+      tenureItem.status === DataStatus.IS_LOADING
+    ) {
       return TENURE_COST_SCORES.UNKNOWN;
     }
     if (tenureItem.status === DataStatus.FOUND_POSITIVE && typeof tenureValue === "string") {
@@ -72,48 +80,74 @@ export const calculateRunningCostsScore = (
   };
   const tenureCostScore = getTenureCostScore();
 
-  // Calculate weighted total cost score
+  // --- TODO: Add Heating Cost Score ---
+  // const heatingCostScore = calculateHeatingCostScore(heatingItem);
+  // Update weights if adding heating
+  const heatingCostScore = 0; // Placeholder
+
+  // Calculate weighted total cost score (higher = more costly)
+  // Adjust weights if adding more factors like heating
   const totalCostScore =
-    mapCouncilTaxToScore(councilTaxValue) * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX +
+    councilTaxCostScore * RUNNING_COSTS_WEIGHTS.COUNCIL_TAX +
     epcCostScore * RUNNING_COSTS_WEIGHTS.EPC +
     tenureCostScore * RUNNING_COSTS_WEIGHTS.TENURE;
+  // + heatingCostScore * WEIGHTS.HEATING; // Add when implemented
 
-  // Clamp the raw cost score (higher = more costly)
-  const finalScoreValue = Math.max(0, Math.min(100, totalCostScore));
+  // Normalize final score (0-100, higher cost score is worse)
+  const finalScoreValue = Math.max(0, Math.min(MAX_SCORE, Math.round(totalCostScore)));
 
-  // Adjust label function to work with direct cost score (higher number = higher cost)
+  // Determine Score Label based on the *cost* score
   const getRunningCostScoreLabel = (costScore: number): string => {
-    if (costScore >= 65) return "High Cost"; // e.g. 65-100
-    if (costScore >= 50) return "Medium-High Cost"; // e.g. 50-64
-    if (costScore >= 35) return "Medium Cost"; // e.g. 35-49
-    if (costScore >= 20) return "Low-Medium Cost"; // e.g. 20-34
-    return "Low Cost"; // e.g. 0-19
+    if (costScore >= 65) return "High Cost";
+    if (costScore >= 50) return "Medium-High Cost";
+    if (costScore >= 35) return "Medium Cost";
+    if (costScore >= 20) return "Low-Medium Cost";
+    return "Low Cost";
   };
   const scoreLabel = getRunningCostScoreLabel(finalScoreValue);
 
   // Generate Warnings
   const warnings: string[] = [];
-  if (!epcItem || epcItem.status === DataStatus.ASK_AGENT) {
-    warnings.push("EPC rating not found or invalid; score calculated using UK average (D).");
+  if (epcItem?.status === DataStatus.ASK_AGENT) {
+    warnings.push("EPC rating was estimated.");
   }
-  if (!tenureItem || tenureItem.status === DataStatus.ASK_AGENT) {
+  if (councilTaxItem?.status !== DataStatus.FOUND_POSITIVE) {
+    warnings.push("Council Tax band unknown, cost estimated.");
+  }
+  if (
+    !tenureItem ||
+    tenureItem.status === DataStatus.ASK_AGENT ||
+    tenureItem.status === DataStatus.IS_LOADING
+  ) {
     warnings.push(
-      "Tenure could not be confirmed automatically. Leasehold properties may incur additional costs."
+      "Tenure could not be confirmed. Leasehold properties may incur additional costs."
     );
   } else if (tenureCostScore === TENURE_COST_SCORES.LEASEHOLD) {
-    warnings.push(
-      "Leasehold tenure typically involves additional costs (e.g., ground rent, service charges)."
-    );
+    // Add leasehold specific warning, possibly using calculatedLeaseMonths from preprocessedData
+    const leaseMonths = preprocessedData.calculatedLeaseMonths;
+    const leaseWarningBase = "Leasehold: Additional costs (ground rent, service charges) likely.";
+    const leaseTermWarning =
+      leaseMonths !== null && leaseMonths < 80 * 12 // Check if less than 80 years
+        ? ` Lease term (${Math.round(leaseMonths / 12)} years) is relatively short, which might affect mortgageability and future value.`
+        : "";
+    warnings.push(leaseWarningBase + leaseTermWarning);
   }
+  // Add heating warnings when implemented
+
   const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
+
+  // Collect contributing items
+  const contributingItems = [councilTaxItem, epcItem, tenureItem, heatingItem].filter(
+    Boolean
+  ) as PropertyDataListItem[];
 
   return {
     score: {
-      scoreValue: Math.round(finalScoreValue),
-      maxScore: 100,
+      scoreValue: finalScoreValue, // This is the COST score
+      maxScore: MAX_SCORE,
       scoreLabel: scoreLabel,
     },
-    contributingItems: contributingItemsFound,
+    contributingItems,
     warningMessage: combinedWarningMessage,
   };
 };

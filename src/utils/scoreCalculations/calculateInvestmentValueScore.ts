@@ -24,27 +24,31 @@ import {
   VALUE_MODIFIER_SENSITIVITY_THRESHOLD,
   VOLATILITY_THRESHOLD,
 } from "@/constants/scoreConstants";
-import { CategoryScoreData, PropertyDataListItem } from "@/types/property";
+import { CategoryScoreData, PreprocessedData, PropertyDataListItem } from "@/types/property";
 import { findItemByKey, parseCurrency, parsePercentage } from "@/utils/parsingHelpers";
 
-interface InvestmentValueArgs {
-  items: PropertyDataListItem[];
-  outcodeTurnoverRate?: number | null;
-}
-
 /**
- * Calculates an investment value score based on property checklist items.
+ * Calculates an investment value score based on property checklist items and preprocessed data.
  * Considers growth, value comparison, rental yield, market activity, and volatility.
- * Handles missing data and prioritises premium data where applicable (implicitly via inputs).
+ * Handles missing data and uses preprocessed data (especially premium data) where available.
  */
-export const calculateInvestmentValueScore = ({
-  items,
-  outcodeTurnoverRate,
-}: InvestmentValueArgs): CategoryScoreData | undefined => {
+export const calculateInvestmentValueScore = (
+  items: PropertyDataListItem[],
+  preprocessedData: PreprocessedData
+): CategoryScoreData | undefined => {
   const contributingItems: PropertyDataListItem[] = [];
   const scoreModifiers: number[] = [];
 
-  // --- Get Values ---
+  // --- Extract data from PreprocessedData ---
+  const premiumData = preprocessedData.processedPremiumData;
+  const outcodeTurnoverRate = premiumData?.outcodeTurnoverRate;
+  const estSaleValueFromPremium = premiumData?.estimatedSaleValue;
+  const estYieldFromPremium = premiumData?.estimatedAnnualRentalYield;
+  const propensitySellFromPremium = premiumData?.propensityToSell;
+  const propensityLetFromPremium = premiumData?.propensityToLet;
+  const outcodeAvgPriceFromPremium = premiumData?.outcodeAvgSalesPrice;
+
+  // --- Get Values from Checklist Items (can be overridden by premium data later if needed) ---
   const askingPriceItem = findItemByKey(items, "price");
   const askingPriceValue =
     typeof askingPriceItem?.value === "string" || typeof askingPriceItem?.value === "number"
@@ -60,7 +64,6 @@ export const calculateInvestmentValueScore = ({
       : null;
   const cagr = parsePercentage(cagrValue);
   if (cagrItem) contributingItems.push(cagrItem);
-  // Ignoring priceDiscrepancy for now due to complex parsing needs
 
   const volatilityItem = findItemByKey(items, "volatility");
   const volatilityValue =
@@ -70,58 +73,23 @@ export const calculateInvestmentValueScore = ({
   const volatility = parsePercentage(volatilityValue);
   if (volatilityItem) contributingItems.push(volatilityItem);
 
+  // Add checklist items that might display premium data to contributingItems
   const estSaleValueItem = findItemByKey(items, "estimatedSaleValue");
-  const estSaleValueValue =
-    typeof estSaleValueItem?.value === "string" || typeof estSaleValueItem?.value === "number"
-      ? estSaleValueItem.value
-      : null;
-  const estSaleValue = parseCurrency(estSaleValueValue);
   if (estSaleValueItem) contributingItems.push(estSaleValueItem);
-
   const estYieldItem = findItemByKey(items, "estimatedAnnualRentalYield");
-  const estYieldValue =
-    typeof estYieldItem?.value === "string" || typeof estYieldItem?.value === "number"
-      ? estYieldItem.value
-      : null;
-  const estYield = parsePercentage(estYieldValue);
   if (estYieldItem) contributingItems.push(estYieldItem);
-
   const propensitySellItem = findItemByKey(items, "propensityToSell");
-  const propensitySellValue =
-    typeof propensitySellItem?.value === "string" || typeof propensitySellItem?.value === "number"
-      ? propensitySellItem.value
-      : null;
-  const propensitySell = parsePercentage(propensitySellValue);
   if (propensitySellItem) contributingItems.push(propensitySellItem);
-
   const propensityLetItem = findItemByKey(items, "propensityToLet");
-  const propensityLetValue =
-    typeof propensityLetItem?.value === "string" || typeof propensityLetItem?.value === "number"
-      ? propensityLetItem.value
-      : null;
-  const propensityLet = parsePercentage(propensityLetValue);
   if (propensityLetItem) contributingItems.push(propensityLetItem);
-
   const outcodeAvgPriceItem = findItemByKey(items, "outcodeAvgSalesPrice");
-  const outcodeAvgPriceValue =
-    typeof outcodeAvgPriceItem?.value === "string" || typeof outcodeAvgPriceItem?.value === "number"
-      ? outcodeAvgPriceItem.value
-      : null;
-  const outcodeAvgPrice = parseCurrency(outcodeAvgPriceValue);
   if (outcodeAvgPriceItem) contributingItems.push(outcodeAvgPriceItem);
-
-  const outcodeActivityItem = findItemByKey(items, "outcodeMarketActivity");
-  if (outcodeActivityItem) contributingItems.push(outcodeActivityItem);
-
-  const outcodeTotalPropsItem = findItemByKey(items, "outcodeTotalProperties");
-  if (outcodeTotalPropsItem) contributingItems.push(outcodeTotalPropsItem);
-
   const marketTurnoverRateItem = findItemByKey(items, "marketTurnoverRate");
   if (marketTurnoverRateItem) contributingItems.push(marketTurnoverRateItem);
 
-  // --- Calculate Modifiers ---
+  // --- Calculate Modifiers using preprocessed data where available ---
 
-  // Growth Modifier
+  // Growth Modifier (using CAGR from checklist item)
   if (cagr !== null) {
     if (cagr < LOW_CAGR_THRESHOLD) {
       scoreModifiers.push(LOW_GROWTH_PENALTY);
@@ -135,10 +103,12 @@ export const calculateInvestmentValueScore = ({
     let baseValueSource: number | null = null;
     let isFallback = false;
 
-    if (estSaleValue !== null) {
-      baseValueSource = estSaleValue;
-    } else if (outcodeAvgPrice !== null) {
-      baseValueSource = outcodeAvgPrice;
+    // Prioritize premium estimate
+    if (estSaleValueFromPremium !== null && estSaleValueFromPremium !== undefined) {
+      baseValueSource = estSaleValueFromPremium;
+    } else if (outcodeAvgPriceFromPremium !== null && outcodeAvgPriceFromPremium !== undefined) {
+      // Use premium outcode average as fallback
+      baseValueSource = outcodeAvgPriceFromPremium;
       isFallback = true;
     }
 
@@ -151,35 +121,31 @@ export const calculateInvestmentValueScore = ({
 
       let valueModifier = 0;
       if (valueModifierRatio > 0) {
-        // Undervalued: ratio is positive, use positive MAX_VALUE_BONUS
         valueModifier = valueModifierRatio * MAX_VALUE_BONUS;
       } else if (valueModifierRatio < 0) {
-        // Overvalued: ratio is negative, use absolute of negative MAX_VALUE_PENALTY
         valueModifier = valueModifierRatio * Math.abs(MAX_VALUE_PENALTY);
       }
 
-      // Apply fallback factor if using outcode average
       if (isFallback) {
         valueModifier *= FALLBACK_VALUE_MODIFIER_FACTOR;
       }
 
-      // Add the calculated modifier (can be 0 if diff is small)
       if (valueModifier !== 0) {
         scoreModifiers.push(valueModifier);
       }
     }
   }
 
-  // Yield Modifier
-  if (estYield !== null) {
-    if (estYield > HIGH_RENTAL_YIELD_THRESHOLD) {
+  // Yield Modifier (using premium data)
+  if (estYieldFromPremium !== null && estYieldFromPremium !== undefined) {
+    if (estYieldFromPremium > HIGH_RENTAL_YIELD_THRESHOLD) {
       scoreModifiers.push(HIGH_RENTAL_YIELD_BONUS);
-    } else if (estYield < LOW_RENTAL_YIELD_THRESHOLD) {
+    } else if (estYieldFromPremium < LOW_RENTAL_YIELD_THRESHOLD) {
       scoreModifiers.push(LOW_RENTAL_YIELD_PENALTY);
     }
   }
 
-  // Market Modifier (Turnover Rate) - Use passed-in rate
+  // Market Modifier (Turnover Rate - using premium data)
   if (outcodeTurnoverRate !== null && outcodeTurnoverRate !== undefined) {
     if (outcodeTurnoverRate < LOW_TURNOVER_THRESHOLD) {
       scoreModifiers.push(LOW_TURNOVER_PENALTY);
@@ -188,47 +154,61 @@ export const calculateInvestmentValueScore = ({
     }
   }
 
-  // Propensity Modifiers (kept separate)
-  if (propensitySell !== null && propensitySell > HIGH_PROPENSITY_SELL_THRESHOLD) {
+  // Propensity Modifiers (using premium data)
+  if (
+    propensitySellFromPremium !== null &&
+    propensitySellFromPremium !== undefined &&
+    propensitySellFromPremium > HIGH_PROPENSITY_SELL_THRESHOLD
+  ) {
     scoreModifiers.push(HIGH_PROPENSITY_SELL_BONUS);
   }
-  if (propensityLet !== null && propensityLet > HIGH_PROPENSITY_LET_THRESHOLD) {
+  if (
+    propensityLetFromPremium !== null &&
+    propensityLetFromPremium !== undefined &&
+    propensityLetFromPremium > HIGH_PROPENSITY_LET_THRESHOLD
+  ) {
     scoreModifiers.push(HIGH_PROPENSITY_LET_BONUS);
   }
 
-  // Volatility Modifier
+  // Volatility Modifier (using checklist item)
   if (volatility !== null && volatility > VOLATILITY_THRESHOLD) {
     scoreModifiers.push(HIGH_VOLATILITY_PENALTY);
   }
 
-  // --- Final Score and Label ---
-  // Calculate score by reducing modifiers starting from base
-  const totalScore = scoreModifiers.reduce((acc, modifier) => acc + modifier, BASE_SCORE);
-  const finalScore = Math.max(0, Math.min(MAX_SCORE, Math.round(totalScore))); // Clamp and round
+  // --- Combine Modifiers ---
+  const totalModifier = scoreModifiers.reduce((sum, mod) => sum + mod, 0);
+  const finalScore = Math.max(0, Math.min(MAX_SCORE, BASE_SCORE + totalModifier));
 
+  // --- Determine Label and Warnings ---
   const getScoreLabel = (score: number): string => {
-    if (score >= 80) return "Excellent Potential";
-    if (score >= 60) return "Good Potential";
-    if (score >= 45) return "Average Potential";
-    if (score >= 25) return "Below Average Potential";
-    return "Low Potential";
+    if (score >= 75) return "Strong Investment Potential";
+    if (score >= 60) return "Good Investment Potential";
+    if (score >= 40) return "Average Investment Potential";
+    if (score >= 25) return "Below Average Investment Potential";
+    return "Weak Investment Potential";
   };
 
-  const scoreLabel = getScoreLabel(finalScore);
-
-  // Return undefined if no relevant data points were found at all?
-  // For now, return even if based on few/no factors.
-  if (contributingItems.length === 0) {
-    console.warn("Investment Value score calculated with no contributing items.");
-    // Return a default neutral score or undefined
-    return {
-      score: { scoreValue: 50, maxScore: 100, scoreLabel: "Average Potential" },
-      contributingItems: [],
-    };
+  const warnings: string[] = [];
+  if (preprocessedData.processedPremiumData?.status !== "success") {
+    warnings.push("Premium data unavailable; some investment metrics missing or estimated.");
   }
+  if (cagr === null) {
+    warnings.push("Historical growth rate (CAGR) could not be determined.");
+  }
+  if (volatility === null) {
+    warnings.push("Price volatility could not be determined.");
+  }
+  // Add more specific warnings based on missing premium data points if desired
+
+  const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
 
   return {
-    score: { scoreValue: finalScore, maxScore: MAX_SCORE, scoreLabel },
+    score: {
+      scoreValue: Math.round(finalScore),
+      maxScore: MAX_SCORE,
+      scoreLabel: getScoreLabel(finalScore),
+    },
     contributingItems,
+    warningMessage: combinedWarningMessage,
   };
 };

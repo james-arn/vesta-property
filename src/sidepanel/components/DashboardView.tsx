@@ -36,7 +36,7 @@ interface DashboardViewProps {
     checklistsData: PropertyDataListItem[] | null;
     dashboardScores: DashboardScores;
     isPremiumDataFetched: boolean;
-    processedEpcResult?: EpcProcessorResult;
+    processedEpcResult?: EpcProcessorResult | null;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     getValueClickHandler: GetValueClickHandlerType;
@@ -120,7 +120,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         icon={IconComponent}
                         isPremiumDataFetched={isPremiumDataFetched}
                         upgradeUrl={upgradeUrl}
-                        epcData={processedEpcResult}
+                        epcData={processedEpcResult ?? undefined}
                         epcDebugCanvasRef={epcDebugCanvasRef}
                         isEpcDebugModeOn={isEpcDebugModeOn}
                         getValueClickHandler={getValueClickHandler}
