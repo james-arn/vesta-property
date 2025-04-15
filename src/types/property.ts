@@ -170,4 +170,7 @@ export interface PreprocessedData {
   epcScoreForCalculation: number | null;
   calculatedLeaseMonths: number | null;
   nearbySchoolsScoreValue: number | null;
+  broadbandScoreValue: number | null;
+  broadbandDisplayValue: string | null;
+  broadbandStatus: DataStatus | null;
 }

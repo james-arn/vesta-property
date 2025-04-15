@@ -1,14 +1,18 @@
+import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoresConsts";
+import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
 import { EpcBandResult } from "@/types/epc";
 import { ProcessedPremiumDataStatus, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
 import {
   Confidence,
   ConfidenceLevels,
+  DataStatus,
   EpcData,
   EpcDataSourceType,
   PreprocessedData,
 } from "@/types/property";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
+import { getStatusFromString } from "@/utils/statusHelpers";
 import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
@@ -132,12 +136,52 @@ export const usePreprocessedPropertyData = ({
       };
     }, [processedEpcResult, initialEpcData, isEpcProcessing, isEpcError]);
 
-  // --- Calculate Nearby Schools Score ---
   const nearbySchoolsScoreValue = useMemo(() => {
     return calculateNearbySchoolsScoreValue(propertyData?.nearbySchools);
   }, [propertyData?.nearbySchools]);
 
-  // --- Construct the Final Preprocessed Data Object ---
+  const { broadbandScoreValue, broadbandDisplayValue, broadbandStatus } = useMemo(() => {
+    const rawBroadbandValue = propertyData?.broadband;
+    const speedMbps = extractMbpsFromString(rawBroadbandValue ?? null);
+    const displayValue = rawBroadbandValue ?? null;
+    let scoreValue: number | null = 0;
+    let status: DataStatus | null = DataStatus.ASK_AGENT;
+
+    if (speedMbps === null) {
+      status = getStatusFromString(rawBroadbandValue ?? null);
+    } else {
+      const percentageOfAverage = (speedMbps / UK_AVERAGE_BROADBAND_MBPS) * 100;
+
+      if (percentageOfAverage < 50) {
+        scoreValue = 20;
+        status = DataStatus.FOUND_NEGATIVE;
+      } else if (percentageOfAverage <= 90) {
+        scoreValue = 40;
+        status = DataStatus.FOUND_POSITIVE;
+      } else if (percentageOfAverage <= 150) {
+        scoreValue = 75;
+        status = DataStatus.FOUND_POSITIVE;
+      } else if (percentageOfAverage <= 500) {
+        scoreValue = 90;
+        status = DataStatus.FOUND_POSITIVE;
+      } else {
+        scoreValue = 100;
+        status = DataStatus.FOUND_POSITIVE;
+      }
+
+      const initialStatus = getStatusFromString(rawBroadbandValue ?? null);
+      if (initialStatus === DataStatus.ASK_AGENT) {
+        status = DataStatus.ASK_AGENT;
+      }
+    }
+
+    return {
+      broadbandScoreValue: scoreValue,
+      broadbandDisplayValue: displayValue,
+      broadbandStatus: status,
+    };
+  }, [propertyData?.broadband]);
+
   const preprocessedData: PreprocessedData = useMemo(() => {
     return {
       isPreprocessedDataLoading,
@@ -150,6 +194,9 @@ export const usePreprocessedPropertyData = ({
       epcScoreForCalculation,
       calculatedLeaseMonths,
       nearbySchoolsScoreValue,
+      broadbandScoreValue,
+      broadbandDisplayValue,
+      broadbandStatus,
     };
   }, [
     isPreprocessedDataLoading,
@@ -162,6 +209,9 @@ export const usePreprocessedPropertyData = ({
     epcScoreForCalculation,
     calculatedLeaseMonths,
     nearbySchoolsScoreValue,
+    broadbandScoreValue,
+    broadbandDisplayValue,
+    broadbandStatus,
   ]);
 
   return preprocessedData;

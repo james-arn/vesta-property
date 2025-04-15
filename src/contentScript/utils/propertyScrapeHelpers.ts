@@ -311,7 +311,7 @@ export const isFloorPlanPresent = () => {
 };
 
 export function clickBroadbandChecker() {
-  const broadbandDiv = document.querySelector('div[data-gtm-name="broadband-checker"]');
+  const broadbandDiv = document.querySelector(BROADBAND_BUTTON_SELECTOR);
 
   if (broadbandDiv) {
     const broadbandButton = broadbandDiv.querySelector("button") as HTMLButtonElement;
@@ -328,7 +328,7 @@ export function clickBroadbandChecker() {
 }
 
 export function getBroadbandSpeedFromDOM(): string | null {
-  const broadbandDiv = document.querySelector('div[data-gtm-name="broadband-checker"]');
+  const broadbandDiv = document.querySelector(BROADBAND_BUTTON_SELECTOR);
   if (!broadbandDiv) {
     console.error("Broadband checker div not found.");
     return null;
@@ -442,22 +442,48 @@ const waitForElement = (
  */
 export const getBroadbandData = async (): Promise<string> => {
   try {
-    const broadbandButton = document.querySelector<HTMLButtonElement>(BROADBAND_BUTTON_SELECTOR);
+    // Find the button using its specific data-gtm-name selector
+    const broadbandButtonContainer = document.querySelector<HTMLElement>(BROADBAND_BUTTON_SELECTOR);
+    const broadbandButton = broadbandButtonContainer?.querySelector("button");
 
     if (!broadbandButton) {
-      console.warn("Broadband check button not found.");
+      console.warn("Broadband check button or its container not found.");
       return CHECKLIST_NO_VALUE.NOT_MENTIONED;
     }
 
     broadbandButton.click();
 
-    // Wait for the speed value element to appear
-    const speedElement = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 5000); // Increased timeout for potentially slower loads
+    // Wait for the main broadband widget to appear using its data-testid
+    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 5000);
 
-    if (speedElement?.textContent) {
-      return speedElement.textContent.trim();
+    if (!broadbandWidget) {
+      console.warn("Broadband widget did not appear after clicking button.");
+      return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+    }
+
+    // Search within the widget for the speed paragraph
+    const paragraphElements = broadbandWidget.querySelectorAll("p");
+    const speedRegex = /^(\d+)(Mb|Gb)$/i; // Matches digits followed by Mb or Gb
+
+    const speedParagraph = Array.from(paragraphElements).find((p) =>
+      speedRegex.test(p.textContent?.trim() || "")
+    );
+
+    if (speedParagraph?.textContent) {
+      // Optionally combine with the preceding paragraph if it describes the speed type (e.g., "Ultrafast")
+      const speedDescriptionElement = speedParagraph.previousElementSibling;
+      let fullSpeedText = speedParagraph.textContent.trim();
+
+      if (
+        speedDescriptionElement &&
+        speedDescriptionElement.tagName === "P" &&
+        speedDescriptionElement.textContent
+      ) {
+        fullSpeedText = `${speedDescriptionElement.textContent.trim()} ${fullSpeedText}`;
+      }
+      return fullSpeedText;
     } else {
-      console.warn("Broadband speed value element did not appear or was empty after clicking.");
+      console.warn("Broadband speed paragraph not found within the widget.");
       return CHECKLIST_NO_VALUE.NOT_MENTIONED;
     }
   } catch (error) {
@@ -597,4 +623,34 @@ export const getSaleHistory = async (): Promise<SaleHistoryEntry[]> => {
     console.error("Error fetching sale history:", error);
     return []; // Return empty array on error
   }
+};
+
+/**
+ * Extracts a numerical speed in Mbps from a broadband speed string.
+ * Handles "Mb" and "Gb" units, returning null if no valid speed is found.
+ * @param speedString - The broadband speed string (e.g., "Ultrafast 900Mb", "1Gb").
+ * @returns The speed in Mbps as a number, or null.
+ */
+export const extractMbpsFromString = (speedString: string | null | undefined): number | null => {
+  if (!speedString) {
+    return null;
+  }
+
+  // Regex to find number followed by Mb or Gb (case-insensitive)
+  const speedRegex = /(\d+(\.\d+)?)\s*(Mb|Gb)/i;
+  const match = speedString.match(speedRegex);
+
+  if (!match) {
+    return null; // No valid speed found
+  }
+
+  const numberPart = parseFloat(match[1]);
+  const unitPart = match[3].toLowerCase();
+
+  if (isNaN(numberPart)) {
+    return null; // Should not happen with regex, but good practice
+  }
+
+  // Convert Gb to Mb if necessary
+  return unitPart === "gb" ? numberPart * 1000 : numberPart;
 };

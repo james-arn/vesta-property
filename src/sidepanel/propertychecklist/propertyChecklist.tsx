@@ -7,6 +7,7 @@ import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
 import { EpcBandResult } from "@/types/epc";
 import { formatCurrencyGBP, formatPercentage } from "@/utils/formatting";
+import { getStatusFromString } from "@/utils/statusHelpers";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 import { UseQueryResult } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
@@ -31,22 +32,6 @@ import {
 export const agentMissingInfo = CHECKLIST_NO_VALUE.NOT_MENTIONED;
 const askAgentWrittenByAgent = "ask agent";
 
-// Helper to determine status for a string-based property
-export function getStatusFromString(
-  value: string | null,
-  additionalInvalids: string[] = []
-): DataStatus {
-  if (!value) return DataStatus.ASK_AGENT;
-  const lowerValue = value.trim().toLowerCase();
-  const invalidValues = [agentMissingInfo, askAgentWrittenByAgent, ...additionalInvalids];
-  if (invalidValues.includes(lowerValue)) {
-    return DataStatus.ASK_AGENT;
-  }
-  return DataStatus.FOUND_POSITIVE;
-}
-
-const BROADBAND_SPEED_UNDER_10MBS_REGEX = /\b(\d{1,2})\s*mbs\b/i;
-
 export function generatePropertyChecklist(
   propertyData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
@@ -65,7 +50,9 @@ export function generatePropertyChecklist(
     finalEpcValue,
     finalEpcConfidence,
     finalEpcSource,
-    calculatedLeaseMonths
+    calculatedLeaseMonths,
+    broadbandDisplayValue,
+    broadbandStatus
   } = preprocessedData;
 
   const getStatusFromPremium = (
@@ -505,21 +492,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Broadband Speed",
       key: "broadband",
-      status: (() => {
-        const status = getStatusFromString(propertyData.broadband);
-        if (status === DataStatus.FOUND_POSITIVE && propertyData.broadband) {
-          const match = propertyData.broadband.match(
-            BROADBAND_SPEED_UNDER_10MBS_REGEX
-          );
-          if (match && parseInt(match[1], 10) < 10) {
-            return DataStatus.FOUND_NEGATIVE;
-          }
-        }
-        return status;
-      })(),
-      value: propertyData.broadband,
-      askAgentMessage: "What broadband speed available?",
-      toolTipExplainer: "Broadband speed refers to the speed of internet connection, measured in megabits per second (Mbps). Faster speeds provide better internet connectivity.",
+      status: broadbandStatus ?? DataStatus.ASK_AGENT,
+      value: broadbandDisplayValue ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
+      askAgentMessage: "What is the broadband speed?",
+      toolTipExplainer: "Broadband speed impacts internet usage for work, streaming, and gaming.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
     },

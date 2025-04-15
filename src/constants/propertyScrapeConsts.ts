@@ -11,7 +11,7 @@ export const SERVICE_CHARGE_ANNUAL_REGEX =
 export const NEARBY_SCHOOLS_BUTTON_SELECTOR = "#Schools-button";
 export const SCHOOL_ROW_SELECTOR_PREFIX = '[data-test^="school-"]';
 export const BROADBAND_BUTTON_SELECTOR = 'div[data-gtm-name="broadband-checker"]';
-export const BROADBAND_SPEED_VALUE_SELECTOR = 'div[data-testid="broadband-speed-value"]';
+export const BROADBAND_SPEED_VALUE_SELECTOR = '[data-testid="DTbroadband-widget"]';
 export const PROPERTY_SALE_HISTORY_BUTTON_SELECTOR = 'button[data-testid="see-all-history"]';
-export const SALE_HISTORY_ROW_SELECTOR = '[data-testid^="sale-history-row-"]';
+export const SALE_HISTORY_ROW_SELECTOR = '[data-testid^="sale-history-entry-"]';
 export const DEFAULT_WAIT_TIMEOUT = 3000;
