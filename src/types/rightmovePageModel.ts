@@ -101,12 +101,7 @@ export interface RightmovePageModelType {
       longitude: number;
     };
     nearestAirports: any[];
-    nearestStations: {
-      name: string;
-      types: string[];
-      distance: number;
-      unit: string;
-    }[];
+    nearestStations: Station[];
     showSchoolInfo: boolean;
     countryGuide: string | null;
     channel: string;
@@ -359,3 +354,10 @@ export type FeatureType = {
   alias: string;
   displayText: string;
 };
+
+export interface Station {
+  name: string;
+  types: string[];
+  distance: number;
+  unit: string;
+}

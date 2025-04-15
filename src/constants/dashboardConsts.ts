@@ -46,7 +46,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "mobileServiceCoverage",
     "healthcareProximity",
     "schoolProximity",
-    "trainStationProximity",
+    "nearestStations",
     "policeForceProximity",
     // premium has ferry?
   ],

@@ -137,6 +137,7 @@ export async function extractPropertyDataFromDOM(
     lng: pageModel?.propertyData?.location?.longitude ?? null,
   };
   const windows = windowsFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  const nearestStations = pageModel?.propertyData?.nearestStations ?? [];
 
   const propertyData: ExtractedPropertyScrapingData = {
     propertyId: pageModel?.propertyData?.id ?? null,
@@ -205,6 +206,7 @@ export async function extractPropertyDataFromDOM(
     leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     serviceCharge: serviceChargeFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    nearestStations,
   };
 
   return propertyData;

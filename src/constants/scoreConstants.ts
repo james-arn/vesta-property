@@ -40,3 +40,7 @@ export const TENURE_COST_SCORES = {
   UNKNOWN: 30, // Moderate cost score for unknown/check manually
   OTHER: 0, // Low cost score for freehold/other positive identifications
 };
+
+// Connectivity Scores
+export const FOUND_STATIONS_SCORE = 80;
+export const NO_STATIONS_SCORE = 30;

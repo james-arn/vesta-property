@@ -79,4 +79,5 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
   leaseTerm: null,
   groundRent: null,
   serviceCharge: null,
+  nearestStations: [],
 };

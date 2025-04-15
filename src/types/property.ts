@@ -2,6 +2,7 @@ import { DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
+import { Station } from "./rightmovePageModel";
 
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
@@ -106,6 +107,7 @@ export interface ExtractedPropertyScrapingData {
   leaseTerm: string | null;
   groundRent: string | null;
   serviceCharge: string | null;
+  nearestStations: Station[];
 }
 
 export interface SaleHistoryEntry {

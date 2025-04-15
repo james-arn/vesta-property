@@ -1,5 +1,6 @@
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
 import { volatilityThreshold } from "@/constants/thresholds";
@@ -1115,22 +1116,7 @@ export function generatePropertyChecklist(
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
-    // {
-    //   checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-    //   label: "Train Station Proximity",
-    //   key: "trainStationProximity",
-    //   status: getPremiumStatus(
-    //     processedPremiumData.status,
-    //     processedPremiumData.transport?.public.
-    //   ),
-    //   value: "Not Available",
-    //   askAgentMessage: "",
-    //   toolTipExplainer:
-    //     "Details on the distance and accessibility of nearby train stations.\n\n" +
-    //     "Essential for assessing convenience and access to public transport.",
-    //   isUnlockedWithPremium: false,
-    //   isBoostedWithPremium: true,
-    // },
+
     // {
     //   checklistGroup: PropertyGroups.NEIGHBOURHOOD,
     //   label: "School Proximity",
@@ -1147,6 +1133,36 @@ export function generatePropertyChecklist(
     //   isUnlockedWithPremium: false,
     //   isBoostedWithPremium: true,
     // },
+    // Neighbourhood
+    {
+      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
+      label: "Nearest Stations",
+      key: "nearestStations",
+      status:
+        propertyData.nearestStations && propertyData.nearestStations.length > 0
+          ? DataStatus.FOUND_POSITIVE
+          : DataStatus.ASK_AGENT,
+      value:
+        propertyData.nearestStations && propertyData.nearestStations.length > 0 ? (
+          <>
+            {propertyData.nearestStations.map((station, index) => (
+              <React.Fragment key={station.name}>
+                {`• ${station.name} (${station.distance.toFixed(1)} ${station.unit})`}
+                {index < propertyData.nearestStations.length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </>
+        ) : (
+          CHECKLIST_NO_VALUE.NOT_MENTIONED
+        ),
+      askAgentMessage: "What are the nearest train/tram/tube stations and how far are they?",
+      toolTipExplainer:
+        "Proximity to public transport stations is crucial for commuting and accessibility.\n\n" +
+        "Knowing the distance to the nearest stations helps evaluate travel times and convenience.",
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: false,
+      dashboardGroup: DashboardScoreCategory.CONNECTIVITY,
+    },
   ];
 
   // Filter out items not applicable based on property type (e.g., councilTax for non-residential)
