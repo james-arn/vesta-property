@@ -1,10 +1,10 @@
 import { DashboardScoreCategory } from "@/constants/dashboardConsts";
 import { DashboardScores, PreprocessedData, PropertyDataListItem } from "@/types/property";
+import { calculateCompletenessScore } from "./calculateCompletenessScore";
+import { calculateConditionScore } from "./calculateConditionScore";
 import calculateConnectivityScore from "./calculateConnectivityScore";
 import { calculateInvestmentValueScore } from "./calculateInvestmentValueScore";
 import { calculateRunningCostsScore } from "./calculateRunningCostsScore";
-// Import other category calculators when created
-// e.g., import { calculateNeighbourhoodScore } from './calculateNeighbourhoodScore';
 
 /**
  * Calculates all dashboard category scores based on the property checklist items and preprocessed data.
@@ -34,20 +34,27 @@ export const calculateDashboardScores = (
     scores[DashboardScoreCategory.CONNECTIVITY] = connectivityData;
   }
 
-  // TODO: Calculate Neighbourhood score
-  // const neighbourhoodData = calculateNeighbourhoodScore(items, preprocessedData, crimeScore); // Requires crime data access
-  // if (neighbourhoodData) {
-  //     scores[DashboardScoreCategory.NEIGHBOURHOOD] = neighbourhoodData;
-  // }
+  const conditionData = calculateConditionScore(items, preprocessedData);
+  if (conditionData) {
+    scores[DashboardScoreCategory.CONDITION] = conditionData;
+  }
 
-  // TODO: Calculate Property Condition score
-  // const conditionData = calculatePropertyConditionScore(items, preprocessedData);
-  // if (conditionData) {
-  //     scores[DashboardScoreCategory.PROPERTY_CONDITION] = conditionData;
-  // }
+  // TODO: Calculate Environmental Risk score
+  // TODO: Calculate Legal Constraints score
+
+  const listingCompletenessData = calculateCompletenessScore(items, preprocessedData);
+  if (listingCompletenessData) {
+    scores[DashboardScoreCategory.LISTING_COMPLETENESS] = listingCompletenessData;
+  }
 
   return scores;
 };
 
 // Optionally export individual calculators if needed elsewhere
-export { calculateConnectivityScore, calculateInvestmentValueScore, calculateRunningCostsScore };
+export {
+  calculateCompletenessScore,
+  calculateConditionScore,
+  calculateConnectivityScore,
+  calculateInvestmentValueScore,
+  calculateRunningCostsScore,
+};

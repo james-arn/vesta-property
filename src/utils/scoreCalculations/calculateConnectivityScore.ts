@@ -131,6 +131,7 @@ const calculateConnectivityScore = (
   const stationScoreValue = calculateStationScoreValue(nearestStationsItem);
   const broadbandScoreValue = preprocessedData.broadbandScoreValue ?? 50;
   const rawSchoolsScoreValue = preprocessedData.nearbySchoolsScoreValue;
+  // TOO: fill with premium data.
 
   // Ensure schoolsScoreValue is valid for calculation, default if necessary
   const effectiveSchoolsScore = rawSchoolsScoreValue ?? 50; // Use the default if null

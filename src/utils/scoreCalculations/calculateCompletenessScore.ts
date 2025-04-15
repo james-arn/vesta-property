@@ -1,38 +1,67 @@
-import { CategoryScoreData, DataStatus, PropertyDataListItem } from "@/types/property"; // Adjust path as needed
+import {
+  CategoryScoreData,
+  DashboardScore,
+  DataStatus,
+  PreprocessedData,
+  PropertyDataListItem,
+} from "@/types/property";
+
+// Helper function for score label (can be moved to a helper file if preferred)
+const getListingCompletenessScoreLabel = (score: number): string => {
+  if (score >= 95) return "Very Complete";
+  if (score >= 80) return "Mostly Complete";
+  if (score >= 60) return "Partially Complete";
+  if (score >= 40) return "Somewhat Incomplete";
+  return "Very Incomplete";
+};
 
 export const calculateCompletenessScore = (
-  allItems: PropertyDataListItem[]
+  items: PropertyDataListItem[],
+  // Add preprocessedData parameter for consistency with other calculators
+  preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
-  const totalItems = allItems.length;
-  if (totalItems === 0) return undefined;
+  // Filter out items that are not applicable
+  const applicableItems = items.filter((item) => item.status !== DataStatus.NOT_APPLICABLE);
+  const applicableTotal = applicableItems.length;
 
-  // Filter out items that don't have an askAgentMessage, as they aren't expected to be found
-  const relevantItems = allItems.filter((item) => item.askAgentMessage);
-  const relevantTotal = relevantItems.length;
-  if (relevantTotal === 0)
+  if (applicableTotal === 0) {
+    // Cannot calculate if there are no applicable items
+    // Return a default high score or undefined based on desired behavior
     return {
       score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
       contributingItems: [],
-    }; // Avoid division by zero if no relevant items
+      warningMessage: "No applicable items found for completeness calculation.",
+    };
+  }
 
-  const askAgentItems = relevantItems.filter((item) => item.status === DataStatus.ASK_AGENT);
-  const knownItems = relevantTotal - askAgentItems.length;
-  const completenessPercentage = Math.round((knownItems / relevantTotal) * 100);
+  // Count items where the status is ASK_AGENT among applicable items
+  const askAgentItems = applicableItems.filter((item) => item.status === DataStatus.ASK_AGENT);
+  const askAgentCount = askAgentItems.length;
 
-  const getCompletenessLabel = (percentage: number): string => {
-    if (percentage >= 95) return "Very Complete";
-    if (percentage >= 75) return "Mostly Complete";
-    if (percentage < 50) return "Incomplete";
-    return "Partially Complete";
+  // Calculate the score: 100% minus the percentage of applicable items needing agent input
+  const scoreValue = 100 - (askAgentCount / applicableTotal) * 100;
+
+  // Ensure score is within 0-100 bounds and round it
+  const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));
+
+  // Use the helper for the score label
+  const scoreLabel = getListingCompletenessScoreLabel(finalScoreValue);
+
+  const finalScore: DashboardScore = {
+    scoreValue: finalScoreValue,
+    maxScore: 100,
+    scoreLabel: scoreLabel,
   };
-  const scoreLabel = getCompletenessLabel(completenessPercentage);
+
+  let warningMessage: string | undefined = undefined;
+  if (askAgentCount > 0) {
+    warningMessage = `${askAgentCount} applicable item(s) require contacting the agent for information.`;
+  }
 
   return {
-    contributingItems: askAgentItems, // Items contributing negatively (missing)
-    score: {
-      scoreValue: completenessPercentage,
-      maxScore: 100,
-      scoreLabel: scoreLabel,
-    },
+    score: finalScore,
+    // Items contributing negatively (requiring agent input)
+    contributingItems: askAgentItems,
+    warningMessage: warningMessage,
   };
 };

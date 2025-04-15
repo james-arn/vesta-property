@@ -482,11 +482,11 @@ export function generatePropertyChecklist(
       label: "Heating",
       key: "heatingType",
       status: getStatusFromString(propertyData.heating),
-      value: propertyData.heating,
+      value: processedPremiumData?.constructionMaterials?.heating ?? propertyData.heating,
       askAgentMessage: "What type of heating system?",
       toolTipExplainer: "The type of heating system used in the property, such as gas central heating, electric heating, or oil-fired heating.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.UTILITIES,
@@ -534,7 +534,7 @@ export function generatePropertyChecklist(
       askAgentMessage: "How many bedrooms?",
       toolTipExplainer: "The number of bedrooms in the property, a key factor in determining its size and value.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,

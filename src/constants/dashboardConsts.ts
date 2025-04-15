@@ -54,8 +54,6 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "propertyType",
     "accessibility",
     "epc", // Reflects insulation, system age
-    "bedrooms",
-    "bathrooms",
     "heatingType", // System age/type
     "size",
     "constructionMaterials", // Maintenance implications

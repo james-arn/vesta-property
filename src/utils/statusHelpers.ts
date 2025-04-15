@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { DataStatus } from "@/types/property";
 
 const agentMissingInfo = "";
@@ -10,7 +11,12 @@ export function getStatusFromString(
 ): DataStatus {
   if (!value) return DataStatus.ASK_AGENT;
   const lowerValue = value.trim().toLowerCase();
-  const invalidValues = [agentMissingInfo, askAgentWrittenByAgent, ...additionalInvalids];
+  const invalidValues = [
+    agentMissingInfo,
+    askAgentWrittenByAgent,
+    ...Object.values(CHECKLIST_NO_VALUE).map((value) => value.toLowerCase()),
+    ...additionalInvalids,
+  ];
   if (invalidValues.includes(lowerValue)) {
     return DataStatus.ASK_AGENT;
   }
