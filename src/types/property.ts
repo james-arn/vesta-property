@@ -60,6 +60,15 @@ export interface EpcData {
   error?: string | null;
 }
 
+export interface NearbySchool {
+  name: string;
+  type: string | null; // e.g., "State School", "Independent School"
+  ratingBody: string | null; // e.g., "Ofsted"
+  ratingLabel: string | null; // e.g., "Outstanding", "Requires improvement"
+  distance: number | null; // Numerical distance value
+  unit: string | null; // e.g., "miles"
+}
+
 export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
@@ -109,6 +118,7 @@ export interface ExtractedPropertyScrapingData {
   groundRent: string | null;
   serviceCharge: string | null;
   nearestStations: Station[];
+  nearbySchools: NearbySchool[];
 }
 
 export interface SaleHistoryEntry {
@@ -159,4 +169,5 @@ export interface PreprocessedData {
   finalEpcSource: EpcDataSourceType | null;
   epcScoreForCalculation: number | null;
   calculatedLeaseMonths: number | null;
+  nearbySchoolsScoreValue: number | null;
 }

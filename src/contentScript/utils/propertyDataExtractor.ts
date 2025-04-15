@@ -2,7 +2,8 @@ import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
   formatPropertySize,
-  getBroadbandInfo,
+  getBroadbandData,
+  getNearbySchools,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
 import {
@@ -137,7 +138,9 @@ export async function extractPropertyDataFromDOM(
     lng: pageModel?.propertyData?.location?.longitude ?? null,
   };
   const windows = windowsFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED;
-  const nearestStations = pageModel?.propertyData?.nearestStations ?? [];
+  const nearestTrainStations = pageModel?.propertyData?.nearestStations ?? [];
+  const nearbySchools = await getNearbySchools();
+  const broadbandData = await getBroadbandData();
 
   const propertyData: ExtractedPropertyScrapingData = {
     propertyId: pageModel?.propertyData?.id ?? null,
@@ -159,7 +162,7 @@ export async function extractPropertyDataFromDOM(
       bathroomFromUnstructuredText ||
       null,
     bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
-    broadband: getBroadbandInfo(pageModel) || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    broadband: broadbandData,
     buildingSafety: buildingSafetyResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
@@ -206,7 +209,8 @@ export async function extractPropertyDataFromDOM(
     leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     serviceCharge: serviceChargeFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    nearestStations,
+    nearestStations: nearestTrainStations,
+    nearbySchools: nearbySchools,
   };
 
   return propertyData;

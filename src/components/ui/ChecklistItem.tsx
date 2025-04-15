@@ -213,7 +213,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
     return (
         <li
-            className={`grid grid-cols-[1rem_1fr_1fr_auto] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
+            className={`grid grid-cols-[1rem_auto_1fr_auto] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
             <div className="flex items-center justify-start">
                 <IconComponent className={`w-4 h-4 ${color}`} />

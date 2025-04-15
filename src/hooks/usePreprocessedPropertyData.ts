@@ -7,6 +7,7 @@ import {
   EpcDataSourceType,
   PreprocessedData,
 } from "@/types/property";
+import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
 import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
@@ -131,6 +132,11 @@ export const usePreprocessedPropertyData = ({
       };
     }, [processedEpcResult, initialEpcData, isEpcProcessing, isEpcError]);
 
+  // --- Calculate Nearby Schools Score ---
+  const nearbySchoolsScoreValue = useMemo(() => {
+    return calculateNearbySchoolsScoreValue(propertyData?.nearbySchools);
+  }, [propertyData?.nearbySchools]);
+
   // --- Construct the Final Preprocessed Data Object ---
   const preprocessedData: PreprocessedData = useMemo(() => {
     return {
@@ -143,6 +149,7 @@ export const usePreprocessedPropertyData = ({
       finalEpcSource,
       epcScoreForCalculation,
       calculatedLeaseMonths,
+      nearbySchoolsScoreValue,
     };
   }, [
     isPreprocessedDataLoading,
@@ -154,6 +161,7 @@ export const usePreprocessedPropertyData = ({
     finalEpcSource,
     epcScoreForCalculation,
     calculatedLeaseMonths,
+    nearbySchoolsScoreValue,
   ]);
 
   return preprocessedData;

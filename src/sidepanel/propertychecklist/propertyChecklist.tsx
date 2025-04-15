@@ -963,6 +963,56 @@ export function generatePropertyChecklist(
     },
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
+      label: "Nearby Schools",
+      key: "nearbySchools",
+      status:
+        propertyData.nearbySchools && propertyData.nearbySchools.length > 0
+          ? DataStatus.FOUND_POSITIVE
+          : DataStatus.ASK_AGENT,
+      value: (() => {
+        if (!propertyData.nearbySchools || propertyData.nearbySchools.length === 0) {
+          return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+        }
+        const topSchools = [...propertyData.nearbySchools]
+          .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+          .slice(0, 4);
+
+        // Return a structured list using Tailwind classes, WITH distance aligned right
+        return (
+          <div className="flex flex-col gap-3 w-full"> {/* Container with gap */}
+            {topSchools.map((school) => (
+              <div key={school.name} className="flex justify-between items-start gap-2 w-full">
+                <div className="flex flex-col flex-grow mr-2">
+                  <span className="font-medium text-sm text-gray-800">{school.name}</span>
+                  <div className="flex flex-wrap gap-x-2 text-xs text-gray-500">
+                    {school.type && <span>{school.type}</span>}
+                    {school.ratingLabel && (
+                      <span>
+                        {school.ratingBody ? `${school.ratingBody}: ` : ""}
+                        {school.ratingLabel}
+                      </span>
+                    )}
+                    {school.distance !== null && school.unit && (
+                      <span className="text-sm text-gray-600 whitespace-nowrap pl-2 flex-shrink-0">
+                        {`${school.distance.toFixed(1)} ${school.unit}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })(),
+      askAgentMessage: "What are the nearest schools and their Ofsted ratings?",
+      toolTipExplainer:
+        "Proximity to well-regarded schools is often a key factor for families.\\n\\n" +
+        "This shows the closest schools found based on the listing information, including their rating (e.g., Ofsted) and distance.",
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: false,
+    },
+    {
+      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "National Park Proximity",
       key: "nationalParkProximity",
       status: getStatusFromPremium(processedPremiumData?.nationalParkProximity),

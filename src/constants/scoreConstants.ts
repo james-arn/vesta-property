@@ -46,3 +46,11 @@ export const TENURE_COST_SCORES = {
 // Connectivity Scores
 export const FOUND_STATIONS_SCORE = 80;
 export const NO_STATIONS_SCORE = 30;
+export const MAX_SCHOOL_DISTANCE_MILES = 3; // Schools beyond this distance have minimal impact
+export const SCHOOL_DISTANCE_WEIGHT_FACTOR = 0.7; // How much distance affects score (lower = less effect)
+export const OFSTED_RATINGS_SCORES: { [key: string]: number } = {
+  outstanding: 100,
+  good: 75,
+  "requires improvement": 40,
+  inadequate: 20,
+};

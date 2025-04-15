@@ -10,15 +10,21 @@ import {
   windowTerms,
 } from "@/constants/keyTerms";
 import {
+  BROADBAND_BUTTON_SELECTOR,
+  BROADBAND_SPEED_VALUE_SELECTOR,
+  DEFAULT_WAIT_TIMEOUT,
   EPC_RATING_REGEX,
   GROUND_RENT_REGEX,
   LEASE_TERM_REGEX,
+  NEARBY_SCHOOLS_BUTTON_SELECTOR,
+  SALE_HISTORY_ROW_SELECTOR,
+  SCHOOL_ROW_SELECTOR_PREFIX,
   SERVICE_CHARGE_ANNUAL_REGEX,
   SERVICE_CHARGE_REGEX,
 } from "@/constants/propertyScrapeConsts";
 import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
 import { TermExtractionResult } from "@/types/domScraping";
-import { DataStatus, PropertyItem } from "@/types/property";
+import { DataStatus, NearbySchool, PropertyItem, SaleHistoryEntry } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
@@ -386,51 +392,209 @@ export function formatPropertySize(
   return formattedSizes.join(" / ");
 }
 
-export function getBroadbandInfo(pageModel: RightmovePageModelType | null): string {
-  const broadbandFeature = pageModel?.propertyData?.features?.broadband?.[0]?.displayText;
-  const broadbandSpeed = getBroadbandSpeedFromDOM();
-  const speedValue = broadbandSpeed ? parseFloat(broadbandSpeed) : null;
+export function clickPropertySaleHistoryButton() {
+  try {
+    const buttons = document.querySelectorAll('button[aria-expanded="false"]');
+    const targetButton = Array.from(buttons).find((button) =>
+      button.textContent?.includes("Property sale history")
+    );
+    if (targetButton) {
+      (targetButton as HTMLButtonElement).click();
+    }
+  } catch (error) {
+    logErrorToSentry(error, "error");
+    console.error("Error clicking property sale history button:", error);
+  }
+}
 
-  if (!broadbandFeature && !broadbandSpeed) {
+// Helper function to wait for an element to appear in the DOM
+const waitForElement = (
+  selector: string,
+  timeout = DEFAULT_WAIT_TIMEOUT
+): Promise<Element | null> => {
+  return new Promise((resolve) => {
+    const intervalTime = 100;
+    let timeElapsed = 0;
+
+    const checkElement = () => {
+      const element = document.querySelector(selector);
+      if (element) {
+        clearInterval(interval);
+        resolve(element);
+      } else {
+        timeElapsed += intervalTime;
+        if (timeElapsed >= timeout) {
+          clearInterval(interval);
+          console.warn(`Element with selector "${selector}" not found within ${timeout}ms.`);
+          resolve(null); // Timeout
+        }
+      }
+    };
+
+    const interval = setInterval(checkElement, intervalTime);
+    checkElement(); // Initial check
+  });
+};
+
+/**
+ * Clicks the broadband check button and waits for the speed information to load.
+ * @returns The broadband speed string (e.g., "Ultrafast 1000 Mbps") or NOT_MENTIONED.
+ */
+export const getBroadbandData = async (): Promise<string> => {
+  try {
+    const broadbandButton = document.querySelector<HTMLButtonElement>(BROADBAND_BUTTON_SELECTOR);
+
+    if (!broadbandButton) {
+      console.warn("Broadband check button not found.");
+      return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+    }
+
+    broadbandButton.click();
+
+    // Wait for the speed value element to appear
+    const speedElement = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 5000); // Increased timeout for potentially slower loads
+
+    if (speedElement?.textContent) {
+      return speedElement.textContent.trim();
+    } else {
+      console.warn("Broadband speed value element did not appear or was empty after clicking.");
+      return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+    }
+  } catch (error) {
+    logErrorToSentry(error, "error");
+    console.error("Error getting broadband data:", error);
     return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
+};
 
-  if (broadbandFeature && broadbandSpeed) {
-    const baseInfo = `${broadbandFeature}, ${broadbandSpeed}`;
-    if (speedValue && speedValue <= 10) {
-      return `${baseInfo} - slow speed`;
+// Helper function to get nearby schools
+export async function getNearbySchools(): Promise<NearbySchool[]> {
+  try {
+    const schoolsButton = document.querySelector<HTMLButtonElement>(NEARBY_SCHOOLS_BUTTON_SELECTOR);
+    if (!schoolsButton) {
+      console.warn("Nearby schools button not found.");
+      return [];
     }
-    if (speedValue && speedValue > 10) {
-      return `${baseInfo} - good speed`;
+
+    schoolsButton.click();
+
+    // Wait for the first school row to ensure the section has loaded
+    // Construct the specific selector for the first school element
+    const firstSchoolSelector = '[data-test="school-0"]';
+    const firstSchoolRowToCheckListApepars = await waitForElement(firstSchoolSelector, 5000); // Wait up to 5 seconds
+
+    if (!firstSchoolRowToCheckListApepars) {
+      console.warn("Nearby schools section did not load after clicking button.");
+      return [];
     }
-    return baseInfo;
-  }
 
-  if (broadbandFeature) {
-    return broadbandFeature;
-  }
+    const schoolElements = document.querySelectorAll<HTMLElement>(SCHOOL_ROW_SELECTOR_PREFIX);
+    const schools: NearbySchool[] = Array.from(schoolElements)
+      .map((element): NearbySchool | null => {
+        const contentContainer = element.querySelector<HTMLElement>("a > div:nth-of-type(2)");
+        if (!contentContainer) {
+          console.warn("Could not find the main content container div for a school entry.");
+          return null;
+        }
 
-  const speedInfo = broadbandSpeed as string;
-  if (speedValue && speedValue <= 10) {
-    return `${speedInfo} - slow speed`;
-  }
-  if (speedValue && speedValue > 10) {
-    return `${speedInfo} - good speed`;
-  }
+        // Find all spans within the content container
+        const spans = contentContainer.querySelectorAll<HTMLElement>("span");
 
-  return speedInfo;
+        // Find the distance div (assuming it's the last div within its direct parent)
+        const distanceElement = contentContainer.querySelector<HTMLElement>("div > div:last-child");
+
+        // Extract data based on assumed order of spans
+        const nameElement = spans[0]; // Assuming first span is name
+        const typeElement = spans[1]; // Assuming second span is type
+        const ratingElement = spans[2]; // Assuming third span is rating
+
+        if (!nameElement || !typeElement || !ratingElement || !distanceElement) {
+          console.warn("Missing data elements for a school entry based on structural selectors.");
+          return null; // Skip this entry if essential data is missing
+        }
+
+        const ratingText = ratingElement.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED;
+        const typeText = typeElement.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED;
+        const distanceText = distanceElement.textContent?.trim() || "";
+
+        // Parse distance from the dedicated distance element
+        let distance: number | null = null;
+        let unit: string | null = null;
+        if (distanceText) {
+          const match = distanceText.trim().match(/^([\d.]+)\s*(.*)$/);
+          if (match) {
+            distance = parseFloat(match[1]);
+            unit = match[2] || null; // Capture the unit (e.g., "miles")
+          }
+        }
+
+        return {
+          name: nameElement.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+          type: typeText,
+          distance: distance,
+          unit: unit,
+          // Using the full text from the third span for both rating label and body
+          ratingLabel: ratingText,
+          ratingBody: ratingText,
+        };
+      })
+      .filter((school): school is NearbySchool => school !== null);
+
+    return schools;
+  } catch (error) {
+    logErrorToSentry(error, "error");
+    console.error("Error getting nearby schools:", error);
+    return []; // Return empty array on error
+  }
 }
 
-export function clickPropertySaleHistoryButton() {
-  const buttons = document.querySelectorAll('button[aria-expanded="false"]');
-  const targetButton = Array.from(buttons).find((button) =>
-    button.textContent?.includes("Property sale history")
-  );
+/**
+ * Clicks the property sale history button and waits for the history table to load.
+ * @returns An array of sale history entries or an empty array if not found/error.
+ */
+export const getSaleHistory = async (): Promise<SaleHistoryEntry[]> => {
+  try {
+    clickPropertySaleHistoryButton(); // Assume this function exists and clicks the button
 
-  if (targetButton) {
-    (targetButton as HTMLButtonElement).click();
-    console.log("Property sale history button clicked.");
-  } else {
-    logErrorToSentry("Property sale history button not found.");
+    const firstHistoryRow = await waitForElement(SALE_HISTORY_ROW_SELECTOR, 5000);
+    if (!firstHistoryRow) {
+      console.warn("Sale history table did not load after clicking button.");
+      return [];
+    }
+
+    const historyElements = document.querySelectorAll<HTMLElement>(SALE_HISTORY_ROW_SELECTOR);
+    const saleHistory: SaleHistoryEntry[] = Array.from(historyElements)
+      .map((element): SaleHistoryEntry | null => {
+        const dateElement = element.querySelector<HTMLElement>('[data-testid="sale-history-date"]');
+        const priceElement = element.querySelector<HTMLElement>(
+          '[data-testid="sale-history-price"]'
+        );
+        const detailsElement = element.querySelector<HTMLElement>(
+          '[data-testid^="sale-history-details-"]' // Use starts-with for potentially dynamic IDs
+        );
+
+        if (!dateElement || !priceElement) {
+          console.warn("Missing date or price elements for a sale history entry.");
+          return null;
+        }
+
+        // Map extracted data to SaleHistoryEntry fields
+        // Assuming 'date' maps to 'year', 'price' to 'soldPrice'.
+        // 'percentageChange' is not directly available from these selectors, setting to NOT_MENTIONED.
+        // 'details' might contain info for percentage change, but requires parsing logic not implemented here.
+        return {
+          year: dateElement.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED, // Map date to year
+          soldPrice: priceElement.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED, // Map price to soldPrice
+          percentageChange: CHECKLIST_NO_VALUE.NOT_MENTIONED, // Placeholder
+          // details: detailsElement?.textContent?.trim() || CHECKLIST_NO_VALUE.NOT_MENTIONED, // Original details field removed
+        };
+      })
+      .filter((entry): entry is SaleHistoryEntry => entry !== null); // Filter out null entries
+
+    return saleHistory; // Added missing return statement
+  } catch (error) {
+    logErrorToSentry(error, "error");
+    console.error("Error fetching sale history:", error);
+    return []; // Return empty array on error
   }
-}
+};
