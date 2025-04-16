@@ -8,6 +8,7 @@ import { findItemByKey } from "@/utils/parsingHelpers";
 import {
   calculateAirportNoiseRisk,
   calculateCoastalErosionRisk,
+  calculateConservationAreaRisk,
   calculateCrimeRisk,
   calculateFloodRisk,
   calculateMiningImpactRisk,
@@ -42,9 +43,9 @@ export const calculateEnvironmentalRiskScore = (
   const detailedFloodRiskAssessmentItem = findItemByKey(items, "detailedFloodRiskAssessment");
   const coastalErosionItem = findItemByKey(items, "coastalErosion");
   const airportNoiseItem = findItemByKey(items, "airportNoiseAssessment");
-  // nationalParkProximityItem is currently excluded based on consts
-
+  const conservationAreaItem = findItemByKey(items, "conservationArea");
   const miningStatus = preprocessedData.miningImpactStatus;
+  const conservationAreaDetails = preprocessedData.conservationAreaDetails;
 
   // Calculate raw contributions and gather warnings
   const results = [
@@ -61,6 +62,7 @@ export const calculateEnvironmentalRiskScore = (
     { key: "coastalErosion", result: calculateCoastalErosionRisk(coastalErosionItem) },
     { key: "miningImpact", result: calculateMiningImpactRisk(miningStatus) },
     { key: "airportNoiseAssessment", result: calculateAirportNoiseRisk(airportNoiseItem) },
+    { key: "conservationArea", result: calculateConservationAreaRisk(conservationAreaDetails) },
   ];
 
   const allWarnings = results

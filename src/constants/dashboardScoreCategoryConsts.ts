@@ -70,6 +70,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "miningImpact",
     "airportNoiseAssessment",
     "nationalParkProximity",
+    "conservationArea",
   ],
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: [
     "tenure",

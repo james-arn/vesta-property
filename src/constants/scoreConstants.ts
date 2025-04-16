@@ -92,13 +92,13 @@ export const BUILDING_SAFETY_NEGATIVE_MODIFIER = -1;
 export const BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER = -5;
 
 export const ENVIRONMENT_RISK_FACTOR_WEIGHTS: Record<string, number> = {
-  crimeScore: 20,
-  floodRisk: 30, // Combined weight for flood-related factors
-  buildingSafety: 15,
-  coastalErosion: 15,
-  miningImpact: 10,
-  airportNoiseAssessment: 10,
-  // nationalParkProximity is excluded for now as its link to 'risk' is less direct
+  crimeScore: 18,
+  floodRisk: 27,
+  buildingSafety: 14,
+  coastalErosion: 14,
+  miningImpact: 9,
+  airportNoiseAssessment: 9,
+  conservationArea: 9,
 };
 
 export const CRIME_RATINGS: Record<Uppercase<CrimeRating>, CrimeRating> = {

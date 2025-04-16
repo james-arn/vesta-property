@@ -557,7 +557,7 @@ export interface RightOfWay {
 
 // --- New Legal/Risk Types End ---
 
-export type PremiumStreetDataResponse = {
+export interface PremiumStreetDataResponse {
   data: AddressMatchData;
   meta: AddressMatchMeta;
   education?: Education | null;
@@ -565,7 +565,7 @@ export type PremiumStreetDataResponse = {
   restrictive_covenants?: RestrictiveCovenant[] | null;
   coastal_erosion?: CoastalErosion | null;
   right_of_way?: RightOfWay | null;
-};
+}
 
 export type ProcessedPremiumDataStatus = "loading" | "success" | "error" | "idle" | "pending";
 
@@ -582,10 +582,12 @@ export interface ProcessedPremiumStreetData {
   premiumLeaseTotalMonths: number | null;
   constructionMaterials: ConstructionMaterials | null;
   constructionAgeBand: string | null;
-  conservationAreaStatus: string | null;
+  conservationAreaDetails: {
+    conservationAreaDataAvailable: boolean | null;
+    conservationArea: string | null;
+  };
   detailedFloodRiskAssessment: FloodRisk | null;
   airportNoiseAssessment: AirportNoise | null;
-  nationalParkProximity: string | null;
   policeForceProximity: string | null;
   mobileServiceCoverage: MobileServiceCoverage[] | null;
   propertyPlanningApplications: PlanningApplication[] | null;

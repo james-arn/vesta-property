@@ -175,4 +175,8 @@ export interface PreprocessedData {
   broadbandDisplayValue: string | null;
   broadbandStatus: DataStatus | null;
   miningImpactStatus: boolean | null;
+  conservationAreaDetails: {
+    conservationAreaDataAvailable: boolean | null;
+    conservationArea: string | null;
+  } | null;
 }

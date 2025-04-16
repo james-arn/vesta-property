@@ -1,7 +1,7 @@
 import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { useApiAuth } from "@/hooks/useApiAuth";
+import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import { useQuery } from "@tanstack/react-query";
-import { PremiumStreetDataResponse } from "../types/premiumStreetData";
 
 interface UsePremiumStreetDataOptions {
   isAddressConfirmedByUser: boolean;

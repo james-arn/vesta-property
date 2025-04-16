@@ -1,11 +1,10 @@
-import { FloodRisk, FloodRiskDetail } from '@/types/premiumStreetData'; // Assuming path is correct
+import { FloodRisk, FloodRiskDetail } from '@/types/premiumStreetData';
 import React from 'react';
 
 interface FloodRiskDisplayProps {
     floodRisk: FloodRisk | null | undefined;
 }
 
-// Helper component to render details for a single risk type
 const FloodRiskDetailItem: React.FC<{
     title: string;
     detail: FloodRiskDetail | null | undefined;

@@ -1,3 +1,4 @@
+import FloodRiskDisplay from "@/components/ui/Premium/FloodRiskDisplay";
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
@@ -705,8 +706,10 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Conservation Area Status",
       key: "conservationAreaStatus",
-      status: getStatusFromPremium(processedPremiumData?.conservationAreaStatus),
-      value: processedPremiumData?.conservationAreaStatus ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      status: processedPremiumData?.conservationAreaDetails.conservationAreaDataAvailable
+        ? getStatusFromPremium(processedPremiumData?.conservationAreaDetails.conservationArea)
+        : DataStatus.ASK_AGENT,
+      value: processedPremiumData?.conservationAreaDetails.conservationArea ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer: "Indicates if the property is within a conservation area, which adds controls over demolition, alterations, and tree work.",
       isUnlockedWithPremium: true,
@@ -800,7 +803,9 @@ export function generatePropertyChecklist(
       label: "Detailed Flood Risk Assessment",
       key: "detailedFloodRiskAssessment",
       status: getStatusFromPremium(processedPremiumData?.detailedFloodRiskAssessment),
-      value: processedPremiumData?.detailedFloodRiskAssessment ? "Details Available" : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      value: processedPremiumData?.detailedFloodRiskAssessment ?
+        <FloodRiskDisplay floodRisk={processedPremiumData?.detailedFloodRiskAssessment} />
+        : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
         "A comprehensive report assessing the property's specific flood risk from rivers, sea, surface water, and groundwater.\n\n" +
@@ -996,19 +1001,6 @@ export function generatePropertyChecklist(
         "Proximity to well-regarded schools is often a key factor for families.\\n\\n" +
         "This shows the closest schools found based on the listing information, including their rating (e.g., Ofsted) and distance.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
-    },
-    {
-      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-      label: "National Park Proximity",
-      key: "nationalParkProximity",
-      status: getStatusFromPremium(processedPremiumData?.nationalParkProximity),
-      value: processedPremiumData?.nationalParkProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Indicates if the property is located near or within a designated National Park boundary.\n\n" +
-        "Proximity offers recreational benefits but may also come with stricter planning regulations.",
-      isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
     },
     {

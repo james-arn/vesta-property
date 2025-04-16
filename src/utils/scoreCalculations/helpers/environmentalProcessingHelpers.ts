@@ -388,3 +388,71 @@ export const calculateAirportNoiseRisk = (
     warning: "Could not determine airport noise category from provided data.",
   };
 };
+
+interface ConservationAreaDetails {
+  conservationAreaDataAvailable: boolean | null;
+  conservationArea: string | null;
+}
+
+export const calculateConservationAreaRisk = (
+  details: ConservationAreaDetails | undefined | null
+): FactorProcessingResult => {
+  if (!details) {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: 0,
+      warning: "Conservation area details object missing.",
+    };
+  }
+
+  const { conservationAreaDataAvailable, conservationArea } = details;
+
+  // Check if data availability itself is unknown
+  if (conservationAreaDataAvailable === null || conservationAreaDataAvailable === undefined) {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: 0,
+      warning: "Conservation area data availability unknown.",
+    };
+  }
+
+  // If data is explicitly marked as unavailable
+  if (conservationAreaDataAvailable === false) {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: 0,
+      warning: "Conservation area data marked as unavailable.",
+    };
+  }
+
+  // Data is available, now check the status
+  // conservationArea being a non-empty string means it IS in a conservation area (high risk)
+  if (
+    conservationArea !== null &&
+    typeof conservationArea === "string" &&
+    conservationArea.trim() !== ""
+  ) {
+    return {
+      scoreContribution: MAX_SCORE,
+      maxPossibleScore: MAX_SCORE,
+    };
+  }
+  // conservationArea being null or empty string means it IS NOT in a conservation area (zero risk)
+  else if (
+    conservationArea === null ||
+    (typeof conservationArea === "string" && conservationArea.trim() === "")
+  ) {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: MAX_SCORE,
+    };
+  }
+  // Should not happen if conservationAreaDataAvailable is true, but handle defensively
+  else {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: 0,
+      warning: "Conservation area status unclear despite data being available.",
+    };
+  }
+};

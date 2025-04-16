@@ -5,13 +5,21 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ChecklistItem } from '@/components/ui/ChecklistItem';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { PremiumStreetDataResponse } from '@/types/premiumStreetData';
 import { CategoryScoreData, DataStatus, PropertyDataListItem } from '@/types/property';
-import React from 'react';
+import { UseQueryResult } from '@tanstack/react-query';
+import React, { lazy, Suspense } from 'react';
 import { FaExclamationTriangle } from "react-icons/fa";
 import { ScoreVisualisation } from './ScoreVisualisation';
+
+// Lazy load components needed for expansion
+const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
+const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
 type GetValueClickHandlerType = (
     item: PropertyDataListItem,
@@ -37,6 +45,19 @@ interface DashboardScoreItemProps {
     togglePlanningPermissionCard: () => void;
     toggleNearbyPlanningPermissionCard?: () => void;
     handleEpcValueChange: (newValue: string) => void;
+
+    // Expansion state, queries, and refs
+    crimeQuery: UseQueryResult<CrimeScoreData, Error>;
+    premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error>;
+    crimeChartExpanded: boolean;
+    crimeContentRef: React.RefObject<HTMLDivElement | null>;
+    crimeContentHeight: number;
+    planningPermissionCardExpanded: boolean;
+    planningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
+    planningPermissionContentHeight: number;
+    nearbyPlanningPermissionCardExpanded: boolean;
+    nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
+    nearbyPlanningPermissionContentHeight: number;
 }
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
@@ -53,7 +74,18 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     toggleCrimeChart,
     togglePlanningPermissionCard,
     toggleNearbyPlanningPermissionCard,
-    handleEpcValueChange
+    handleEpcValueChange,
+    crimeQuery,
+    premiumStreetDataQuery,
+    crimeChartExpanded,
+    crimeContentRef,
+    crimeContentHeight,
+    planningPermissionCardExpanded,
+    planningPermissionContentRef,
+    planningPermissionContentHeight,
+    nearbyPlanningPermissionCardExpanded,
+    nearbyPlanningPermissionContentRef,
+    nearbyPlanningPermissionContentHeight
 }) => {
 
     if (!categoryScoreData) {
@@ -135,6 +167,53 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                     ) : (
                         <p className="text-sm text-muted-foreground">No specific contributing factors identified.</p>
                     )}
+
+                    {/* Conditionally render expandable sections within AccordionContent */}
+                    {/* Check if this category contains the crime score item AND if it's expanded */}
+                    {relevantContributingItems.some(item => item.key === 'crimeScore') && crimeQuery.data && (
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
+                                <div ref={crimeContentRef}>
+                                    <LazyCrimePieChart
+                                        crimeSummary={crimeQuery.data.crimeSummary}
+                                        totalCrimes={crimeQuery.data.totalCrimes}
+                                        trendingPercentageOver6Months={crimeQuery.data.trendingPercentageOver6Months}
+                                    />
+                                </div>
+                            </div>
+                        </Suspense>
+                    )}
+                    {/* Check if this category contains planning items AND if the property section is expanded */}
+                    {relevantContributingItems.some(item => item.key === 'planningPermissions') && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
+                                <div ref={planningPermissionContentRef}>
+                                    <LazyPlanningPermissionCard
+                                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                        isLoading={premiumStreetDataQuery.isLoading}
+                                        displayMode="property"
+                                    />
+                                </div>
+                            </div>
+                        </Suspense>
+                    )}
+                    {/* Check if this category contains planning items AND if the nearby section is expanded */}
+                    {relevantContributingItems.some(item => item.key === 'nearbyPlanningPermissions') && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                        <Suspense fallback={<LoadingSpinner />}>
+                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
+                                <div ref={nearbyPlanningPermissionContentRef}>
+                                    <LazyPlanningPermissionCard
+                                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                        isLoading={premiumStreetDataQuery.isLoading}
+                                        displayMode="nearby"
+                                    />
+                                </div>
+                            </div>
+                        </Suspense>
+                    )}
+
                 </AccordionContent>
             </AccordionItem>
         </Accordion>

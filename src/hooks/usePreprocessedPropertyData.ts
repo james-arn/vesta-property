@@ -199,6 +199,7 @@ export const usePreprocessedPropertyData = ({
       broadbandDisplayValue,
       broadbandStatus,
       miningImpactStatus: miningImpactStatus ?? null,
+      conservationAreaDetails: processedPremiumDataResult?.conservationAreaDetails ?? null,
     };
   }, [
     isPreprocessedDataLoading,
@@ -214,6 +215,8 @@ export const usePreprocessedPropertyData = ({
     broadbandScoreValue,
     broadbandDisplayValue,
     broadbandStatus,
+    miningImpactStatus,
+    processedPremiumDataResult?.conservationAreaDetails,
   ]);
 
   return preprocessedData;

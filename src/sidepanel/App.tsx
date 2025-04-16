@@ -293,6 +293,17 @@ const App: React.FC = () => {
               togglePlanningPermissionCard={togglePlanningPermissionCard}
               toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
               handleEpcValueChange={handleEpcValueChange}
+              crimeQuery={crimeQuery}
+              premiumStreetDataQuery={premiumStreetDataQuery}
+              crimeChartExpanded={crimeChartExpanded}
+              crimeContentRef={crimeContentRef}
+              crimeContentHeight={crimeContentHeight}
+              planningPermissionCardExpanded={planningPermissionCardExpanded}
+              planningPermissionContentRef={planningPermissionContentRef}
+              planningPermissionContentHeight={planningPermissionContentHeight}
+              nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+              nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+              nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
             />
           ) : (
             <Suspense fallback={<SideBarLoading />}>

@@ -31,9 +31,11 @@ export const processPremiumStreetData = (
   const premiumLeaseEndDate = attributes?.tenure?.lease_details?.calculated_end_of_lease ?? null;
   const constructionAgeBand = attributes?.construction_age_band ?? null;
   const occupancyStatus = attributes?.occupancy?.occupancy_type ?? null;
-  const conservationAreaStatus = attributes?.localities?.conservation_area ?? null;
+  const conservationAreaDetails = {
+    conservationAreaDataAvailable: attributes?.localities?.conservation_area_data_available ?? null,
+    conservationArea: attributes?.localities?.conservation_area ?? null,
+  };
   const airportNoiseAssessment = (attributes?.airport_noise as AirportNoise) ?? null;
-  const nationalParkProximity = attributes?.localities?.national_park ?? null;
   const policeForceProximity = attributes?.localities?.police_force ?? null;
   const propertyPlanningApplications =
     (attributes?.planning_applications as PlanningApplication[]) ?? null;
@@ -82,10 +84,9 @@ export const processPremiumStreetData = (
     premiumLeaseTotalMonths,
     constructionMaterials,
     constructionAgeBand,
-    conservationAreaStatus,
+    conservationAreaDetails,
     detailedFloodRiskAssessment,
     airportNoiseAssessment,
-    nationalParkProximity,
     policeForceProximity,
     mobileServiceCoverage,
     propertyPlanningApplications,
