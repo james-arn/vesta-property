@@ -1,4 +1,4 @@
-import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
@@ -96,6 +96,7 @@ export interface ExtractedPropertyScrapingData {
     isAddressConfirmedByUser: boolean;
   };
   miningImpact: PropertyItem;
+  miningImpactStatus: boolean | null;
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
   propertyType: string | null;
@@ -173,4 +174,5 @@ export interface PreprocessedData {
   broadbandScoreValue: number | null;
   broadbandDisplayValue: string | null;
   broadbandStatus: DataStatus | null;
+  miningImpactStatus: boolean | null;
 }

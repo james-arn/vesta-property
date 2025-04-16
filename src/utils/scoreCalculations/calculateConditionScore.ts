@@ -1,4 +1,7 @@
-import { CATEGORY_ITEM_MAP, DashboardScoreCategory } from "@/constants/dashboardConsts";
+import {
+  CATEGORY_ITEM_MAP,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
 import { MAX_SCORE } from "@/constants/scoreConstants";
 import { Occupancy } from "@/types/premiumStreetData";
 import {

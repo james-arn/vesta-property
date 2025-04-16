@@ -1,5 +1,6 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { PropertyDataListItem } from "@/types/property";
+import React from "react";
 
 /** Finds a specific checklist item by its key */
 export const findItemByKey = (
@@ -81,6 +82,93 @@ export const parseNumberFromString = (value: string | number | null | undefined)
   const cleaned = value.replace(/[^0-9.-]+/g, "");
   const number = parseFloat(cleaned);
   return isNaN(number) ? null : number;
+};
+
+/**
+ * Parses common string representations of yes/no/true/false/present/absent into boolean.
+ * Returns null if the value is missing, unknown, or cannot be clearly interpreted as true or false.
+ */
+export const parseYesNoUnknown = (value: React.ReactNode | null | undefined): boolean | null => {
+  if (
+    value === undefined ||
+    value === null ||
+    value === CHECKLIST_NO_VALUE.NOT_AVAILABLE ||
+    value === CHECKLIST_NO_VALUE.NOT_MENTIONED ||
+    value === "N/A"
+  ) {
+    return null;
+  }
+
+  // Direct boolean check
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  // Direct number check (0 is false, others true)
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  // String check
+  if (typeof value === "string") {
+    const lowerValue = value.toLowerCase().trim();
+    if (lowerValue === "") return null;
+    if (
+      ["yes", "true", "present", "available", "y", "1", "at risk", "affected"].includes(lowerValue)
+    ) {
+      return true;
+    }
+    if (
+      ["no", "false", "absent", "not available", "n", "0", "not at risk", "not affected"].includes(
+        lowerValue
+      )
+    ) {
+      return false;
+    }
+  }
+
+  // Handle potential React nodes - simplistic check, might need refinement
+  // This attempts to stringify simple React nodes like <span>Yes</span>
+  // It won't work well for complex nodes.
+  if (typeof value === "object" && React.isValidElement(value)) {
+    try {
+      // Check if props and children exist before accessing
+      const props = value.props as { children?: React.ReactNode };
+      if (props && props.children) {
+        // Attempt to get text content - this is very basic
+        const stringified = React.Children.toArray(props.children).join("");
+        const lowerValue = stringified.toLowerCase().trim();
+        if (lowerValue === "") return null;
+        if (
+          ["yes", "true", "present", "available", "y", "1", "at risk", "affected"].includes(
+            lowerValue
+          )
+        ) {
+          return true;
+        }
+        if (
+          [
+            "no",
+            "false",
+            "absent",
+            "not available",
+            "n",
+            "0",
+            "not at risk",
+            "not affected",
+          ].includes(lowerValue)
+        ) {
+          return false;
+        }
+      }
+    } catch (e) {
+      // Ignore errors during stringification
+      console.warn("Could not stringify React node for boolean parsing:", value);
+    }
+  }
+
+  // Fallback to null if type is unexpected or parsing failed
+  return null;
 };
 
 /** Safely gets the value of a checklist item */

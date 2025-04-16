@@ -1,5 +1,5 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';

@@ -1,5 +1,5 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
-import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { ProcessedPremiumDataStatus } from "@/types/premiumStreetData";

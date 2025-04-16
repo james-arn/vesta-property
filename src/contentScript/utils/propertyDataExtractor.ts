@@ -9,6 +9,7 @@ import {
 import {
   Confidence,
   ConfidenceLevels,
+  DataStatus,
   EpcData,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
@@ -32,7 +33,8 @@ export async function extractPropertyDataFromDOM(
     accessibility: accessibilityFromUnstructuredText,
     buildingSafety: buildingSafetyResultFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
-    miningImpact: miningImpactResultFromUnstructuredText,
+    miningImpactPropertyItem,
+    miningImpactStatus,
     listedProperty: listedPropertyFromUnstructuredText,
     epcRating: epcRatingFromText,
     leaseTerm: leaseTermFromText,
@@ -186,7 +188,12 @@ export async function extractPropertyDataFromDOM(
     listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     address: address,
     locationCoordinates: locationCoordinates,
-    miningImpact: miningImpactResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    miningImpact: miningImpactPropertyItem || {
+      value: CHECKLIST_NO_VALUE.NOT_MENTIONED,
+      status: DataStatus.ASK_AGENT,
+      reason: "Could not determine mining impact.",
+    },
+    miningImpactStatus: miningImpactStatus ?? null,
     parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
     privateRightOfWayObligation:
       pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,

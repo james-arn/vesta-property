@@ -1,4 +1,7 @@
-import { CATEGORY_ITEM_MAP, DashboardScoreCategory } from "@/constants/dashboardConsts";
+import {
+  CATEGORY_ITEM_MAP,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
 import {
   GROUND_RENT_COST_SCORES,
   MAX_SCORE,

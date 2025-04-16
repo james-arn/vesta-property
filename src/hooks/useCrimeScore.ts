@@ -3,8 +3,10 @@ import { DataStatus } from "@/types/property";
 import { logErrorToSentry } from "@/utils/sentry";
 import { useQuery } from "@tanstack/react-query";
 
+export type CrimeRating = "High" | "Moderate" | "Low";
+
 export type CrimeScoreResponse = {
-  crimeRating: "High" | "Moderate" | "Low";
+  crimeRating: CrimeRating;
   crimeScore: string;
   crimeSummary: Record<string, number>;
   monthsAggregated: string[];

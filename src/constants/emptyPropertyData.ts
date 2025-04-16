@@ -72,6 +72,7 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
     status: null,
     reason: null,
   },
+  miningImpactStatus: null,
   locationCoordinates: {
     lat: null,
     lng: null,

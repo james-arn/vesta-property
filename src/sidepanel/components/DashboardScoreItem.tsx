@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/accordion";
 import { ChecklistItem } from '@/components/ui/ChecklistItem';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { CategoryScoreData, DataStatus, PropertyDataListItem } from '@/types/property';
 import React from 'react';

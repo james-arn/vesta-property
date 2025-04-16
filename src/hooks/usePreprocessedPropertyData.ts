@@ -181,6 +181,8 @@ export const usePreprocessedPropertyData = ({
     };
   }, [propertyData?.broadband]);
 
+  const miningImpactStatus = propertyData?.miningImpactStatus;
+
   const preprocessedData: PreprocessedData = useMemo(() => {
     return {
       isPreprocessedDataLoading,
@@ -196,6 +198,7 @@ export const usePreprocessedPropertyData = ({
       broadbandScoreValue,
       broadbandDisplayValue,
       broadbandStatus,
+      miningImpactStatus: miningImpactStatus ?? null,
     };
   }, [
     isPreprocessedDataLoading,

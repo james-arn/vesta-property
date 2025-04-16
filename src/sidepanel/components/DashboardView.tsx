@@ -3,7 +3,7 @@ import React from 'react';
 import { DashboardScores, PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
-import { DashboardScoreCategory } from '@/constants/dashboardConsts';
+import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';

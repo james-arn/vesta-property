@@ -1,3 +1,5 @@
+import { CrimeRating } from "@/hooks/useCrimeScore";
+
 export const BASE_SCORE = 50;
 export const MAX_SCORE = 100;
 export const MIN_EPC_SCORE = 1;
@@ -88,3 +90,32 @@ export const BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS = ["mould", "damp", "asbestos
 export const BUILDING_SAFETY_POSITIVE_MODIFIER = 0.5;
 export const BUILDING_SAFETY_NEGATIVE_MODIFIER = -1;
 export const BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER = -5;
+
+export const ENVIRONMENT_RISK_FACTOR_WEIGHTS: Record<string, number> = {
+  crimeScore: 20,
+  floodRisk: 30, // Combined weight for flood-related factors
+  buildingSafety: 15,
+  coastalErosion: 15,
+  miningImpact: 10,
+  airportNoiseAssessment: 10,
+  // nationalParkProximity is excluded for now as its link to 'risk' is less direct
+};
+
+export const CRIME_RATINGS: Record<Uppercase<CrimeRating>, CrimeRating> = {
+  HIGH: "High",
+  MODERATE: "Moderate",
+  LOW: "Low",
+} as const;
+
+// Map ratings to score multipliers using the typed constants
+export const CRIME_RATING_MULTIPLIERS: Record<CrimeRating, number> = {
+  High: 1.0,
+  Moderate: 0.6,
+  Low: 0.1,
+};
+
+// Numerical thresholds as fallback (align with ratings)
+export const CRIME_SCORE_THRESHOLDS = {
+  high: 7, // Corresponds to High rating boundary
+  medium: 4, // Corresponds to Moderate rating boundary
+};

@@ -1,8 +1,9 @@
-import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { DashboardScores, PreprocessedData, PropertyDataListItem } from "@/types/property";
 import { calculateCompletenessScore } from "./calculateCompletenessScore";
 import { calculateConditionScore } from "./calculateConditionScore";
 import calculateConnectivityScore from "./calculateConnectivityScore";
+import { calculateEnvironmentalRiskScore } from "./calculateEnvironmentalRiskScore";
 import { calculateInvestmentValueScore } from "./calculateInvestmentValueScore";
 import { calculateRunningCostsScore } from "./calculateRunningCostsScore";
 
@@ -39,7 +40,11 @@ export const calculateDashboardScores = (
     scores[DashboardScoreCategory.CONDITION] = conditionData;
   }
 
-  // TODO: Calculate Environmental Risk score
+  const environmentalData = calculateEnvironmentalRiskScore(items, preprocessedData);
+  if (environmentalData) {
+    scores[DashboardScoreCategory.ENVIRONMENTAL_RISK] = environmentalData;
+  }
+
   // TODO: Calculate Legal Constraints score
 
   const listingCompletenessData = calculateCompletenessScore(items, preprocessedData);

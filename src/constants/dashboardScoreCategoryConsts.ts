@@ -66,13 +66,10 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "floodSources",
     "floodedInLastFiveYears",
     "detailedFloodRiskAssessment",
-    "buildingSafety", // Environmental hazards (e.g., asbestos)
     "coastalErosion",
     "miningImpact",
     "airportNoiseAssessment",
     "nationalParkProximity",
-    "policeForceProximity",
-    "healthcareProximity",
   ],
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: [
     "tenure",

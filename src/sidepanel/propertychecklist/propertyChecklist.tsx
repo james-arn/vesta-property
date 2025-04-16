@@ -1,6 +1,6 @@
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
-import { DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
 import { volatilityThreshold } from "@/constants/thresholds";

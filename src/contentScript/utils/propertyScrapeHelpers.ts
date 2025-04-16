@@ -32,46 +32,64 @@ import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 export function computeTermChecklistResult(
   termResult: TermExtractionResult | null,
   subject: string
-): { status: DataStatus; displayValue: string; askAgentMessage: string } {
+): {
+  status: DataStatus;
+  displayValue: string;
+  askAgentMessage: string;
+  impactStatus: boolean | null;
+} {
   if (!termResult) {
     return {
       status: DataStatus.ASK_AGENT,
       displayValue: CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: `I couldn't find any ${subject.toLowerCase()} details. Can you please confirm?`,
+      impactStatus: null,
     };
   }
 
+  // Determine the fundamental boolean status
+  const hasNegative = termResult.negative.length > 0;
+  const hasPositive = termResult.positive.length > 0;
+  let impactStatus: boolean | null = null;
+  if (hasNegative) {
+    impactStatus = true; // Negative impact detected
+  } else if (hasPositive) {
+    impactStatus = false; // No negative, only positive = no impact
+  } // else: no positive or negative terms found -> impactStatus remains null
+
   // Build the display string to include both positive and negative matches (if any)
   let displayValueParts: string[] = [];
-  if (termResult.positive.length > 0) {
-    displayValueParts.push(`Positive: ${termResult.positive.join(", ")}`);
+  if (hasPositive) {
+    displayValueParts.push(`Positive terms: ${termResult.positive.join(", ")}`);
   }
-  if (termResult.negative.length > 0) {
-    displayValueParts.push(`Negative: ${termResult.negative.join(", ")}`);
+  if (hasNegative) {
+    displayValueParts.push(`Negative terms: ${termResult.negative.join(", ")}`);
   }
   const displayValue = displayValueParts.join(" | ") || CHECKLIST_NO_VALUE.NOT_MENTIONED;
 
-  // Set status: If there are any negative details or no positive details, using ASK_AGENT.
+  // Set DataStatus based on boolean status
   const status =
-    termResult.negative.length > 0 || termResult.positive.length === 0
-      ? DataStatus.ASK_AGENT
-      : DataStatus.FOUND_POSITIVE;
+    impactStatus === true
+      ? DataStatus.FOUND_NEGATIVE
+      : impactStatus === false
+        ? DataStatus.FOUND_POSITIVE
+        : DataStatus.ASK_AGENT; // If null (unknown/not mentioned)
 
   // Construct the appropriate ask-agent message
   let askAgentMessage = "";
-  if (status === DataStatus.ASK_AGENT) {
+  if (status !== DataStatus.FOUND_POSITIVE) {
+    // Ask agent if negative or unknown
     askAgentMessage =
-      termResult.negative.length > 0
-        ? `I noticed for ${subject}, you mentioned the following: ${termResult.negative.join(
-            ", "
-          )}. Can you provide more details?`
-        : `Can you please confirm ${subject.toLowerCase()} details? `;
+      impactStatus === true // If negative impact found
+        ? `I noticed for ${subject}, you mentioned potential issues: ${termResult.negative.join(", ")}. Can you provide more details?`
+        : `Can you please confirm ${subject.toLowerCase()} details?`; // If unknown/not mentioned
   }
 
   return {
     status,
     displayValue,
     askAgentMessage,
+    impactStatus,
   };
 }
 
@@ -86,8 +104,8 @@ function extractTermInfo(
   const negativeMatches = negativeTerms.filter((term) => lowerText.includes(term));
   const matchResult = { positive: positiveMatches, negative: negativeMatches };
 
-  const buildingSafetyChecklist = computeTermChecklistResult(matchResult, subject);
-  return buildingSafetyChecklist;
+  const termChecklist = computeTermChecklistResult(matchResult, subject);
+  return termChecklist;
 }
 
 export function getListedPropertyDetails(
@@ -255,11 +273,12 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       status: coastalErosionResult.status,
       reason: coastalErosionResult.askAgentMessage,
     },
-    miningImpact: {
+    miningImpactPropertyItem: {
       value: miningImpactResult.displayValue,
       status: miningImpactResult.status,
       reason: miningImpactResult.askAgentMessage,
     },
+    miningImpactStatus: miningImpactResult.impactStatus,
     epcRating: epcRatingFromText,
     leaseTerm: leaseTermValue,
     groundRent: groundRentValue,
