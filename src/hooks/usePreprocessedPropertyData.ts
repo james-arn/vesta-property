@@ -1,4 +1,4 @@
-import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoresConsts";
+import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
 import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
 import { EpcBandResult } from "@/types/epc";
 import { ProcessedPremiumDataStatus, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
@@ -18,7 +18,6 @@ import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
 import { useProcessedEpcData } from "./useProcessedEpcData";
 
-// Type for the arguments specifically needed by this hook
 type UsePreprocessedPropertyDataArgs = Pick<
   UseChecklistAndDashboardDataArgs,
   "propertyData" | "premiumStreetDataQuery" | "epcDebugCanvasRef" | "isEpcDebugModeOn"

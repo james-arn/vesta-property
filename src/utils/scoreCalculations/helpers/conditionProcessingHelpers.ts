@@ -1,4 +1,15 @@
+import {
+  BUILDING_SAFETY_NEGATIVE_MODIFIER,
+  BUILDING_SAFETY_POSITIVE_MODIFIER,
+  BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER,
+  BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS,
+} from "@/constants/scoreConstants";
+import { Occupancy } from "@/types/premiumStreetData";
 import { PropertyDataListItem } from "@/types/property";
+import {
+  buildingSafetyTermsNegative,
+  buildingSafetyTermsPositive,
+} from "../../../constants/keyTerms";
 
 /**
  * Finds the value of a specific checklist item by its key.
@@ -176,8 +187,8 @@ export const mapRoofMaterialToModifier = (roofValue: string | undefined): number
   if (lowerCaseValue.includes("tile") || lowerCaseValue.includes("tiled")) return 2;
   if (lowerCaseValue.includes("metal")) return 1;
   if (lowerCaseValue.includes("asphalt") || lowerCaseValue.includes("felt")) return -1;
-  if (lowerCaseValue.includes("flat")) return -2; // Flat roofs often have shorter lifespan
-  if (lowerCaseValue.includes("thatched")) return -3; // High maintenance
+  if (lowerCaseValue.includes("flat")) return -5; // Flat roofs often have shorter lifespan
+  if (lowerCaseValue.includes("thatched")) return -5; // High maintenance
 
   return 0; // Neutral if keywords not matched
 };
@@ -209,4 +220,59 @@ export const mapWallMaterialToModifier = (wallValue: string | undefined): number
   if (lowerCaseValue.includes("single skin")) return -5;
 
   return 0; // Neutral if keywords not matched
+};
+
+/**
+ * Calculates a score modifier based on building safety terms.
+ * Evaluates an array of terms against predefined lists of positive and negative safety indicators.
+ * Severe negative terms (like mould, damp, asbestos) have a larger negative impact.
+ * @param terms - Array of building safety terms to evaluate
+ * @returns A numerical modifier value (0 if no terms provided)
+ */
+export const mapBuildingSafetyToModifier = (terms: string[] | string): number => {
+  if (!terms || (Array.isArray(terms) && terms.length === 0)) {
+    return 0;
+  }
+
+  const termsArray = Array.isArray(terms) ? terms : [terms];
+
+  const modifier = termsArray.reduce((acc, term) => {
+    const lowerCaseTerm = term.toLowerCase();
+
+    if (BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS.includes(lowerCaseTerm)) {
+      return acc + BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER;
+    }
+    if (buildingSafetyTermsNegative.includes(lowerCaseTerm)) {
+      return acc + BUILDING_SAFETY_NEGATIVE_MODIFIER;
+    }
+    if (buildingSafetyTermsPositive.includes(lowerCaseTerm)) {
+      return acc + BUILDING_SAFETY_POSITIVE_MODIFIER;
+    }
+    return acc;
+  }, 0);
+
+  return modifier;
+};
+
+/**
+ * Calculates a score modifier based on the occupancy status.
+ * Assumes owner-occupied might be slightly better maintained.
+ * @param occupancyStatus - The specific occupancy type string.
+ * @returns A numerical modifier value (0 if status is missing/unknown).
+ */
+export const mapOccupancyStatusToModifier = (
+  occupancyStatus: Occupancy["occupancy_type"] | undefined
+): number => {
+  if (!occupancyStatus) return 0; // No modifier if missing, warning handled elsewhere
+
+  // Direct comparison using the imported type literals
+  switch (occupancyStatus) {
+    case "Owner-occupied":
+      return 2;
+    case "Rented (private)":
+    case "Rented (social)":
+      return -1;
+    default:
+      return 0; // Neutral for unknown statuses or if type doesn't match exactly
+  }
 };

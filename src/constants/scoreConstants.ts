@@ -31,16 +31,43 @@ export const HIGH_VOLATILITY_PENALTY = -5;
 
 // Running Costs Weights
 export const RUNNING_COSTS_WEIGHTS = {
-  COUNCIL_TAX: 0.3,
-  EPC: 0.5,
-  TENURE: 0.2,
+  COUNCIL_TAX: 0.4,
+  EPC: 0.4,
+  SERVICE_CHARGE: 0.15,
+  GROUND_RENT: 0.05,
+  TENURE: 0.05,
 };
 
-// Tenure Cost Scores (Used in Running Costs)
+// Tenure Cost Scores (Base cost/risk for leasehold, now less impactful)
 export const TENURE_COST_SCORES = {
-  LEASEHOLD: 60, // Higher cost score for leasehold
-  UNKNOWN: 30, // Moderate cost score for unknown/check manually
-  OTHER: 0, // Low cost score for freehold/other positive identifications
+  LEASEHOLD: 20, // Base cost/risk associated with leasehold not covered by GR/SC
+  OTHER: 0, // Freehold, Share of Freehold etc.
+  UNKNOWN: 10, // Average uncertainty score
+};
+
+// Thresholds and Scores for Ground Rent (Annual)
+export const GROUND_RENT_THRESHOLDS = {
+  LOW: 100,
+  MEDIUM: 250,
+};
+export const GROUND_RENT_COST_SCORES = {
+  PEPPERCORN: 0, // Explicitly 'peppercorn' £0
+  LOW: 10, // £1 - £100 (up to LOW threshold)
+  MEDIUM: 40, // £101 - £250 (between LOW and MEDIUM thresholds)
+  HIGH: 80, // > £250 (above MEDIUM threshold)
+  UNKNOWN: 30, // Default if value missing/unparseable
+};
+
+// Thresholds and Scores for Service Charge (Annual)
+export const SERVICE_CHARGE_THRESHOLDS = {
+  LOW: 1000,
+  MEDIUM: 2500,
+};
+export const SERVICE_CHARGE_COST_SCORES = {
+  LOW: 15, // < £1000
+  MEDIUM: 50, // £1000 - £2500
+  HIGH: 90, // > £2500
+  UNKNOWN: 40, // Default if value missing/unparseable
 };
 
 // Connectivity Scores
@@ -54,3 +81,10 @@ export const OFSTED_RATINGS_SCORES: { [key: string]: number } = {
   "requires improvement": 40,
   inadequate: 20,
 };
+
+export const UK_AVERAGE_BROADBAND_MBPS = 75;
+
+export const BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS = ["mould", "damp", "asbestos", "radon"];
+export const BUILDING_SAFETY_POSITIVE_MODIFIER = 0.5;
+export const BUILDING_SAFETY_NEGATIVE_MODIFIER = -1;
+export const BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER = -5;

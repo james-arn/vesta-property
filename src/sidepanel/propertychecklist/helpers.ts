@@ -11,12 +11,11 @@ import {
   PropertyDataListItem,
 } from "@/types/property";
 import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
-import { agentMissingInfo } from "./propertyChecklist";
 
 export function getYesNoOrMissingStatus(value: string | null): DataStatus {
   if (
     !value ||
-    (typeof value === "string" && value.toLowerCase() === agentMissingInfo.toLowerCase())
+    (typeof value === "string" && Object.values(CHECKLIST_NO_VALUE).includes(value as any))
   ) {
     return DataStatus.ASK_AGENT;
   }

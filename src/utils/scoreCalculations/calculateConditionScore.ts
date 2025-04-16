@@ -1,4 +1,6 @@
 import { CATEGORY_ITEM_MAP, DashboardScoreCategory } from "@/constants/dashboardConsts";
+import { MAX_SCORE } from "@/constants/scoreConstants";
+import { Occupancy } from "@/types/premiumStreetData";
 import {
   CategoryScoreData,
   DashboardScore,
@@ -9,9 +11,11 @@ import {
   findItemValue,
   getConditionScoreLabel,
   mapAgeBandToModifier,
+  mapBuildingSafetyToModifier,
   mapEpcRatingToScore,
   mapFloorMaterialToModifier,
   mapHeatingTypeToModifier,
+  mapOccupancyStatusToModifier,
   mapRoofMaterialToModifier,
   mapWallMaterialToModifier,
   mapWindowsToModifier,
@@ -43,6 +47,13 @@ export const calculateConditionScore = (
   const floorValue = constructionMaterials?.floor;
   const roofValue = constructionMaterials?.roof;
   const wallValue = constructionMaterials?.walls;
+
+  // Add this line to find the building safety terms
+  const buildingSafetyValue = findItemValue<string[]>(relevantItems, "buildingSafety");
+  const occupancyStatus = findItemValue<Occupancy["occupancy_type"]>(
+    relevantItems,
+    "occupancyStatus"
+  );
 
   const epcScoreFromPreprocessed = preprocessedData.epcScoreForCalculation;
 
@@ -145,17 +156,35 @@ export const calculateConditionScore = (
   }
   scoreComponents.push({ value: wallModifier, description: wallDescription });
 
-  // --- Combine Components ---
+  // 8. Building Safety Component
+  const buildingSafetyModifier = mapBuildingSafetyToModifier(buildingSafetyValue || []);
+  let buildingSafetyDescription = "";
+  if (buildingSafetyValue && buildingSafetyValue.length > 0) {
+    buildingSafetyDescription = `Building Safety Terms Found (${buildingSafetyValue.length}): Modifier ${buildingSafetyModifier.toFixed(1)}`;
+    scoreComponents.push({ value: buildingSafetyModifier, description: buildingSafetyDescription });
+  } else {
+    warnings.push("There's no building safety terms found in the listing.");
+  }
+
+  // 9. Occupancy Status Component
+  const occupancyModifier = mapOccupancyStatusToModifier(occupancyStatus);
+  let occupancyDescription = "";
+  if (occupancyStatus) {
+    occupancyDescription = `Occupancy Status: ${occupancyStatus} (Modifier: ${occupancyModifier})`;
+    scoreComponents.push({ value: occupancyModifier, description: occupancyDescription });
+  } else {
+    warnings.push("Occupancy status information is missing.");
+  }
+
   const totalScoreAdjustment = scoreComponents.reduce((sum, comp) => sum + comp.value, 0);
   const calculatedScore = BASE_SCORE + totalScoreAdjustment;
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(calculatedScore)));
 
-  // --- Determine Score Label using helper ---
   const scoreLabel = getConditionScoreLabel(finalScoreValue);
 
   const finalScore: DashboardScore = {
     scoreValue: finalScoreValue,
-    maxScore: 100,
+    maxScore: MAX_SCORE,
     scoreLabel: scoreLabel,
   };
 

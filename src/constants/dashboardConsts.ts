@@ -52,15 +52,11 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
   ],
   [DashboardScoreCategory.CONDITION]: [
     "propertyType",
-    "accessibility",
     "epc", // Reflects insulation, system age
     "heatingType", // System age/type
-    "size",
     "constructionMaterials", // Maintenance implications
     "constructionAgeBand", // Age implies condition
-    "garden", // Presence/state
     "windows", // Glazing/material state
-    "parking", // Presence/state
     "buildingSafety", // Keywords might indicate condition issues (e.g., mould)
     "occupancyStatus", // Potential wear difference
   ],

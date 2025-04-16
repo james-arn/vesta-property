@@ -39,3 +39,13 @@ export const formatPercentage = (
   // Multiply by 100 to convert decimal to percentage
   return `${(value * 100).toFixed(decimalPlaces)}%`;
 };
+
+// Parses monetary values (e.g., "£1,200.50", "$500")
+export const parseMonetaryValue = (value: string | number | null | undefined): number | null => {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return null;
+
+  const cleanedValue = value.replace(/[£$€,]/g, "").trim();
+  const number = parseFloat(cleanedValue);
+  return isNaN(number) ? null : number;
+};

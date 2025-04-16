@@ -29,9 +29,6 @@ import {
   priceDiscrepancyMessages,
 } from "./helpers";
 
-export const agentMissingInfo = CHECKLIST_NO_VALUE.NOT_MENTIONED;
-const askAgentWrittenByAgent = "ask agent";
-
 export function generatePropertyChecklist(
   propertyData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
@@ -759,19 +756,34 @@ export function generatePropertyChecklist(
         propertyData.tenure?.toLowerCase() === "leasehold"
           ? getStatusFromString(propertyData.serviceCharge)
           : DataStatus.NOT_APPLICABLE,
-      value:
-        propertyData.tenure?.toLowerCase() === "leasehold"
-          ? propertyData.serviceCharge
-          : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
+      value: propertyData.serviceCharge ?? CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: "What is the service charge per annum?",
       toolTipExplainer:
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+      isBoostedWithPremium: true,
     },
-
-    // Risks (Restore full tooltips)
+    {
+      checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
+      label: "Ground Rent",
+      key: "groundRent",
+      status:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? getStatusFromString(propertyData.groundRent)
+          : DataStatus.NOT_APPLICABLE,
+      value:
+        propertyData.tenure?.toLowerCase() === "leasehold"
+          ? propertyData.groundRent
+          : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
+      askAgentMessage: "What is the ground rent per annum?",
+      toolTipExplainer:
+        "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
+        "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: true,
+    },
+    // Risks
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Coastal Erosion",
