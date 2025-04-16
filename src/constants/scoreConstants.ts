@@ -119,3 +119,25 @@ export const CRIME_SCORE_THRESHOLDS = {
   high: 7, // Corresponds to High rating boundary
   medium: 4, // Corresponds to Moderate rating boundary
 };
+
+// Maps AirportNoise categories to risk multipliers (0 = none, 1 = max risk)
+export const AIRPORT_NOISE_CATEGORY_MULTIPLIERS: Record<string, number> = {
+  None: 0.0,
+  Minimal: 0.1,
+  Occasional: 0.25,
+  Regular: 0.4,
+  Frequent: 0.6,
+  High: 0.8,
+  "Very High": 0.95, // Using string literal for key with space
+  "Extremely High": 1.0, // Using string literal for key with space
+};
+
+// Maps FloodRisk levels to risk multipliers (0 = very low, 1 = very high)
+// Applied to the 'assessment' portion of the flood risk score.
+export const FLOOD_RISK_LEVEL_MULTIPLIERS: Record<string, number> = {
+  "very high": 1.0,
+  high: 0.8,
+  medium: 0.5,
+  low: 0.2,
+  "very low": 0.0,
+};

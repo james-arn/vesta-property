@@ -1,10 +1,13 @@
 import {
+  AIRPORT_NOISE_CATEGORY_MULTIPLIERS,
   CRIME_RATINGS,
   CRIME_RATING_MULTIPLIERS,
   CRIME_SCORE_THRESHOLDS,
+  FLOOD_RISK_LEVEL_MULTIPLIERS,
   MAX_SCORE,
 } from "@/constants/scoreConstants";
 import { CrimeRating } from "@/hooks/useCrimeScore"; // Import CrimeRating type
+import { FloodRisk } from "@/types/premiumStreetData"; // Added import
 import { PropertyDataListItem } from "@/types/property";
 import { parseNumberFromString, parseYesNoUnknown } from "@/utils/parsingHelpers";
 import React from "react"; // Import React for ReactNode checks
@@ -100,117 +103,164 @@ export const calculateFloodRisk = (
   floodedLast5YearsItem: PropertyDataListItem | undefined,
   detailedRiskAssessmentItem: PropertyDataListItem | undefined
 ): FactorProcessingResult => {
-  let scoreContribution = 0;
-  let maxPossibleScoreContribution = 0; // Tracks the potential score based on available data points
-  const warnings: string[] = [];
-  let factorsConsidered = 0;
+  const internalWarnings: string[] = []; // Use a local array for warnings
 
   const FLOOD_FACTORS_MAX_SCORE = {
     last5Years: 50,
     defences: 20,
     sources: 15,
     assessment: 15,
+  } as const; // Use 'as const' for stricter typing
+
+  // --- Calculate score for each factor --- //
+
+  // 1. Flooded in last 5 years
+  const last5YearsResult = (() => {
+    if (floodedLast5YearsItem !== undefined) {
+      const flooded = parseYesNoUnknown(floodedLast5YearsItem.value);
+      const score = flooded === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
+      if (flooded === null) {
+        internalWarnings.push("Flooded in last 5 years status unknown/missing.");
+      }
+      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
+    } else {
+      internalWarnings.push("Flooded in last 5 years data item missing.");
+      return { score: 0, maxScore: 0 };
+    }
+  })();
+
+  // 2. Flood Defences
+  const defencesResult = (() => {
+    if (floodDefencesItem !== undefined) {
+      const defencesPresent = parseYesNoUnknown(floodDefencesItem.value);
+      // Score increases if defences are *absent*
+      const score = defencesPresent === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
+      if (defencesPresent === null) {
+        internalWarnings.push("Flood defences status unknown/missing.");
+      }
+      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
+    } else {
+      internalWarnings.push("Flood defences data item missing.");
+      return { score: 0, maxScore: 0 };
+    }
+  })();
+
+  // 3. Flood Sources
+  const sourcesResult = (() => {
+    if (floodSourcesItem !== undefined) {
+      const sourcesValue = floodSourcesItem.value;
+      let hasSources = false;
+      if (
+        typeof sourcesValue === "string" &&
+        sourcesValue.trim().toLowerCase() !== "none" &&
+        sourcesValue.trim() !== ""
+      ) {
+        hasSources = true;
+      } else if (Array.isArray(sourcesValue) && sourcesValue.length > 0) {
+        hasSources = sourcesValue.some(
+          (source) => typeof source === "string" && source.trim() !== ""
+        );
+      }
+      const score = hasSources ? FLOOD_FACTORS_MAX_SCORE.sources : 0;
+      if (sourcesValue === undefined || sourcesValue === null || sourcesValue === "N/A") {
+        internalWarnings.push("Flood sources data unknown/missing.");
+      }
+      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
+    } else {
+      internalWarnings.push("Flood sources data item missing.");
+      return { score: 0, maxScore: 0 };
+    }
+  })();
+
+  // Type guard (can be moved outside if preferred)
+  const isFloodRisk = (value: unknown): value is FloodRisk => {
+    if (typeof value !== "object" || value === null || React.isValidElement(value)) {
+      return false;
+    }
+    const obj = value as Record<string, unknown>;
+    const hasRivers =
+      "rivers_and_seas" in obj &&
+      (obj.rivers_and_seas === null || typeof obj.rivers_and_seas === "object");
+    const hasSurface =
+      "surface_water" in obj &&
+      (obj.surface_water === null || typeof obj.surface_water === "object");
+    return hasRivers || hasSurface;
   };
 
-  // 1. Flooded in last 5 years (High impact)
-  if (floodedLast5YearsItem !== undefined) {
-    const flooded = parseYesNoUnknown(floodedLast5YearsItem.value);
-    if (flooded === true) {
-      scoreContribution += FLOOD_FACTORS_MAX_SCORE.last5Years;
-    } else if (flooded === null) {
-      warnings.push("Flooded in last 5 years status unknown/missing.");
-    }
-    // Max possible score added regardless of value, as long as item exists
-    maxPossibleScoreContribution += FLOOD_FACTORS_MAX_SCORE.last5Years;
-    factorsConsidered++;
-  } else {
-    warnings.push("Flooded in last 5 years data item missing.");
-  }
+  // 4. Detailed Assessment
+  const assessmentResult = (() => {
+    if (detailedRiskAssessmentItem !== undefined) {
+      const assessmentValue = detailedRiskAssessmentItem.value;
+      let score = 0;
 
-  // 2. Flood Defences (Medium impact)
-  if (floodDefencesItem !== undefined) {
-    const defencesPresent = parseYesNoUnknown(floodDefencesItem.value);
-    // Increase risk score if defences are *absent*
-    if (defencesPresent === false) {
-      scoreContribution += FLOOD_FACTORS_MAX_SCORE.defences;
-    } else if (defencesPresent === null) {
-      warnings.push("Flood defences status unknown/missing.");
-    }
-    maxPossibleScoreContribution += FLOOD_FACTORS_MAX_SCORE.defences;
-    factorsConsidered++;
-  } else {
-    warnings.push("Flood defences data item missing.");
-  }
+      if (isFloodRisk(assessmentValue)) {
+        const floodRiskData = assessmentValue;
+        const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
+          .map((risk) => (risk ? risk.toLowerCase() : undefined))
+          .filter((risk): risk is string => !!risk);
 
-  // 3. Flood Sources (Lower impact - presence indicates potential)
-  if (floodSourcesItem !== undefined) {
-    const sourcesValue = floodSourcesItem.value;
-    let hasSources = false;
-    if (
-      typeof sourcesValue === "string" &&
-      sourcesValue.trim().toLowerCase() !== "none" &&
-      sourcesValue.trim() !== ""
-    ) {
-      hasSources = true;
-    } else if (Array.isArray(sourcesValue) && sourcesValue.length > 0) {
-      // Assuming array contains strings of sources
-      hasSources = sourcesValue.some(
-        (source) => typeof source === "string" && source.trim() !== ""
-      );
-    }
+        if (riskLevels.length > 0) {
+          const highestMultiplier = riskLevels.reduce((maxMultiplier, currentRisk) => {
+            const currentMultiplier = FLOOD_RISK_LEVEL_MULTIPLIERS[currentRisk] ?? -1;
+            if (currentMultiplier === -1) {
+              internalWarnings.push(`Unrecognized flood risk level: '${currentRisk}'.`);
+            }
+            return Math.max(maxMultiplier, currentMultiplier);
+          }, -1);
 
-    if (hasSources) {
-      scoreContribution += FLOOD_FACTORS_MAX_SCORE.sources;
-    }
-    // Check for explicitly missing/null
-    if (sourcesValue === undefined || sourcesValue === null || sourcesValue === "N/A") {
-      warnings.push("Flood sources data unknown/missing.");
-    }
-    maxPossibleScoreContribution += FLOOD_FACTORS_MAX_SCORE.sources;
-    factorsConsidered++;
-  } else {
-    warnings.push("Flood sources data item missing.");
-  }
-
-  // 4. Detailed Assessment (Medium impact)
-  if (detailedRiskAssessmentItem !== undefined) {
-    const assessmentValue = detailedRiskAssessmentItem.value;
-    let riskIndicated = false;
-    if (typeof assessmentValue === "string") {
-      const assessmentStatus = assessmentValue.toLowerCase();
-      // Add points if assessment available *and indicates high risk* or if recommended (implying potential risk)
-      if (assessmentStatus.includes("high risk") || assessmentStatus.includes("recommended")) {
-        riskIndicated = true;
+          if (highestMultiplier >= 0) {
+            score = FLOOD_FACTORS_MAX_SCORE.assessment * highestMultiplier;
+          } else {
+            if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
+              internalWarnings.push("Could not determine flood risk score from assessment levels.");
+            }
+          }
+        } else {
+          internalWarnings.push("Flood risk assessment present but risk levels missing.");
+        }
+      } else if (
+        assessmentValue === undefined ||
+        assessmentValue === null ||
+        assessmentValue === "N/A"
+      ) {
+        internalWarnings.push("Detailed flood risk assessment data missing or N/A.");
+      } else {
+        internalWarnings.push("Unexpected format for detailed flood risk assessment data.");
       }
+      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.assessment };
+    } else {
+      internalWarnings.push("Detailed flood risk assessment data item missing.");
+      return { score: 0, maxScore: 0 };
     }
-    // Add specific check for boolean true if that's a possible value
-    else if (typeof assessmentValue === "boolean" && assessmentValue === true) {
-      riskIndicated = true; // Assume boolean true means risk indicated or assessment available
-    }
+  })();
 
-    if (riskIndicated) {
-      scoreContribution += FLOOD_FACTORS_MAX_SCORE.assessment;
-    }
+  // --- Aggregate results --- //
+  const totalScoreContribution =
+    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score;
 
-    if (assessmentValue === undefined || assessmentValue === null || assessmentValue === "N/A") {
-      warnings.push("Detailed flood risk assessment status unknown/missing.");
-    }
-    maxPossibleScoreContribution += FLOOD_FACTORS_MAX_SCORE.assessment;
-    factorsConsidered++;
-  } else {
-    warnings.push("Detailed flood risk assessment data item missing.");
-  }
+  const totalMaxPossibleScoreContribution =
+    last5YearsResult.maxScore +
+    defencesResult.maxScore +
+    sourcesResult.maxScore +
+    assessmentResult.maxScore;
 
-  // Normalize score based on factors considered
   const normalizedScore =
-    maxPossibleScoreContribution > 0
-      ? (scoreContribution / maxPossibleScoreContribution) * MAX_SCORE
+    totalMaxPossibleScoreContribution > 0
+      ? (totalScoreContribution / totalMaxPossibleScoreContribution) * MAX_SCORE
       : 0;
 
+  const factorsConsidered = [
+    last5YearsResult,
+    defencesResult,
+    sourcesResult,
+    assessmentResult,
+  ].filter((result) => result.maxScore > 0).length;
+
   return {
-    scoreContribution: normalizedScore, // Return score normalized to 0-100 scale for flood risk
-    maxPossibleScore: factorsConsidered > 0 ? MAX_SCORE : 0, // Indicate if any flood data was processed
-    warning: warnings.length > 0 ? `Flood Risk issues: ${warnings.join(" ")}` : undefined,
+    scoreContribution: normalizedScore,
+    maxPossibleScore: factorsConsidered > 0 ? MAX_SCORE : 0,
+    warning:
+      internalWarnings.length > 0 ? `Flood Risk issues: ${internalWarnings.join(" ")}` : undefined,
   };
 };
 
@@ -273,7 +323,7 @@ export const calculateMiningImpactRisk = (status: boolean | null): FactorProcess
 export const calculateAirportNoiseRisk = (
   item: PropertyDataListItem | undefined
 ): FactorProcessingResult => {
-  const key = "airportNoiseAssessment";
+  // Initial checks for missing item or unusable value
   if (!item) {
     return {
       scoreContribution: 0,
@@ -281,25 +331,60 @@ export const calculateAirportNoiseRisk = (
       warning: "Airport noise data item missing.",
     };
   }
-  if (item.value === undefined || item.value === null || item.value === "N/A") {
+
+  const { value } = item;
+  if (value === undefined || value === null || value === "N/A") {
     return {
       scoreContribution: 0,
-      maxPossibleScore: MAX_SCORE,
-      warning: "Airport noise data missing.",
+      maxPossibleScore: 0,
+      warning: "Airport noise data missing or N/A.",
     };
   }
 
-  const noiseLevel = String(item.value).toLowerCase(); // Convert ReactNode to string
-  let scoreContribution = 0;
+  // Helper to determine category and potential initial warning
+  const determineCategoryAndWarning = (): { category?: string; warning?: string } => {
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      !React.isValidElement(value) &&
+      "category" in value &&
+      typeof value.category === "string"
+    ) {
+      return { category: value.category };
+    }
+    if (typeof value === "string") {
+      const potentialCategory = value.trim();
+      if (Object.keys(AIRPORT_NOISE_CATEGORY_MULTIPLIERS).includes(potentialCategory)) {
+        return { category: potentialCategory };
+      }
+      return { warning: `Unrecognized airport noise category string: '${potentialCategory}'.` };
+    }
+    return { warning: "Unexpected format for airport noise data." };
+  };
 
-  if (noiseLevel.includes("high")) {
-    scoreContribution = MAX_SCORE;
-  } else if (noiseLevel.includes("medium")) {
-    scoreContribution = MAX_SCORE * 0.6;
-  } else if (noiseLevel.includes("low")) {
-    scoreContribution = MAX_SCORE * 0.2;
+  const { category, warning: initialWarning } = determineCategoryAndWarning();
+
+  // If there was an immediate warning during category determination
+  if (initialWarning) {
+    return {
+      scoreContribution: 0,
+      maxPossibleScore: 0,
+      warning: initialWarning,
+    };
   }
-  // Assume 'none' or other values mean negligible risk
 
-  return { scoreContribution, maxPossibleScore: MAX_SCORE };
+  // If category is valid, calculate score
+  if (category && category in AIRPORT_NOISE_CATEGORY_MULTIPLIERS) {
+    const multiplier = AIRPORT_NOISE_CATEGORY_MULTIPLIERS[category];
+    const scoreContribution = MAX_SCORE * multiplier;
+    const maxPossibleScore = MAX_SCORE;
+    return { scoreContribution, maxPossibleScore };
+  }
+
+  // If category was not found or invalid (and no initial warning)
+  return {
+    scoreContribution: 0,
+    maxPossibleScore: 0,
+    warning: "Could not determine airport noise category from provided data.",
+  };
 };
