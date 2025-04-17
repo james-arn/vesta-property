@@ -24,6 +24,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
   ],
   [DashboardScoreCategory.INVESTMENT_VALUE]: [
     "price", // Asking price
+    "askingVsEstimateComparison", // Asking price vs estimate
     "listingHistory", // Price changes, time on market
     "compoundAnnualGrowthRate", // Historical growth
     "volatility", // Price stability

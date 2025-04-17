@@ -14,7 +14,8 @@ import { calculateRemainingLeaseTerm } from "@/utils/dateCalculations";
  */
 export const processPremiumStreetData = (
   rawData: PremiumStreetDataResponse | undefined,
-  queryStatus: ProcessedPremiumDataStatus
+  queryStatus: ProcessedPremiumDataStatus,
+  askingPrice: number | null
 ): ProcessedPremiumStreetData => {
   const attributes = rawData?.data?.attributes;
 
@@ -71,6 +72,15 @@ export const processPremiumStreetData = (
   const coastalErosionRisk = attributes?.coastal_erosion ?? null;
   const publicRightOfWay = attributes?.right_of_way ?? null;
 
+  // Calculate Asking Price vs Estimate Difference
+  let askingVsEstimatePercentage: number | null = null;
+  let askingVsEstimateAbsolute: number | null = null;
+
+  if (estimatedSaleValue !== null && askingPrice !== null && askingPrice > 0) {
+    askingVsEstimateAbsolute = estimatedSaleValue - askingPrice;
+    askingVsEstimatePercentage = (askingVsEstimateAbsolute / askingPrice) * 100;
+  }
+
   return {
     status: queryStatus,
     estimatedSaleValue,
@@ -101,5 +111,7 @@ export const processPremiumStreetData = (
     restrictiveCovenants,
     coastalErosionRisk,
     publicRightOfWay,
+    askingVsEstimatePercentage,
+    askingVsEstimateAbsolute,
   };
 };

@@ -602,4 +602,6 @@ export interface ProcessedPremiumStreetData {
   restrictiveCovenants: RestrictiveCovenant[] | null;
   coastalErosionRisk: CoastalErosion | null;
   publicRightOfWay: RightOfWay | null;
+  askingVsEstimatePercentage: number | null; // Added for asking vs estimate calc
+  askingVsEstimateAbsolute: number | null; // Added for asking vs estimate calc
 }

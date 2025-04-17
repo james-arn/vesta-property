@@ -1,4 +1,8 @@
 import {
+  CATEGORY_ITEM_MAP,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
+import {
   BASE_SCORE,
   FALLBACK_VALUE_MODIFIER_FACTOR,
   HIGH_CAGR_THRESHOLD,
@@ -36,7 +40,9 @@ export const calculateInvestmentValueScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
-  const contributingItems: PropertyDataListItem[] = [];
+  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.INVESTMENT_VALUE] || [];
+  const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
+
   const scoreModifiers: number[] = [];
 
   // --- Extract data from PreprocessedData ---
@@ -55,7 +61,6 @@ export const calculateInvestmentValueScore = (
       ? askingPriceItem.value
       : null;
   const askingPrice = parseCurrency(askingPriceValue);
-  if (askingPriceItem) contributingItems.push(askingPriceItem);
 
   const cagrItem = findItemByKey(items, "compoundAnnualGrowthRate");
   const cagrValue =
@@ -63,7 +68,6 @@ export const calculateInvestmentValueScore = (
       ? cagrItem.value
       : null;
   const cagr = parsePercentage(cagrValue);
-  if (cagrItem) contributingItems.push(cagrItem);
 
   const volatilityItem = findItemByKey(items, "volatility");
   const volatilityValue =
@@ -71,23 +75,6 @@ export const calculateInvestmentValueScore = (
       ? volatilityItem.value
       : null;
   const volatility = parsePercentage(volatilityValue);
-  if (volatilityItem) contributingItems.push(volatilityItem);
-
-  // Add checklist items that might display premium data to contributingItems
-  const estSaleValueItem = findItemByKey(items, "estimatedSaleValue");
-  if (estSaleValueItem) contributingItems.push(estSaleValueItem);
-  const estYieldItem = findItemByKey(items, "estimatedAnnualRentalYield");
-  if (estYieldItem) contributingItems.push(estYieldItem);
-  const propensitySellItem = findItemByKey(items, "propensityToSell");
-  if (propensitySellItem) contributingItems.push(propensitySellItem);
-  const propensityLetItem = findItemByKey(items, "propensityToLet");
-  if (propensityLetItem) contributingItems.push(propensityLetItem);
-  const outcodeAvgPriceItem = findItemByKey(items, "outcodeAvgSalesPrice");
-  if (outcodeAvgPriceItem) contributingItems.push(outcodeAvgPriceItem);
-  const marketTurnoverRateItem = findItemByKey(items, "marketTurnoverRate");
-  if (marketTurnoverRateItem) contributingItems.push(marketTurnoverRateItem);
-
-  // --- Calculate Modifiers using preprocessed data where available ---
 
   // Growth Modifier (using CAGR from checklist item)
   if (cagr !== null) {

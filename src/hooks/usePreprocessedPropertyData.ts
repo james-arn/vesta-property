@@ -10,6 +10,7 @@ import {
   EpcDataSourceType,
   PreprocessedData,
 } from "@/types/property";
+import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
 import { getStatusFromString } from "@/utils/statusHelpers";
@@ -39,6 +40,11 @@ export const usePreprocessedPropertyData = ({
     isEpcDebugModeOn,
   });
 
+  // Parse asking price once
+  const askingPrice = useMemo(() => {
+    return parseCurrency(propertyData?.salePrice ?? null);
+  }, [propertyData?.salePrice]);
+
   // --- Premium Data Processing ---
   const processedPremiumDataResult = useMemo((): ProcessedPremiumStreetData => {
     const premiumQueryStatus: ProcessedPremiumDataStatus =
@@ -50,8 +56,8 @@ export const usePreprocessedPropertyData = ({
             ? "success"
             : "idle";
 
-    return processPremiumStreetData(premiumStreetDataQuery?.data, premiumQueryStatus);
-  }, [premiumStreetDataQuery?.data, premiumStreetDataQuery?.status]);
+    return processPremiumStreetData(premiumStreetDataQuery?.data, premiumQueryStatus, askingPrice);
+  }, [premiumStreetDataQuery?.data, premiumStreetDataQuery?.status, askingPrice]);
 
   const calculatedLeaseMonths = useMemo(
     () => processedPremiumDataResult.premiumLeaseTotalMonths,

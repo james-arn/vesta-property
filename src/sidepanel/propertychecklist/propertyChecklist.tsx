@@ -169,7 +169,49 @@ export function generatePropertyChecklist(
     };
   }
 
-  const checklist: PropertyDataListItem[] = [
+  const askingVsEstimatePriceComparisonItem: PropertyDataListItem | null = (() => {
+    const askingVsEstimatePercentage = processedPremiumData?.askingVsEstimatePercentage;
+    const askingVsEstimateAbsolute = processedPremiumData?.askingVsEstimateAbsolute;
+
+    if (
+      askingVsEstimatePercentage !== null &&
+      askingVsEstimatePercentage !== undefined &&
+      askingVsEstimateAbsolute !== null &&
+      askingVsEstimateAbsolute !== undefined
+    ) {
+      const isUndervalued = askingVsEstimateAbsolute > 0;
+      const formattedPercentage = askingVsEstimatePercentage.toFixed(1);
+      const formattedAbsolute = formatCurrencyGBP(Math.abs(askingVsEstimateAbsolute));
+      const valueString = `${formattedPercentage}% (${formattedAbsolute}) ${isUndervalued ? "undervalued" : "overvalued"}`;
+
+      return {
+        key: "askingVsEstimateComparison",
+        label: "Asking Price vs Estimate",
+        value: valueString,
+        status: DataStatus.FOUND_POSITIVE,
+        checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+        askAgentMessage: "", // For reference only.
+        toolTipExplainer: `Compares the asking price to the estimated market value. ${isUndervalued ? "Undervalued properties may represent better immediate value." : "Overvalued properties might indicate a seller's high expectation or unique features not captured by the estimate."}`,
+        isUnlockedWithPremium: true,
+        isBoostedWithPremium: false,
+      };
+    } else {
+      // Premium data unavailable: Show placeholder
+      return {
+        key: "askingVsEstimateComparison",
+        label: "Asking Price vs Estimate",
+        value: CHECKLIST_NO_VALUE.NOT_AVAILABLE, // Use existing constant
+        status: DataStatus.ASK_AGENT, // Indicate action needed (unlock premium)
+        checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
+        askAgentMessage: "", // No direct agent question here
+        toolTipExplainer: "Compares the asking price to the estimated market value. Comparison requires Estimated Sale Value (Premium Data Feature).",
+        isUnlockedWithPremium: true,
+        isBoostedWithPremium: false,
+      };
+    }
+  })();
+
+  const checklist: (PropertyDataListItem | null)[] = [
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Price",
@@ -286,6 +328,7 @@ export function generatePropertyChecklist(
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
     },
+    askingVsEstimatePriceComparisonItem,
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Historical Compound Annual Growth Rate (CAGR)",
@@ -759,13 +802,15 @@ export function generatePropertyChecklist(
         propertyData.tenure?.toLowerCase() === "leasehold"
           ? getStatusFromString(propertyData.serviceCharge)
           : DataStatus.NOT_APPLICABLE,
-      value: propertyData.serviceCharge ?? CHECKLIST_NO_VALUE.NOT_APPLICABLE,
+      value: propertyData.tenure?.toLowerCase() === "leasehold"
+        ? propertyData.serviceCharge
+        : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: "What is the service charge per annum?",
       toolTipExplainer:
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+      isBoostedWithPremium: propertyData.tenure?.toLowerCase() === "leasehold" ? true : false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -784,7 +829,7 @@ export function generatePropertyChecklist(
         "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: true,
+      isBoostedWithPremium: propertyData.tenure?.toLowerCase() === "leasehold" ? true : false,
     },
     // Risks
     {
@@ -1018,9 +1063,9 @@ export function generatePropertyChecklist(
     },
   ];
 
-  // Filter out items not applicable based on property type
-  const filteredChecklist = checklist.filter(item => {
-    if (!item) return false;
+  // Filter out items not applicable based on property type AND filter out nulls
+  const filteredChecklist = checklist.filter((item): item is PropertyDataListItem => {
+    if (!item) return false; // Explicitly filter out nulls here with type predicate
     if (item.key === 'councilTax' && propertyData.propertyType === 'Commercial') {
       return false;
     }
