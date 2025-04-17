@@ -108,72 +108,73 @@ function extractTermInfo(
   return termChecklist;
 }
 
+// Updated return type to reflect simplification
+export interface ListedPropertyDetailsResult extends PropertyItem {
+  isListed: boolean | null;
+}
+
 export function getListedPropertyDetails(
   pageModel: RightmovePageModelType | null,
   combinedText: string
-): PropertyItem {
+): ListedPropertyDetailsResult {
+  // Use updated return type
   const obligations = pageModel?.propertyData?.features?.obligations?.listed;
-  const listingRegex = /grade\s*(ii\*?|i)/gi;
+  const lowerCombinedText = combinedText.toLowerCase();
 
-  // Capture any grade matches (preserving an asterisk, if present)
-  const matches: string[] = [];
-  let regexMatch: RegExpExecArray | null = null;
-  while ((regexMatch = listingRegex.exec(combinedText)) !== null) {
-    // Use the captured numeral portion and preserve the asterisk (if present) in uppercase.
-    const numeral = regexMatch[1].toUpperCase();
-    matches.push(`Grade ${numeral}`);
-  }
-
-  // Remove duplicate matches and join them for display
-  const uniqueGrades = matches.length > 0 ? [...new Set(matches)] : [];
-  const gradeFormatted = uniqueGrades.length > 0 ? uniqueGrades.join(", ") : null;
-
-  // Determine the string value based on the obligations flag and grade info.
-  let listingStatus: string = CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  // Determine if potentially listed
+  let isListed: boolean | null = null;
   if (obligations === true) {
-    listingStatus = gradeFormatted ? `Yes - (${gradeFormatted})` : "Yes";
+    isListed = true;
   } else if (obligations === false) {
-    listingStatus = "No";
-  } else if (obligations === null && uniqueGrades.length > 0) {
-    listingStatus = `Yes - (${gradeFormatted})`;
+    isListed = false;
+  } else {
+    // Fallback to text search if obligations flag is null/undefined
+    const mentionsListed = /listed\s*building|grade\s*(i|ii)/i.test(lowerCombinedText);
+    if (mentionsListed) {
+      isListed = true;
+    }
+    // If not mentioned and obligations unknown, remains null
   }
 
-  // Compute the DataStatus based on the final string.
-  const lowerCaseListing = listingStatus.toLowerCase().trim();
-  const computedStatus = (() => {
-    switch (lowerCaseListing) {
-      case "no":
-        return DataStatus.FOUND_POSITIVE;
-      default:
-        return DataStatus.ASK_AGENT;
+  // Generate display string (can still mention grade if found by simple regex)
+  const gradeMatch = lowerCombinedText.match(/grade\s*(ii\*?|i)/i);
+  const gradeFormatted = gradeMatch ? `Grade ${gradeMatch[1].toUpperCase()}` : null;
+
+  let listingStatus: string = CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  if (isListed === true) {
+    listingStatus = gradeFormatted ? `Yes - (${gradeFormatted})` : "Yes";
+  } else if (isListed === false) {
+    listingStatus = "No";
+  }
+
+  // Compute DataStatus based on the determined listing status
+  const computedStatus = ((): DataStatus => {
+    if (isListed === true) {
+      return DataStatus.ASK_AGENT; // Always ask agent if listed, as details are unknown
+    } else if (isListed === false) {
+      return DataStatus.FOUND_POSITIVE; // Confirmed not listed
+    } else {
+      return DataStatus.ASK_AGENT; // Status unknown, ask agent
     }
   })();
 
-  // Provide a context-specific reason based on the computed status and value.
+  // Provide a context-specific reason
   const reason = (() => {
-    switch (computedStatus) {
-      case DataStatus.FOUND_POSITIVE:
-        return ""; // No agent message required
-      case DataStatus.ASK_AGENT:
-        if (lowerCaseListing === "yes" || lowerCaseListing.startsWith("yes -")) {
-          return "Are there any important details or restrictions I should know as it's a listed property?";
-        } else if (
-          lowerCaseListing === CHECKLIST_NO_VALUE.NOT_MENTIONED ||
-          lowerCaseListing === "ask agent"
-        ) {
-          return "Is the property listed?";
-        } else {
-          return "Is the property listed?";
-        }
-      default:
-        return "Is the property listed?";
+    if (computedStatus === DataStatus.FOUND_POSITIVE) {
+      return ""; // No agent message required
     }
+    if (isListed === true) {
+      return "Are there any important details or restrictions I should know as it's potentially a listed property?";
+    }
+    // Default for unknown status
+    return "Is the property listed?";
   })();
 
   return {
     value: listingStatus,
     status: computedStatus,
     reason,
+    isListed,
   };
 }
 

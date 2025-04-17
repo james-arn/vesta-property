@@ -217,6 +217,16 @@ export const usePreprocessedPropertyData = ({
         ? premiumPublicRoW // Use premium if it has details beyond just 'exists'
         : initialPublicRoW; // Otherwise, use the initial scrape data
 
+    const listedProperty =
+      premiumStreetDataQuery?.status === "success"
+        ? (processedPremiumDataResult?.listedBuildingsOnPlot ?? propertyData?.listedProperty ?? []) // empty array if no listed buildings on plot
+        : (propertyData?.listedProperty ?? null);
+
+    const restrictiveCovenants =
+      premiumStreetDataQuery?.status === "success"
+        ? (processedPremiumDataResult?.restrictiveCovenants ?? propertyData?.restrictions ?? [])
+        : (propertyData?.restrictions ?? null);
+
     return {
       isPreprocessedDataLoading,
       preprocessedDataError,
@@ -238,6 +248,7 @@ export const usePreprocessedPropertyData = ({
       listingHistoryStatus,
       listingHistoryDisplayValue,
       listingDaysOnMarket,
+      listedProperty,
     };
   }, [
     isPreprocessedDataLoading,
@@ -260,6 +271,7 @@ export const usePreprocessedPropertyData = ({
     listingDaysOnMarket,
     propertyData?.privateRightOfWayObligation,
     propertyData?.publicRightOfWayObligation,
+    propertyData?.listedProperty,
   ]);
 
   return preprocessedData;

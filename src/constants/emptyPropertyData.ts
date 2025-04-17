@@ -35,11 +35,7 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
   windows: null,
   publicRightOfWayObligation: null,
   privateRightOfWayObligation: null,
-  listedProperty: {
-    value: null,
-    status: null,
-    reason: null,
-  },
+  listedProperty: null,
   restrictions: null,
   floodDefences: null,
   floodSources: null,

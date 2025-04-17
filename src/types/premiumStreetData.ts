@@ -65,6 +65,8 @@ export interface PropertyAttributes {
   restrictive_covenants?: RestrictiveCovenant[] | null;
   coastal_erosion?: CoastalErosion | null;
   right_of_way?: RightOfWay | null;
+  plot: Plot | null;
+  listed_buildings_on_plot?: ListedBuilding[] | null;
 }
 
 export interface Address {
@@ -262,8 +264,8 @@ export interface MultiPolygonModel {
 }
 
 export interface OSGBPolygonModel {
-  type: string;
-  coordinates: number[][];
+  type: "Polygon"; // Assuming it's always Polygon based on example
+  coordinates: number[][][]; // Array of rings, each ring is an array of [x, y] points
 }
 
 export interface OSGBMultiPolygonModel {
@@ -611,4 +613,52 @@ export interface ProcessedPremiumStreetData {
   askingVsEstimatePercentage: number | null;
   askingVsEstimateAbsolute: number | null;
   publicRightOfWayObligation: RightOfWayDetails | null;
+  listedBuildingsOnPlot: ListedBuilding[] | null;
+}
+
+// --- New Plot Types Start ---
+
+export interface PlotPolygon {
+  polygon_id: string;
+  date_polygon_created: string; // ISO date string
+  date_polygon_updated: string; // ISO date string
+  epsg_4326_polygon: PolygonModel | null;
+  epsg_27700_polygon: OSGBPolygonModel | null;
+  polygon_contains_property: boolean;
+  boundary_area_square_metres: number;
+  distance_from_property: number;
+}
+
+export interface PlotMeta {
+  data_type: "actual" | "predicted" | string | null;
+  source: string | null;
+  attribution_string: string | null;
+}
+
+export interface Plot {
+  total_plot_area_square_metres: number | null;
+  polygons: PlotPolygon[] | null;
+  meta: PlotMeta | null;
+}
+
+// --- New Point/MultiPoint Model Types Start ---
+
+export interface PointModel {
+  type: "Point";
+  coordinates: [number, number]; // [longitude, latitude]
+}
+
+export interface MultiPointModel {
+  type: "MultiPoint";
+  coordinates: [number, number][]; // Array of [longitude, latitude]
+}
+
+export interface ListedBuilding {
+  id: string | null;
+  name: string | null;
+  grade: string | null;
+  listed_date: string | null;
+  amended_date: string | null;
+  location: PointModel | MultiPointModel | null;
+  distance_in_metres?: number | null;
 }

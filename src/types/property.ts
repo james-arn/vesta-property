@@ -4,7 +4,7 @@ import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
-import { ProcessedPremiumStreetData } from "./premiumStreetData";
+import { ListedBuilding, ProcessedPremiumStreetData } from "./premiumStreetData";
 import { Station } from "./rightmovePageModel";
 
 export enum DataStatus {
@@ -101,7 +101,7 @@ export interface ExtractedPropertyScrapingData {
   garden: string | null;
   heating: string | null;
   isRental: boolean;
-  listedProperty: PropertyItem;
+  listedProperty: ListedBuilding[] | null;
   listingHistory: string | null;
   address: {
     displayAddress: string | null;
@@ -197,4 +197,5 @@ export interface PreprocessedData {
   listingDaysOnMarket: number | null;
   publicRightOfWayObligation: RightOfWayDetails | null;
   privateRightOfWayObligation: boolean | null;
+  listedProperty: ListedBuilding[] | null;
 }

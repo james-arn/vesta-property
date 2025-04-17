@@ -6,6 +6,7 @@ import {
   getNearbySchools,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
+import { ListedBuilding } from "@/types/premiumStreetData";
 import {
   Confidence,
   ConfidenceLevels,
@@ -18,6 +19,7 @@ import {
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
 import getPropertySalesInsights from "./propertySalesInsights";
+import { ListedPropertyDetailsResult } from "./propertyScrapeHelpers";
 
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
@@ -185,7 +187,7 @@ export async function extractPropertyDataFromDOM(
       heatingFromUnstructuredText ||
       CHECKLIST_NO_VALUE.NOT_MENTIONED,
     isRental,
-    listedProperty: listedPropertyFromUnstructuredText ?? null,
+    listedProperty: mapScrapedStatusToListedBuildings(listedPropertyFromUnstructuredText),
     listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     address: address,
     locationCoordinates: locationCoordinates,
@@ -242,4 +244,37 @@ const mapBooleanToRightOfWayDetails = (
     route_no: null,
     row_type: null,
   };
+};
+
+// Helper function to map scraped listed status to the ListedBuilding array structure
+const mapScrapedStatusToListedBuildings = (
+  scrapedData: ListedPropertyDetailsResult | null
+): ListedBuilding[] | null => {
+  if (!scrapedData || scrapedData.isListed === null) {
+    return null; // Status unknown or no data scraped
+  }
+
+  // Case 1: Confirmed not listed
+  if (scrapedData.isListed === false) {
+    return []; // Empty array signifies checked and confirmed not listed
+  }
+
+  // Case 2: Potentially listed (status is true)
+  if (scrapedData.isListed === true) {
+    // Create a single placeholder object
+    const placeholderBuilding: ListedBuilding = {
+      id: null,
+      name: null,
+      grade: null, // Set grade to null as we can't reliably extract it
+      listed_date: null,
+      amended_date: null,
+      location: null,
+      distance_in_metres: null,
+    };
+    return [placeholderBuilding];
+  }
+
+  // Fallback: Should not be reached if logic above is correct, but treat as unknown
+  console.warn("Unhandled listed building mapping case:", scrapedData);
+  return null;
 };

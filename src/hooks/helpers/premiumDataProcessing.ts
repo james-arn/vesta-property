@@ -63,7 +63,7 @@ export const processPremiumStreetData = (
     windows: attributes?.energy_performance?.windows_description ?? null,
     heating: attributes?.energy_performance?.mainheat_description ?? null,
   };
-  const restrictiveCovenants = attributes?.restrictive_covenants ?? null;
+  const restrictiveCovenants = attributes?.restrictive_covenants ?? [];
   const detailedFloodRiskAssessment = attributes?.flood_risk ?? null;
   const mobileServiceCoverage = attributes?.mobile_service_coverage ?? null;
   const transport = attributes?.transport ?? null;
@@ -101,6 +101,8 @@ export const processPremiumStreetData = (
     askingVsEstimatePercentage = (askingVsEstimateAbsolute / askingPrice) * 100;
   }
 
+  const listedBuildingsOnPlot = attributes?.listed_buildings_on_plot ?? [];
+
   return {
     status: queryStatus,
     estimatedSaleValue,
@@ -134,5 +136,6 @@ export const processPremiumStreetData = (
     askingVsEstimatePercentage,
     askingVsEstimateAbsolute,
     publicRightOfWayObligation: mappedPublicRoW,
+    listedBuildingsOnPlot,
   };
 };

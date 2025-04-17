@@ -55,9 +55,11 @@ export function generatePropertyChecklist(
     listingHistoryDisplayValue,
     privateRightOfWayObligation,
     publicRightOfWayObligation,
+    listedProperty,
   } = preprocessedData;
 
   const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
+  const isLeasehold = propertyData.tenure?.toLowerCase() === "leasehold"
 
   const getStatusFromPremium = (
     value: unknown | null | undefined
@@ -126,7 +128,7 @@ export function generatePropertyChecklist(
     key: CHECKLIST_KEYS.LEASE_TERM,
     checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
     isUnlockedWithPremium: false,
-    isBoostedWithPremium: true,
+    isBoostedWithPremium: isLeasehold ? true : false,
   };
   let leaseTermChecklistItem: PropertyDataListItem;
   if (propertyData.tenure?.toLowerCase() !== "leasehold") {
@@ -715,12 +717,37 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed Property",
       key: CHECKLIST_KEYS.LISTED_PROPERTY,
-      status: propertyData.listedProperty.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.listedProperty.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: propertyData.listedProperty.reason ?? "",
+      status: (() => {
+        if (listedProperty === null) {
+          return DataStatus.ASK_AGENT; // Unknown status
+        } else if (listedProperty.length === 0) {
+          return DataStatus.FOUND_POSITIVE; // Confirmed not listed
+        } else {
+          // Potentially listed (placeholder exists), details unknown
+          return DataStatus.ASK_AGENT;
+        }
+      })(),
+      value: (() => {
+        if (listedProperty === null) {
+          return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+        } else if (listedProperty.length === 0) {
+          return "No";
+        } else {
+          // Try to get grade from placeholder if available, otherwise just "Yes"
+          const grade = listedProperty[0]?.grade;
+          return grade ? `Yes - (${grade})` : "Yes";
+        }
+      })(),
+      askAgentMessage: (() => {
+        if (listedProperty && listedProperty.length > 0) {
+          return "Are there any important details or restrictions I should know as it's potentially a listed property?";
+        }
+        // Ask if status is unknown or confirmed not listed (though latter shouldn't need asking)
+        return "Is the property listed?";
+      })(),
       toolTipExplainer: "Indicates if the property is listed (Grade I, II*, II), which imposes restrictions on alterations.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -806,10 +833,10 @@ export function generatePropertyChecklist(
       label: "Service Charge",
       key: CHECKLIST_KEYS.SERVICE_CHARGE,
       status:
-        propertyData.tenure?.toLowerCase() === "leasehold"
+        isLeasehold
           ? getStatusFromString(propertyData.serviceCharge)
           : DataStatus.NOT_APPLICABLE,
-      value: propertyData.tenure?.toLowerCase() === "leasehold"
+      value: isLeasehold
         ? propertyData.serviceCharge
         : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: "What is the service charge per annum?",
@@ -817,18 +844,18 @@ export function generatePropertyChecklist(
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: propertyData.tenure?.toLowerCase() === "leasehold" ? true : false,
+      isBoostedWithPremium: isLeasehold ? true : false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Ground Rent",
       key: CHECKLIST_KEYS.GROUND_RENT,
       status:
-        propertyData.tenure?.toLowerCase() === "leasehold"
+        isLeasehold
           ? getStatusFromString(propertyData.groundRent)
           : DataStatus.NOT_APPLICABLE,
       value:
-        propertyData.tenure?.toLowerCase() === "leasehold"
+        isLeasehold
           ? propertyData.groundRent
           : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: "What is the ground rent per annum?",
@@ -836,7 +863,7 @@ export function generatePropertyChecklist(
         "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: propertyData.tenure?.toLowerCase() === "leasehold" ? true : false,
+      isBoostedWithPremium: isLeasehold ? true : false,
     },
     // Risks
     {
