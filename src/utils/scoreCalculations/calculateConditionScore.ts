@@ -1,3 +1,4 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
@@ -36,26 +37,31 @@ export const calculateConditionScore = (
   preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.CONDITION] || [];
-  const relevantItems = items.filter((item) => contributingFactorKeys.includes(item.key));
+  const relevantItems = items.filter((item) =>
+    (contributingFactorKeys as string[]).includes(item.key)
+  );
 
   // Find relevant values using helper
-  const epcRating = findItemValue<string>(relevantItems, "epc");
-  const ageBand = findItemValue<string>(relevantItems, "constructionAgeBand");
-  const heatingValue = findItemValue<string>(relevantItems, "heatingType");
-  const windowsValue = findItemValue<string>(relevantItems, "windows");
+  const epcRating = findItemValue<string>(relevantItems, CHECKLIST_KEYS.EPC);
+  const ageBand = findItemValue<string>(relevantItems, CHECKLIST_KEYS.CONSTRUCTION_AGE_BAND);
+  const heatingValue = findItemValue<string>(relevantItems, CHECKLIST_KEYS.HEATING_TYPE);
+  const windowsValue = findItemValue<string>(relevantItems, CHECKLIST_KEYS.WINDOWS);
   const constructionMaterials = findItemValue<ConstructionMaterials>(
     relevantItems,
-    "constructionMaterials"
+    CHECKLIST_KEYS.CONSTRUCTION_MATERIALS
   );
   const floorValue = constructionMaterials?.floor;
   const roofValue = constructionMaterials?.roof;
   const wallValue = constructionMaterials?.walls;
 
   // Add this line to find the building safety terms
-  const buildingSafetyValue = findItemValue<string[]>(relevantItems, "buildingSafety");
+  const buildingSafetyValue = findItemValue<string[]>(
+    relevantItems,
+    CHECKLIST_KEYS.BUILDING_SAFETY
+  );
   const occupancyStatus = findItemValue<Occupancy["occupancy_type"]>(
     relevantItems,
-    "occupancyStatus"
+    CHECKLIST_KEYS.OCCUPANCY_STATUS
   );
 
   const epcScoreFromPreprocessed = preprocessedData.epcScoreForCalculation;

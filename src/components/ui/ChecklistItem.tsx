@@ -1,11 +1,12 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
-import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
+import { ConfidenceLevels, DataStatus, PropertyDataListItem, RightOfWayDetails } from "@/types/property";
 import React from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
@@ -52,7 +53,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 }) => {
     const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium } = item;
 
-    const isEpcItem = key === 'epc';
+    const isEpcItem = key === CHECKLIST_KEYS.EPC;
 
     const isLocked = isUnlockedWithPremium && !isPremiumDataFetched;
     // Determine if the initial value is meaningful using the constant
@@ -116,8 +117,42 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // Special case floor plan - always show as "Yes" when clickable
-        if ((key === "floorPlan") && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED) {
+        if (key === CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY) {
+            const details = item.value as RightOfWayDetails | null;
+            if (!details || details.exists === null || details.exists === undefined) {
+                // Should ideally use status here, but value might be null
+                return <span>{CHECKLIST_NO_VALUE.NOT_MENTIONED}</span>;
+            }
+            if (details.exists === false) {
+                return <span>No</span>; // Or "None Found"
+            }
+            // Exists is true
+            const hasDetails = details.distance !== null ||
+                details.date_updated !== null ||
+                details.parish !== null ||
+                details.route_no !== null ||
+                details.row_type !== null;
+
+            if (hasDetails) {
+                // Render details in a structured way
+                return (
+                    <div className="text-xs text-gray-600 flex flex-col space-y-0.5">
+                        <span>Yes</span> {/* Still indicate existence */}
+                        {details.row_type && <span>Type: {details.row_type}</span>}
+                        {details.distance !== null && <span>Distance: {details.distance}m</span>}
+                        {details.route_no && <span>Route No: {details.route_no}</span>}
+                        {details.parish && <span>Parish: {details.parish}</span>}
+                        {/* Consider formatting the date if needed */}
+                        {details.date_updated && <span>Updated: {details.date_updated}</span>}
+                    </div>
+                );
+            }
+            // Exists is true, but no other details (from basic scrape)
+            return <span>Yes</span>;
+        }
+
+        // Special case floor plan
+        if ((key === CHECKLIST_KEYS.FLOOR_PLAN) && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED) {
             return (
                 <span
                     onClick={onValueClick}
@@ -167,8 +202,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // For crimeScore, we expect a clickable link that toggles inline expansion
-        if (key === "crimeScore" && !isLocked) {
+        // For crimeScore
+        if (key === CHECKLIST_KEYS.CRIME_SCORE && !isLocked) {
             return (
                 <span
                     onClick={onValueClick}
@@ -180,7 +215,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // For planningPermissions and nearbyPlanningPermissions
-        if ((key === "planningPermissions" || key === "nearbyPlanningPermissions") && isClickable && !isLocked) {
+        if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && isClickable && !isLocked) {
             // Don't make it clickable if no applications found
             const noApplicationsFound =
                 value === PREMIUM_DATA_STATES.NO_APPLICATIONS ||
@@ -202,9 +237,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
         // Log warning if this is a clickable key but we don't have specific rendering for it
         if (isClickableItemKey(key) && !isLocked &&
-            key !== "epc" && key !== "floorPlan" &&
-            key !== "crimeScore" && key !== "planningPermissions" &&
-            key !== "nearbyPlanningPermissions") {
+            // @ts-expect-error TS2367: Comparison is intentional to exclude handled clickable keys.
+            key !== CHECKLIST_KEYS.EPC && key !== CHECKLIST_KEYS.FLOOR_PLAN &&
+            key !== CHECKLIST_KEYS.CRIME_SCORE && key !== CHECKLIST_KEYS.PLANNING_PERMISSIONS &&
+            key !== CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) {
             console.warn(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
         }
 
@@ -255,7 +291,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </TooltipProvider>
             </div>
 
-            {/* Render Debug Canvas if debug mode is ON (independent of source) */}
+            {/* Render Debug Canvas if debug mode is ON */}
             {isEpcDebugModeOn && isEpcItem && epcDebugCanvasRef && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px solid grey', overflow: 'auto' }}>
                     <canvas

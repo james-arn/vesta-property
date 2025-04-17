@@ -1,5 +1,6 @@
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { PropertyDataListItem } from "@/types/property";
 import { UseQueryResult } from "@tanstack/react-query";
@@ -103,13 +104,13 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         toggleNearbyPlanningPermissionCard
                                     )}
                                     isPremiumDataFetched={isPremiumDataFetched}
-                                    epcData={item.key === 'epc' ? (processedEpcResult ?? undefined) : undefined}
-                                    onEpcChange={item.key === 'epc' ? handleEpcValueChange : undefined}
-                                    epcDebugCanvasRef={item.key === 'epc' && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
+                                    epcData={item.key === CHECKLIST_KEYS.EPC ? (processedEpcResult ?? undefined) : undefined}
+                                    onEpcChange={item.key === CHECKLIST_KEYS.EPC ? handleEpcValueChange : undefined}
+                                    epcDebugCanvasRef={item.key === CHECKLIST_KEYS.EPC && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                                     isEpcDebugModeOn={isEpcDebugModeOn}
                                 />
 
-                                {item.key === 'crimeScore' && crimeQuery.data && (
+                                {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeQuery.data && (
                                     <Suspense fallback={<LoadingSpinner />}>
                                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
                                             <div ref={crimeContentRef}>
@@ -122,7 +123,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === 'planningPermissionData' && premiumStreetDataQuery.data?.data?.attributes?.planning_applications?.length && (
+                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && premiumStreetDataQuery.data?.data?.attributes?.planning_applications?.length && (
                                     <Suspense fallback={<LoadingSpinner />}>
                                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                                             <div ref={planningPermissionContentRef}>
@@ -136,7 +137,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === 'nearbyPlanningPermissionData' && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications?.length && (
+                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications?.length && (
                                     <Suspense fallback={<LoadingSpinner />}>
                                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                                             <div ref={nearbyPlanningPermissionContentRef}>

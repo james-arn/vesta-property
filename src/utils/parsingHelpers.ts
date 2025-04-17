@@ -1,11 +1,12 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { ChecklistKey } from "@/constants/checklistKeys";
 import { PropertyDataListItem } from "@/types/property";
 import React from "react";
 
 /** Finds a specific checklist item by its key */
 export const findItemByKey = (
   items: PropertyDataListItem[],
-  key: string
+  key: ChecklistKey
 ): PropertyDataListItem | undefined => {
   return items.find((item) => item.key === key);
 };

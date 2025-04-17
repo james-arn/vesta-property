@@ -5,6 +5,7 @@ import { calculateConditionScore } from "./calculateConditionScore";
 import calculateConnectivityScore from "./calculateConnectivityScore";
 import { calculateEnvironmentalRiskScore } from "./calculateEnvironmentalRiskScore";
 import { calculateInvestmentValueScore } from "./calculateInvestmentValueScore";
+import { calculateLegalConstraintsScore } from "./calculateLegalConstraintsScore";
 import { calculateRunningCostsScore } from "./calculateRunningCostsScore";
 
 /**
@@ -45,7 +46,10 @@ export const calculateDashboardScores = (
     scores[DashboardScoreCategory.ENVIRONMENTAL_RISK] = environmentalData;
   }
 
-  // TODO: Calculate Legal Constraints score
+  const legalConstraintsData = calculateLegalConstraintsScore(items, preprocessedData);
+  if (legalConstraintsData) {
+    scores[DashboardScoreCategory.LEGAL_CONSTRAINTS] = legalConstraintsData;
+  }
 
   const listingCompletenessData = calculateCompletenessScore(items, preprocessedData);
   if (listingCompletenessData) {
@@ -53,13 +57,4 @@ export const calculateDashboardScores = (
   }
 
   return scores;
-};
-
-// Optionally export individual calculators if needed elsewhere
-export {
-  calculateCompletenessScore,
-  calculateConditionScore,
-  calculateConnectivityScore,
-  calculateInvestmentValueScore,
-  calculateRunningCostsScore,
 };

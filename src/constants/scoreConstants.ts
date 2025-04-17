@@ -146,3 +146,12 @@ export const FLOOD_RISK_LEVEL_MULTIPLIERS: Record<string, number> = {
   low: 0.2,
   "very low": 0.0,
 };
+
+export const LEGAL_CONSTRAINT_POINTS = {
+  SEVERE: 35, // e.g., Lease < 80 years
+  HIGH: 20, // e.g., Listed Building
+  MEDIUM: 15, // e.g., Restrictive Covenants
+  LOW_MEDIUM: 10, // e.g., Base Leasehold, Rights of Way
+  LOW: 5, // e.g., Planning Permissions, Share of Freehold
+  UNKNOWN_TENURE: 5,
+};

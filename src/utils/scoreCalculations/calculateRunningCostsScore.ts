@@ -1,3 +1,4 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
@@ -46,13 +47,15 @@ export const calculateRunningCostsScore = (
   preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
-  const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
+  const contributingItems = items.filter((item) =>
+    (contributingFactorKeys as string[]).includes(item.key)
+  );
 
-  const councilTaxItem = findItemByKey(items, "councilTax");
-  const epcItem = findItemByKey(items, "epc");
-  const tenureItem = findItemByKey(items, "tenure");
-  const groundRentItem = findItemByKey(items, "groundRent");
-  const serviceChargeItem = findItemByKey(items, "serviceCharge");
+  const councilTaxItem = findItemByKey(items, CHECKLIST_KEYS.COUNCIL_TAX);
+  const epcItem = findItemByKey(items, CHECKLIST_KEYS.EPC);
+  const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);
+  const groundRentItem = findItemByKey(items, CHECKLIST_KEYS.GROUND_RENT);
+  const serviceChargeItem = findItemByKey(items, CHECKLIST_KEYS.SERVICE_CHARGE);
 
   if (
     preprocessedData.epcScoreForCalculation === null ||

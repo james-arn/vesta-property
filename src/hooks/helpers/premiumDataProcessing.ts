@@ -5,6 +5,7 @@ import {
   ProcessedPremiumDataStatus,
   ProcessedPremiumStreetData,
 } from "@/types/premiumStreetData";
+import { RightOfWayDetails } from "@/types/property";
 import { calculateRemainingLeaseTerm } from "@/utils/dateCalculations";
 
 /**
@@ -69,9 +70,29 @@ export const processPremiumStreetData = (
   const schoolProximity = attributes?.education ?? null;
 
   const coastalErosionRisk = attributes?.coastal_erosion ?? null;
-  const publicRightOfWay = attributes?.right_of_way ?? null;
+  const rawPublicRightOfWay = attributes?.right_of_way ?? null;
+
+  // Map the raw premium RoW data to the RightOfWayDetails structure
+  const mappedPublicRoW: RightOfWayDetails | null = (() => {
+    if (!rawPublicRightOfWay) return null;
+
+    const exists = rawPublicRightOfWay.has_public_right_of_way;
+    if (exists === null || exists === undefined) return null; // Cannot determine existence
+
+    const details = rawPublicRightOfWay.right_of_way_details?.[0]; // Get the first detail if available
+
+    return {
+      exists: exists,
+      distance: details?.distance ?? null,
+      date_updated: details?.date_updated ?? null,
+      parish: details?.parish ?? null,
+      route_no: details?.route_no ?? null,
+      row_type: details?.row_type ?? null,
+    };
+  })();
 
   // Calculate Asking Price vs Estimate Difference
+
   let askingVsEstimatePercentage: number | null = null;
   let askingVsEstimateAbsolute: number | null = null;
 
@@ -109,8 +130,9 @@ export const processPremiumStreetData = (
     outcodeTurnoverRate,
     restrictiveCovenants,
     coastalErosionRisk,
-    publicRightOfWay,
+    publicRightOfWay: rawPublicRightOfWay,
     askingVsEstimatePercentage,
     askingVsEstimateAbsolute,
+    publicRightOfWayObligation: mappedPublicRoW,
   };
 };

@@ -1,70 +1,105 @@
-import { CategoryScoreData, PropertyDataListItem } from "@/types/property"; // Adjust path as needed
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
+import {
+  CATEGORY_ITEM_MAP,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
+import { LEGAL_CONSTRAINT_POINTS } from "@/constants/scoreConstants";
+import {
+  CategoryScoreData,
+  DataStatus,
+  PropertyDataListItem,
+  RightOfWayDetails,
+} from "@/types/property"; // Adjust path as needed
 import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
+import {
+  calculateLegalPointsForStatus,
+  calculateTenureConstraintPoints,
+  getLegalConstraintsLabel,
+} from "./helpers/legalContraintsProcessingHelpers";
 
-// Define locally needed types/consts
 interface CalculationData {
   calculatedLeaseMonths: number | null;
-  epcScoreForCalculation: number; // Keep if needed by this specific calculation
 }
-
-// Specific helper (if only used here)
-const mapTenureToRiskScore = (tenure?: string | null): number => {
-  // Higher score = Higher Risk/Constraint Level
-  if (!tenure) return 50;
-  const lowerTenure = tenure.toLowerCase();
-  if (lowerTenure.includes("freehold")) return 0; // Low constraint/risk
-  if (lowerTenure.includes("leasehold")) return 70; // High constraint/risk
-  if (lowerTenure.includes("share of freehold") || lowerTenure.includes("commonhold")) return 10; // Low-ish constraint
-  return 50;
-};
-
+// --- Main Calculation Function ---
 export const calculateLegalConstraintsScore = (
   items: PropertyDataListItem[],
-  calculationData: CalculationData // Accept calculationData
+  calculationData: CalculationData
 ): CategoryScoreData | undefined => {
-  console.warn("Legal Constraints score calculation needs implementation beyond placeholders.");
-  const tenureItem = findItemByKey(items, "tenure");
-  let totalConstraintPoints = mapTenureToRiskScore(getItemValue(tenureItem));
+  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.LEGAL_CONSTRAINTS] || [];
+  const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
 
-  // --- Use calculatedLeaseMonths ---
-  const leaseMonths = calculationData.calculatedLeaseMonths;
-  if (leaseMonths !== null && leaseMonths < 12 * 80) {
-    // Check if less than 80 years (in months)
-    console.log("Lease term less than 80 years, adding constraint points.");
-    totalConstraintPoints += 30; // Example: Add significant points for short lease
+  if (contributingItems.length === 0 && !calculationData.calculatedLeaseMonths) {
+    // If no relevant items and no lease info, cannot calculate score
+    return undefined;
   }
 
-  // TODO: check listedProperty, restrictions, etc. and add points ...
-  const listedPropertyItem = findItemByKey(items, "listedProperty");
-  const restrictionsItem = findItemByKey(items, "restrictions"); // Needs refinement based on value
-  const publicRightOfWayItem = findItemByKey(items, "publicRightOfWay");
+  let totalConstraintPoints = 0;
 
-  // Example: Add points if listed property status is positive
-  if (listedPropertyItem?.status === "FOUND_POSITIVE") {
-    totalConstraintPoints += 15;
-  }
-  // Example: Add points if public right of way is positive
-  if (publicRightOfWayItem?.status === "FOUND_POSITIVE") {
-    totalConstraintPoints += 5;
-  }
-  // Example: Need more complex logic for restrictions (is 'Yes' positive or negative constraint?)
-  // if (restrictionsItem?.value === "Yes") {
-  //   totalConstraintPoints += 10;
-  // }
+  // 1. Tenure Base Score
+  const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);
+  totalConstraintPoints += calculateTenureConstraintPoints(getItemValue(tenureItem));
 
+  // 2. Lease Term Length (uses pre-calculated data)
+  const { calculatedLeaseMonths } = calculationData;
+  if (calculatedLeaseMonths !== null && calculatedLeaseMonths < 12 * 80) {
+    totalConstraintPoints += LEGAL_CONSTRAINT_POINTS.SEVERE; // Short lease is a severe constraint
+  }
+
+  // 3. Listed Property Status
+  const listedPropertyItem = findItemByKey(items, CHECKLIST_KEYS.LISTED_PROPERTY);
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    listedPropertyItem,
+    LEGAL_CONSTRAINT_POINTS.HIGH
+  );
+
+  // 4. Restrictive Covenants
+  const restrictiveCovenantsItem = findItemByKey(items, CHECKLIST_KEYS.RESTRICTIVE_COVENANTS);
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    restrictiveCovenantsItem,
+    LEGAL_CONSTRAINT_POINTS.MEDIUM
+  );
+
+  // 5. Public Right of Way Obligation
+  const publicRightOfWayItem = findItemByKey(items, CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY);
+  const publicRoWDetails = publicRightOfWayItem?.value as RightOfWayDetails | null;
+  const publicRoWStatus = publicRoWDetails?.exists
+    ? DataStatus.FOUND_POSITIVE
+    : DataStatus.FOUND_NEGATIVE;
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    publicRightOfWayItem ? { ...publicRightOfWayItem, status: publicRoWStatus } : undefined,
+    LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM
+  );
+
+  // 6. Private Right of Way Obligation
+  const privateRightOfWayItem = findItemByKey(items, CHECKLIST_KEYS.PRIVATE_RIGHT_OF_WAY);
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    privateRightOfWayItem,
+    LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM
+  );
+
+  // 7. Planning Permissions (on property)
+  const planningPermissionsItem = findItemByKey(items, CHECKLIST_KEYS.PLANNING_PERMISSIONS);
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    planningPermissionsItem,
+    LEGAL_CONSTRAINT_POINTS.LOW
+  );
+
+  // 8. Nearby Planning Permissions
+  const nearbyPlanningPermissionsItem = findItemByKey(
+    items,
+    CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS
+  );
+  totalConstraintPoints += calculateLegalPointsForStatus(
+    nearbyPlanningPermissionsItem,
+    LEGAL_CONSTRAINT_POINTS.LOW
+  );
+
+  // Clamp the score between 0 and 100
   const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints));
-
-  const getLegalConstraintsLabel = (constraintScore: number): string => {
-    if (constraintScore >= 65) return "Severe Constraints";
-    if (constraintScore >= 50) return "Medium-High Constraints";
-    if (constraintScore >= 35) return "Medium Constraints";
-    if (constraintScore >= 20) return "Low-Medium Constraints";
-    return "Low Constraints";
-  };
   const scoreLabel = getLegalConstraintsLabel(finalScoreValue);
 
   return {
     score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
-    contributingItems: items, // TODO: Filter to actually contributing items
+    contributingItems,
   };
 };

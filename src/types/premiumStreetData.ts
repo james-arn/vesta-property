@@ -1,3 +1,5 @@
+import { RightOfWayDetails } from "./property"; // Import the shared type
+
 export interface AddressMatchData {
   id: string;
   type: "property";
@@ -85,7 +87,6 @@ export interface Address {
   outcodeAvgSalesPrice: number | null;
   restrictiveCovenants: RestrictiveCovenant[] | null;
   coastalErosionRisk: CoastalErosion | null;
-  publicRightOfWay: RightOfWay | null;
 }
 
 export interface RoyalMailFormat {
@@ -545,14 +546,19 @@ export interface CoastalErosion {
   plans: unknown | null; // Type unknown, assuming null or complex object
 }
 
-export interface RightOfWayDetail {
-  // Structure unknown from provided data (empty array), define if structure becomes clear
-  [key: string]: unknown;
-}
-
 export interface RightOfWay {
   has_public_right_of_way: boolean | null;
-  right_of_way_details: RightOfWayDetail[] | null;
+  right_of_way_details: PublicRightOfWayDetails[] | null;
+}
+
+export type RightOfWayRowType = string | null;
+
+export interface PublicRightOfWayDetails {
+  distance: number | null;
+  date_updated: string | null;
+  parish: string | null;
+  route_no: string | null;
+  row_type: RightOfWayRowType;
 }
 
 // --- New Legal/Risk Types End ---
@@ -598,10 +604,11 @@ export interface ProcessedPremiumStreetData {
   outcodeAvgSalesPrice: number | null;
   outcodeTotalProperties: number | null;
   outcodeIdentifier: string | null;
-  outcodeTurnoverRate: number | null; // Added pre-calculated rate
+  outcodeTurnoverRate: number | null;
   restrictiveCovenants: RestrictiveCovenant[] | null;
   coastalErosionRisk: CoastalErosion | null;
   publicRightOfWay: RightOfWay | null;
-  askingVsEstimatePercentage: number | null; // Added for asking vs estimate calc
-  askingVsEstimateAbsolute: number | null; // Added for asking vs estimate calc
+  askingVsEstimatePercentage: number | null;
+  askingVsEstimateAbsolute: number | null;
+  publicRightOfWayObligation: RightOfWayDetails | null;
 }

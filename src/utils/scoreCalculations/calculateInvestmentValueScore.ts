@@ -1,3 +1,4 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
@@ -49,7 +50,9 @@ export const calculateInvestmentValueScore = (
   preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.INVESTMENT_VALUE] || [];
-  const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
+  const contributingItems = items.filter((item) =>
+    (contributingFactorKeys as string[]).includes(item.key)
+  );
 
   const scoreModifiers: number[] = [];
 
@@ -65,21 +68,21 @@ export const calculateInvestmentValueScore = (
   const listingHistoryStatus = preprocessedData.listingHistoryStatus;
 
   // --- Get Values from Checklist Items (can be overridden by premium data later if needed) ---
-  const askingPriceItem = findItemByKey(items, "price");
+  const askingPriceItem = findItemByKey(items, CHECKLIST_KEYS.PRICE);
   const askingPriceValue =
     typeof askingPriceItem?.value === "string" || typeof askingPriceItem?.value === "number"
       ? askingPriceItem.value
       : null;
   const askingPrice = parseCurrency(askingPriceValue);
 
-  const cagrItem = findItemByKey(items, "compoundAnnualGrowthRate");
+  const cagrItem = findItemByKey(items, CHECKLIST_KEYS.COMPOUND_ANNUAL_GROWTH_RATE);
   const cagrValue =
     typeof cagrItem?.value === "string" || typeof cagrItem?.value === "number"
       ? cagrItem.value
       : null;
   const cagr = parsePercentage(cagrValue);
 
-  const volatilityItem = findItemByKey(items, "volatility");
+  const volatilityItem = findItemByKey(items, CHECKLIST_KEYS.VOLATILITY);
   const volatilityValue =
     typeof volatilityItem?.value === "string" || typeof volatilityItem?.value === "number"
       ? volatilityItem.value

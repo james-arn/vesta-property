@@ -10,6 +10,7 @@ import {
   EpcData,
   EpcDataSourceType,
   PreprocessedData,
+  RightOfWayDetails,
 } from "@/types/property";
 import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
@@ -199,6 +200,23 @@ export const usePreprocessedPropertyData = ({
   const miningImpactStatus = propertyData?.miningImpactStatus;
 
   const preprocessedData: PreprocessedData = useMemo(() => {
+    // Start with the data from the initial scrape (which is now RightOfWayDetails | null)
+    const initialPublicRoW = propertyData?.publicRightOfWayObligation ?? null;
+
+    // Check if premium data provides more detail
+    const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
+
+    // Decide which version to use
+    const finalPublicRoW =
+      premiumPublicRoW &&
+      (premiumPublicRoW.distance !== null ||
+        premiumPublicRoW.date_updated !== null ||
+        premiumPublicRoW.parish !== null ||
+        premiumPublicRoW.route_no !== null ||
+        premiumPublicRoW.row_type !== null)
+        ? premiumPublicRoW // Use premium if it has details beyond just 'exists'
+        : initialPublicRoW; // Otherwise, use the initial scrape data
+
     return {
       isPreprocessedDataLoading,
       preprocessedDataError,
@@ -215,6 +233,8 @@ export const usePreprocessedPropertyData = ({
       broadbandStatus,
       miningImpactStatus: miningImpactStatus ?? null,
       conservationAreaDetails: processedPremiumDataResult?.conservationAreaDetails ?? null,
+      privateRightOfWayObligation: propertyData?.privateRightOfWayObligation ?? null,
+      publicRightOfWayObligation: finalPublicRoW,
       listingHistoryStatus,
       listingHistoryDisplayValue,
       listingDaysOnMarket,
@@ -238,7 +258,26 @@ export const usePreprocessedPropertyData = ({
     listingHistoryStatus,
     listingHistoryDisplayValue,
     listingDaysOnMarket,
+    propertyData?.privateRightOfWayObligation,
+    propertyData?.publicRightOfWayObligation,
   ]);
 
   return preprocessedData;
+};
+
+// Helper function to map boolean to RightOfWayDetails
+const mapBooleanToRightOfWayDetails = (
+  exists: boolean | null | undefined
+): RightOfWayDetails | null => {
+  if (exists === null || exists === undefined) {
+    return null;
+  }
+  return {
+    exists: exists,
+    distance: null,
+    date_updated: null,
+    parish: null,
+    route_no: null,
+    row_type: null,
+  };
 };

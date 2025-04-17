@@ -1,3 +1,4 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { FOUND_STATIONS_SCORE, MAX_SCORE, NO_STATIONS_SCORE } from "@/constants/scoreConstants";
 import {
   CategoryScoreData,
@@ -124,9 +125,9 @@ const calculateConnectivityScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
 ): CategoryScoreData | undefined => {
-  const nearestStationsItem = findItemByKey(items, "nearestStations");
-  const broadbandItem = findItemByKey(items, "broadband");
-  const schoolsItem = findItemByKey(items, "nearbySchools");
+  const nearestStationsItem = findItemByKey(items, CHECKLIST_KEYS.NEAREST_STATIONS);
+  const broadbandItem = findItemByKey(items, CHECKLIST_KEYS.BROADBAND);
+  const schoolsItem = findItemByKey(items, CHECKLIST_KEYS.NEARBY_SCHOOLS);
 
   const stationScoreValue = calculateStationScoreValue(nearestStationsItem);
   const broadbandScoreValue = preprocessedData.broadbandScoreValue ?? 50;

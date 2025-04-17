@@ -1,3 +1,4 @@
+import { ChecklistKey } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
@@ -18,7 +19,7 @@ export interface PropertyDataListItem {
   label: string;
   status: DataStatus;
   value: React.ReactNode;
-  key: string;
+  key: ChecklistKey;
   checklistGroup: string;
   selected?: boolean;
   askAgentMessage: string;
@@ -69,6 +70,18 @@ export interface NearbySchool {
   unit: string | null; // e.g., "miles"
 }
 
+export type RightOfWayRowType = string | null;
+
+export interface RightOfWayDetails {
+  distance: number | null;
+  date_updated: string | null; // Assuming date format string
+  parish: string | null;
+  route_no: string | null;
+  row_type: RightOfWayRowType;
+  // It might be useful to add the original boolean check here too
+  exists?: boolean;
+}
+
 export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
@@ -100,7 +113,7 @@ export interface ExtractedPropertyScrapingData {
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
   propertyType: string | null;
-  publicRightOfWayObligation: boolean | null;
+  publicRightOfWayObligation: RightOfWayDetails | null;
   restrictions: boolean | null;
   salePrice: string | null;
   salesHistory: {
@@ -182,4 +195,6 @@ export interface PreprocessedData {
   listingHistoryStatus: DataStatus | null;
   listingHistoryDisplayValue: string | null;
   listingDaysOnMarket: number | null;
+  publicRightOfWayObligation: RightOfWayDetails | null;
+  privateRightOfWayObligation: boolean | null;
 }

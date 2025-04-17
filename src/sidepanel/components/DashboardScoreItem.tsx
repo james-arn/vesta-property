@@ -7,6 +7,7 @@ import {
 import { ChecklistItem } from '@/components/ui/ChecklistItem';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
@@ -105,7 +106,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]) {
             return item.status === DataStatus.ASK_AGENT;
         }
-        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LEGAL_CONSTRAINTS] && item.key === 'tenure' && item.status === DataStatus.FOUND_POSITIVE) {
+        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LEGAL_CONSTRAINTS] && item.key === CHECKLIST_KEYS.TENURE && item.status === DataStatus.FOUND_POSITIVE) {
             return false;
         }
         return true;
@@ -155,7 +156,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         key={item.key}
                                         item={item}
                                         isPremiumDataFetched={isPremiumDataFetched}
-                                        epcData={item.key === 'epc' ? epcData : undefined}
+                                        epcData={item.key === CHECKLIST_KEYS.EPC ? epcData : undefined}
                                         epcDebugCanvasRef={epcDebugCanvasRef}
                                         isEpcDebugModeOn={isEpcDebugModeOn}
                                         onValueClick={handleClick}
@@ -170,7 +171,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
 
                     {/* Conditionally render expandable sections within AccordionContent */}
                     {/* Check if this category contains the crime score item AND if it's expanded */}
-                    {relevantContributingItems.some(item => item.key === 'crimeScore') && crimeQuery.data && (
+                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.CRIME_SCORE) && crimeQuery.data && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
                                 <div ref={crimeContentRef}>
@@ -184,7 +185,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </Suspense>
                     )}
                     {/* Check if this category contains planning items AND if the property section is expanded */}
-                    {relevantContributingItems.some(item => item.key === 'planningPermissions') && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                                 <div ref={planningPermissionContentRef}>
@@ -199,7 +200,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </Suspense>
                     )}
                     {/* Check if this category contains planning items AND if the nearby section is expanded */}
-                    {relevantContributingItems.some(item => item.key === 'nearbyPlanningPermissions') && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                                 <div ref={nearbyPlanningPermissionContentRef}>

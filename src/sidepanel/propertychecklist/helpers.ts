@@ -1,4 +1,5 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
@@ -191,7 +192,7 @@ export const determineEpcChecklistItemDetails = (
 
   const baseEpcItem = {
     label: "EPC Rating",
-    key: "epc",
+    key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
@@ -249,8 +250,8 @@ export const determineEpcChecklistItemDetails = (
     value: CHECKLIST_NO_VALUE.NOT_FOUND,
     confidence: null,
     status: DataStatus.ASK_AGENT,
-    askAgentMessage: "Could not determine EPC rating. Ask Agent?",
-    toolTipExplainer: `Could not automatically determine the EPC rating. Source: ${source || "N/A"}.`,
+    askAgentMessage: "Could not determine EPC. Ask Agent?",
+    toolTipExplainer: "Could not determine the EPC rating from available data.",
   };
 };
 

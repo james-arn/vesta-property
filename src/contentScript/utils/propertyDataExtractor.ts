@@ -13,6 +13,7 @@ import {
   EpcData,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
+  RightOfWayDetails,
 } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
@@ -198,7 +199,9 @@ export async function extractPropertyDataFromDOM(
     privateRightOfWayObligation:
       pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
     propertyType: propertyType,
-    publicRightOfWayObligation: pageModel?.propertyData?.features?.obligations?.rightsOfWay ?? null,
+    publicRightOfWayObligation: mapBooleanToRightOfWayDetails(
+      pageModel?.propertyData?.features?.obligations?.rightsOfWay
+    ),
     restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
     salePrice,
     salesHistory: {
@@ -222,3 +225,21 @@ export async function extractPropertyDataFromDOM(
 
   return propertyData;
 }
+
+// Helper function to map boolean to RightOfWayDetails
+const mapBooleanToRightOfWayDetails = (
+  exists: boolean | null | undefined
+): RightOfWayDetails | null => {
+  if (exists === null || exists === undefined) {
+    return null;
+  }
+  // Create the minimal object based on the boolean
+  return {
+    exists: exists,
+    distance: null,
+    date_updated: null,
+    parish: null,
+    route_no: null,
+    row_type: null,
+  };
+};

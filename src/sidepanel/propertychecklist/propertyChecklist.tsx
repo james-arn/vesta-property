@@ -1,6 +1,7 @@
 import FloodRiskDisplay from "@/components/ui/Premium/FloodRiskDisplay";
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
@@ -52,6 +53,8 @@ export function generatePropertyChecklist(
     broadbandStatus,
     listingHistoryStatus,
     listingHistoryDisplayValue,
+    privateRightOfWayObligation,
+    publicRightOfWayObligation,
   } = preprocessedData;
 
   const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
@@ -74,7 +77,7 @@ export function generatePropertyChecklist(
 
   const baseEpcItem = {
     label: "EPC Rating",
-    key: "epc",
+    key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
@@ -120,7 +123,7 @@ export function generatePropertyChecklist(
   // --- Generate Lease Term Checklist Item --- (Directly)
   const baseLeaseItem = {
     label: "Remaining Lease Term",
-    key: "leaseTerm",
+    key: CHECKLIST_KEYS.LEASE_TERM,
     checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
@@ -185,7 +188,7 @@ export function generatePropertyChecklist(
       const valueString = `${formattedPercentage}% (${formattedAbsolute}) ${isUndervalued ? "undervalued" : "overvalued"}`;
 
       return {
-        key: "askingVsEstimateComparison",
+        key: CHECKLIST_KEYS.ASKING_VS_ESTIMATE_COMPARISON,
         label: "Asking Price vs Estimate",
         value: valueString,
         status: DataStatus.FOUND_POSITIVE,
@@ -198,7 +201,7 @@ export function generatePropertyChecklist(
     } else {
       // Premium data unavailable: Show placeholder
       return {
-        key: "askingVsEstimateComparison",
+        key: CHECKLIST_KEYS.ASKING_VS_ESTIMATE_COMPARISON,
         label: "Asking Price vs Estimate",
         value: CHECKLIST_NO_VALUE.NOT_AVAILABLE, // Use existing constant
         status: DataStatus.ASK_AGENT, // Indicate action needed (unlock premium)
@@ -215,7 +218,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Price",
-      key: "price",
+      key: CHECKLIST_KEYS.PRICE,
       status: getStatusFromString(propertyData.salePrice),
       value: propertyData.salePrice,
       askAgentMessage: "What's the price?",
@@ -228,7 +231,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Tenure",
-      key: "tenure",
+      key: CHECKLIST_KEYS.TENURE,
       status: getStatusFromString(propertyData.tenure),
       value: capitaliseFirstLetterAndCleanString(propertyData.tenure ?? ""),
       askAgentMessage: "What's the tenure?",
@@ -242,7 +245,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Location",
-      key: "location",
+      key: CHECKLIST_KEYS.LOCATION,
       status: getStatusFromString(propertyData.address.displayAddress),
       value: propertyData.address.displayAddress,
       askAgentMessage: "Where's the property located?",
@@ -256,7 +259,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Property Type",
-      key: "propertyType",
+      key: CHECKLIST_KEYS.PROPERTY_TYPE,
       status: getStatusFromString(propertyData.propertyType),
       value: propertyData.propertyType,
       askAgentMessage: "What's the property type?",
@@ -270,7 +273,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Accessibility",
-      key: "accessibility",
+      key: CHECKLIST_KEYS.ACCESSIBILITY,
       status: getStatusFromString(propertyData.accessibility),
       value: propertyData.accessibility,
       askAgentMessage: "Is the property accessible-friendly?",
@@ -283,7 +286,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Listing history",
-      key: "listingHistory",
+      key: CHECKLIST_KEYS.LISTING_HISTORY,
       status: listingHistoryStatus ?? DataStatus.ASK_AGENT,
       value: listingHistoryDisplayValue ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: listingHistoryStatus === DataStatus.ASK_AGENT ? "What's the listing history?" : "",
@@ -296,7 +299,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.GENERAL,
       label: "Occupancy Status",
-      key: "occupancyStatus",
+      key: CHECKLIST_KEYS.OCCUPANCY_STATUS,
       status: getStatusFromPremium(processedPremiumData?.occupancyStatus),
       value: processedPremiumData?.occupancyStatus ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
@@ -311,7 +314,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Price Change from last sale",
-      key: "priceDiscrepancy",
+      key: CHECKLIST_KEYS.PRICE_DISCREPANCY,
       status:
         propertyData.salesHistory.priceDiscrepancy.status ?? DataStatus.ASK_AGENT,
       value: propertyData.salesHistory.priceDiscrepancy.value,
@@ -332,7 +335,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Historical Compound Annual Growth Rate (CAGR)",
-      key: "compoundAnnualGrowthRate",
+      key: CHECKLIST_KEYS.COMPOUND_ANNUAL_GROWTH_RATE,
       status: getCAGRStatus(propertyData.salesHistory.compoundAnnualGrowthRate),
       value:
         propertyData.salesHistory.compoundAnnualGrowthRate !== null &&
@@ -357,7 +360,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Volatility",
-      key: "volatility",
+      key: CHECKLIST_KEYS.VOLATILITY,
       status: getVolatilityStatus(
         propertyData.salesHistory.volatility,
         volatilityThreshold
@@ -381,7 +384,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Sale Value",
-      key: "estimatedSaleValue",
+      key: CHECKLIST_KEYS.ESTIMATED_SALE_VALUE,
       status: getStatusFromPremium(processedPremiumData?.estimatedSaleValue),
       value: formatCurrencyGBP(processedPremiumData?.estimatedSaleValue),
       askAgentMessage: "",
@@ -394,7 +397,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Rental Value",
-      key: "estimatedRentalValue",
+      key: CHECKLIST_KEYS.ESTIMATED_RENTAL_VALUE,
       status: getStatusFromPremium(processedPremiumData?.estimatedRentalValue),
       value: formatCurrencyGBP(processedPremiumData?.estimatedRentalValue),
       askAgentMessage: "",
@@ -407,7 +410,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Estimated Annual Rental Yield",
-      key: "estimatedAnnualRentalYield",
+      key: CHECKLIST_KEYS.ESTIMATED_ANNUAL_RENTAL_YIELD,
       status: getStatusFromPremium(processedPremiumData?.estimatedAnnualRentalYield),
       value: formatPercentage(processedPremiumData?.estimatedAnnualRentalYield),
       askAgentMessage: "",
@@ -420,7 +423,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Sell",
-      key: "propensityToSell",
+      key: CHECKLIST_KEYS.PROPENSITY_TO_SELL,
       status: getStatusFromPremium(processedPremiumData?.propensityToSell),
       value:
         processedPremiumData && processedPremiumData.propensityToSell !== null
@@ -436,7 +439,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Propensity To Let",
-      key: "propensityToLet",
+      key: CHECKLIST_KEYS.PROPENSITY_TO_LET,
       status: getStatusFromPremium(processedPremiumData?.propensityToLet),
       value:
         processedPremiumData && processedPremiumData.propensityToLet !== null
@@ -452,7 +455,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Market Activity (Turnover Rate)",
-      key: "marketTurnoverRate",
+      key: CHECKLIST_KEYS.MARKET_TURNOVER_RATE,
       status: (() => {
         const turnoverRate = processedPremiumData?.outcodeTurnoverRate;
         const baseStatus = getStatusFromPremium(turnoverRate);
@@ -506,7 +509,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
       label: "Outcode Average Sales Price",
-      key: "outcodeAvgSalesPrice",
+      key: CHECKLIST_KEYS.OUTCODE_AVG_SALES_PRICE,
       status: getStatusFromPremium(processedPremiumData?.outcodeAvgSalesPrice),
       value: formatCurrencyGBP(processedPremiumData?.outcodeAvgSalesPrice),
       askAgentMessage: "",
@@ -521,7 +524,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Heating",
-      key: "heatingType",
+      key: CHECKLIST_KEYS.HEATING_TYPE,
       status: getStatusFromString(propertyData.heating),
       value: processedPremiumData?.constructionMaterials?.heating ?? propertyData.heating,
       askAgentMessage: "What type of heating system?",
@@ -532,7 +535,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Broadband Speed",
-      key: "broadband",
+      key: CHECKLIST_KEYS.BROADBAND,
       status: broadbandStatus ?? DataStatus.ASK_AGENT,
       value: broadbandDisplayValue ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "What is the broadband speed?",
@@ -543,7 +546,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Mobile Coverage",
-      key: "mobileCoverage",
+      key: CHECKLIST_KEYS.MOBILE_COVERAGE,
       status: getStatusFromPremium(processedPremiumData?.mobileServiceCoverage),
       value: processedPremiumData?.mobileServiceCoverage ? "Details Available" : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
@@ -554,7 +557,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Council Tax Band",
-      key: "councilTax",
+      key: CHECKLIST_KEYS.COUNCIL_TAX,
       status: getStatusFromString(propertyData.councilTax, ["tbc"]),
       value: propertyData.councilTax,
       askAgentMessage: "What council tax band?",
@@ -569,7 +572,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Bedrooms",
-      key: "bedrooms",
+      key: CHECKLIST_KEYS.BEDROOMS,
       status: getStatusFromString(propertyData.bedrooms),
       value: propertyData.bedrooms,
       askAgentMessage: "How many bedrooms?",
@@ -580,7 +583,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Bathrooms",
-      key: "bathrooms",
+      key: CHECKLIST_KEYS.BATHROOMS,
       status: getStatusFromString(propertyData.bathrooms),
       value: propertyData.bathrooms,
       askAgentMessage: "How many bathrooms?",
@@ -591,7 +594,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Size",
-      key: "size",
+      key: CHECKLIST_KEYS.SIZE,
       status: getStatusFromString(propertyData.size),
       value: propertyData.size,
       askAgentMessage: "What's the size?",
@@ -605,7 +608,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Floor Plan",
-      key: "floorPlan",
+      key: CHECKLIST_KEYS.FLOOR_PLAN,
       status: getStatusFromString(propertyData.floorPlan),
       value: DOMPurify.sanitize(propertyData.floorPlan ?? ""),
       askAgentMessage: "Do you have a floor plan?",
@@ -618,7 +621,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Construction Materials",
-      key: "constructionMaterials",
+      key: CHECKLIST_KEYS.CONSTRUCTION_MATERIALS,
       status: getStatusFromPremium(processedPremiumData?.constructionMaterials),
       value: `Floor: ${processedPremiumData?.constructionMaterials?.floor ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Walls: ${processedPremiumData?.constructionMaterials?.walls ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Roof: ${processedPremiumData?.constructionMaterials?.roof ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Windows: ${processedPremiumData?.constructionMaterials?.windows ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}`,
       askAgentMessage: "",
@@ -631,7 +634,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Construction Age Band",
-      key: "constructionAgeBand",
+      key: CHECKLIST_KEYS.CONSTRUCTION_AGE_BAND,
       status: getStatusFromPremium(processedPremiumData?.constructionAgeBand),
       value: processedPremiumData?.constructionAgeBand ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
@@ -646,7 +649,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.EXTERIOR,
       label: "Parking",
-      key: "parking",
+      key: CHECKLIST_KEYS.PARKING,
       status: getStatusFromString(propertyData.parking),
       value: propertyData.parking,
       askAgentMessage: "What parking is available?",
@@ -657,7 +660,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.EXTERIOR,
       label: "Garden",
-      key: "garden",
+      key: CHECKLIST_KEYS.GARDEN,
       status: getYesNoOrMissingStatus(propertyData.garden),
       value: propertyData.garden ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "Is there a garden?",
@@ -670,7 +673,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.EXTERIOR,
       label: "Windows",
-      key: "windows",
+      key: CHECKLIST_KEYS.WINDOWS,
       status: (() => {
         const premiumWindows = processedPremiumData?.constructionMaterials?.windows;
         const premiumStatus = getStatusFromPremium(premiumWindows);
@@ -695,19 +698,23 @@ export function generatePropertyChecklist(
     leaseTermChecklistItem, // Tooltip handled internally
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Restrictions",
-      key: "restrictions",
-      status: getStatusFromBoolean(propertyData.restrictions, true),
-      value: getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions),
+      label: "Restrictive Covenants",
+      key: CHECKLIST_KEYS.RESTRICTIVE_COVENANTS,
+      status: hasPremiumDataLoadedSuccessfully
+        ? getStatusFromPremium(processedPremiumData?.restrictiveCovenants)
+        : getStatusFromBoolean(propertyData.restrictions, true),
+      value: hasPremiumDataLoadedSuccessfully
+        ? getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions)
+        : CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "Any restrictions?",
-      toolTipExplainer: "Information about any known restrictions or covenants affecting the property, such as limitations on alterations or use.",
+      toolTipExplainer: "Legal obligations tied to the property deed that restrict its use or modification (e.g., no business use, limits on extensions)",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Listed Property",
-      key: "listedProperty",
+      key: CHECKLIST_KEYS.LISTED_PROPERTY,
       status: propertyData.listedProperty.status ?? DataStatus.ASK_AGENT,
       value: propertyData.listedProperty.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.listedProperty.reason ?? "",
@@ -717,38 +724,38 @@ export function generatePropertyChecklist(
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Restrictive Covenants",
-      key: "restrictiveCovenants",
-      status: getStatusFromPremium(processedPremiumData?.restrictiveCovenants),
-      value: processedPremiumData?.restrictiveCovenants ? "Details Available" : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      label: "Public Right of Way Obligation",
+      key: CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY,
+      status: publicRightOfWayObligation?.exists === true
+        ? DataStatus.FOUND_POSITIVE
+        : publicRightOfWayObligation?.exists === false
+          ? DataStatus.FOUND_NEGATIVE
+          : getStatusFromPremium(publicRightOfWayObligation),
+      value: publicRightOfWayObligation?.exists === true
+        ? "Yes"
+        : publicRightOfWayObligation?.exists === false
+          ? "No"
+          : CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "",
-      toolTipExplainer: "Legal obligations tied to the property deed that restrict its use or modification (e.g., no business use, limits on extensions).",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
+      toolTipExplainer: "Indicates if a public footpath or bridleway crosses the property land.",
+      isUnlockedWithPremium: false,
+      isBoostedWithPremium: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
-      label: "Public Right of Way",
-      key: "publicRightOfWay",
-      status: getStatusFromPremium(
-        processedPremiumData?.publicRightOfWay?.has_public_right_of_way === true ? true :
-          processedPremiumData?.publicRightOfWay?.has_public_right_of_way === false ? false :
-            null
-      ),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        processedPremiumData?.publicRightOfWay?.has_public_right_of_way === true ? true :
-          processedPremiumData?.publicRightOfWay?.has_public_right_of_way === false ? false :
-            null
-      ),
+      label: "Private Right of Way Obligation",
+      key: CHECKLIST_KEYS.PRIVATE_RIGHT_OF_WAY,
+      status: getStatusFromBoolean(privateRightOfWayObligation),
+      value: getYesNoOrAskAgentStringFromBoolean(privateRightOfWayObligation),
       askAgentMessage: "",
-      toolTipExplainer: "Indicates if a public footpath or bridleway crosses the property land.",
-      isUnlockedWithPremium: true,
+      toolTipExplainer: "Indicates if a private footpath or bridleway crosses the property land.",
+      isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Conservation Area Status",
-      key: "conservationAreaStatus",
+      key: CHECKLIST_KEYS.CONSERVATION_AREA_STATUS,
       status: processedPremiumData?.conservationAreaDetails.conservationAreaDataAvailable
         ? getStatusFromPremium(processedPremiumData?.conservationAreaDetails.conservationArea)
         : DataStatus.ASK_AGENT,
@@ -761,7 +768,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Property Planning Permissions",
-      key: "planningPermissions",
+      key: CHECKLIST_KEYS.PLANNING_PERMISSIONS,
       status: getPropertyPlanningApplicationsStatus(
         processedPremiumData?.propertyPlanningApplications
       ),
@@ -779,7 +786,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Nearby Planning Permissions",
-      key: "nearbyPlanningPermissions",
+      key: CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS,
       status: getNearbyPlanningApplicationsStatus(
         processedPremiumData?.nearbyPlanningApplications
       ),
@@ -797,7 +804,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Service Charge",
-      key: "serviceCharge",
+      key: CHECKLIST_KEYS.SERVICE_CHARGE,
       status:
         propertyData.tenure?.toLowerCase() === "leasehold"
           ? getStatusFromString(propertyData.serviceCharge)
@@ -815,7 +822,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Ground Rent",
-      key: "groundRent",
+      key: CHECKLIST_KEYS.GROUND_RENT,
       status:
         propertyData.tenure?.toLowerCase() === "leasehold"
           ? getStatusFromString(propertyData.groundRent)
@@ -835,7 +842,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Coastal Erosion",
-      key: "coastalErosion",
+      key: CHECKLIST_KEYS.COASTAL_EROSION,
       status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
       value: propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.coastalErosion.reason ?? "",
@@ -846,7 +853,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Detailed Flood Risk Assessment",
-      key: "detailedFloodRiskAssessment",
+      key: CHECKLIST_KEYS.DETAILED_FLOOD_RISK_ASSESSMENT,
       status: getStatusFromPremium(processedPremiumData?.detailedFloodRiskAssessment),
       value: processedPremiumData?.detailedFloodRiskAssessment ?
         <FloodRiskDisplay floodRisk={processedPremiumData?.detailedFloodRiskAssessment} />
@@ -861,7 +868,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Airport Noise Assessment",
-      key: "airportNoiseAssessment",
+      key: CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT,
       status: hasPremiumDataLoadedSuccessfully
         ? DataStatus.FOUND_POSITIVE
         : DataStatus.ASK_AGENT,
@@ -878,7 +885,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Coastal Erosion Risk (Detailed)",
-      key: "coastalErosionRiskDetailed",
+      key: CHECKLIST_KEYS.COASTAL_EROSION_RISK_DETAILED,
       status: getStatusFromPremium(processedPremiumData?.coastalErosionRisk),
       value: processedPremiumData?.coastalErosionRisk?.can_have_erosion_plan ? "Plan Possible" : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
@@ -889,7 +896,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Flood Defences",
-      key: "floodDefences",
+      key: CHECKLIST_KEYS.FLOOD_DEFENCES,
       status: getStatusFromBoolean(propertyData.floodDefences),
       value: getYesNoOrAskAgentStringFromBoolean(propertyData.floodDefences),
       askAgentMessage: "Any flood defences?",
@@ -902,7 +909,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Flood Sources",
-      key: "floodSources",
+      key: CHECKLIST_KEYS.FLOOD_SOURCES,
       status:
         (propertyData.floodSources ?? []).length > 0
           ? DataStatus.FOUND_POSITIVE
@@ -921,7 +928,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Flooded in last 5 years",
-      key: "floodedInLastFiveYears",
+      key: CHECKLIST_KEYS.FLOODED_IN_LAST_FIVE_YEARS,
       status: getStatusFromBoolean(propertyData.floodedInLastFiveYears, true),
       value: getYesNoOrAskAgentStringFromBoolean(
         propertyData.floodedInLastFiveYears
@@ -936,7 +943,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Building Safety",
-      key: "buildingSafety",
+      key: CHECKLIST_KEYS.BUILDING_SAFETY,
       status: propertyData.buildingSafety.status ?? DataStatus.ASK_AGENT,
       value: propertyData.buildingSafety.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.buildingSafety.reason ?? "",
@@ -950,7 +957,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Mining Impact",
-      key: "miningImpact",
+      key: CHECKLIST_KEYS.MINING_IMPACT,
       status: propertyData.miningImpact.status ?? DataStatus.ASK_AGENT,
       value: propertyData.miningImpact.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: propertyData.miningImpact.reason ?? "",
@@ -965,7 +972,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Crime Score",
-      key: "crimeScore",
+      key: CHECKLIST_KEYS.CRIME_SCORE,
       status: getCrimeScoreStatus(isCrimeScoreLoading, crimeScoreData),
       value: getCrimeScoreValue(isCrimeScoreLoading, crimeScoreData, crimeScoreError),
       askAgentMessage: "What is the local crime rate like?",
@@ -977,7 +984,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Nearest Stations",
-      key: "nearestStations",
+      key: CHECKLIST_KEYS.NEAREST_STATIONS,
       status:
         propertyData.nearestStations && propertyData.nearestStations.length > 0
           ? DataStatus.FOUND_POSITIVE
@@ -1005,7 +1012,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Nearby Schools",
-      key: "nearbySchools",
+      key: CHECKLIST_KEYS.NEARBY_SCHOOLS,
       status:
         propertyData.nearbySchools && propertyData.nearbySchools.length > 0
           ? DataStatus.FOUND_POSITIVE
@@ -1054,7 +1061,7 @@ export function generatePropertyChecklist(
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Police Force Proximity",
-      key: "policeForceProximity",
+      key: CHECKLIST_KEYS.POLICE_FORCE_PROXIMITY,
       status: getStatusFromPremium(processedPremiumData?.policeForceProximity),
       value: processedPremiumData?.policeForceProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
@@ -1069,7 +1076,7 @@ export function generatePropertyChecklist(
   // Filter out items not applicable based on property type AND filter out nulls
   const filteredChecklist = checklist.filter((item): item is PropertyDataListItem => {
     if (!item) return false; // Explicitly filter out nulls here with type predicate
-    if (item.key === 'councilTax' && propertyData.propertyType === 'Commercial') {
+    if (item.key === CHECKLIST_KEYS.COUNCIL_TAX && propertyData.propertyType === 'Commercial') {
       return false;
     }
     return true;

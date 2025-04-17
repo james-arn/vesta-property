@@ -1,3 +1,4 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
@@ -33,17 +34,21 @@ export const calculateEnvironmentalRiskScore = (
   preprocessedData: PreprocessedData
 ): CategoryScoreData => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.ENVIRONMENTAL_RISK] || [];
-  const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
+  const contributingItems = items.filter((item) =>
+    (contributingFactorKeys as string[]).includes(item.key)
+  );
 
   // Find specific items using helper
-  const crimeItem = findItemByKey(items, "crimeScore");
-  const floodDefencesItem = findItemByKey(items, "floodDefences");
-  const floodSourcesItem = findItemByKey(items, "floodSources");
-  const floodedLast5YearsItem = findItemByKey(items, "floodedInLastFiveYears");
-  const detailedFloodRiskAssessmentItem = findItemByKey(items, "detailedFloodRiskAssessment");
-  const coastalErosionItem = findItemByKey(items, "coastalErosion");
-  const airportNoiseItem = findItemByKey(items, "airportNoiseAssessment");
-  const conservationAreaItem = findItemByKey(items, "conservationArea");
+  const crimeItem = findItemByKey(items, CHECKLIST_KEYS.CRIME_SCORE);
+  const floodDefencesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_DEFENCES);
+  const floodSourcesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_SOURCES);
+  const floodedLast5YearsItem = findItemByKey(items, CHECKLIST_KEYS.FLOODED_IN_LAST_FIVE_YEARS);
+  const detailedFloodRiskAssessmentItem = findItemByKey(
+    items,
+    CHECKLIST_KEYS.DETAILED_FLOOD_RISK_ASSESSMENT
+  );
+  const coastalErosionItem = findItemByKey(items, CHECKLIST_KEYS.COASTAL_EROSION);
+  const airportNoiseItem = findItemByKey(items, CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT);
   const miningStatus = preprocessedData.miningImpactStatus;
   const conservationAreaDetails = preprocessedData.conservationAreaDetails;
 

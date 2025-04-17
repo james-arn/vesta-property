@@ -1,3 +1,4 @@
+import { ChecklistKey } from "@/constants/checklistKeys";
 import {
   BUILDING_SAFETY_NEGATIVE_MODIFIER,
   BUILDING_SAFETY_POSITIVE_MODIFIER,
@@ -19,7 +20,7 @@ import {
  */
 export const findItemValue = <T = any>(
   items: PropertyDataListItem[],
-  key: string
+  key: ChecklistKey
 ): T | undefined => {
   const item = items.find((i) => i.key === key);
   return item?.value as T | undefined;

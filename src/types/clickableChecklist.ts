@@ -1,32 +1,25 @@
-export type ClickableItemKey =
-  | "epc"
-  | "floorPlan"
-  | "crimeScore"
-  | "planningPermissions"
-  | "nearbyPlanningPermissions";
+import { CHECKLIST_KEYS, ChecklistKey } from "@/constants/checklistKeys";
 
+// Define which keys are clickable using the constants
+export type ClickableItemKey =
+  | typeof CHECKLIST_KEYS.EPC
+  | typeof CHECKLIST_KEYS.FLOOR_PLAN
+  | typeof CHECKLIST_KEYS.CRIME_SCORE
+  | typeof CHECKLIST_KEYS.PLANNING_PERMISSIONS
+  | typeof CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS;
+
+// Define the array using constants
 export const CLICKABLE_KEYS: ClickableItemKey[] = [
-  "epc",
-  "floorPlan",
-  "crimeScore",
-  "planningPermissions",
-  "nearbyPlanningPermissions",
+  CHECKLIST_KEYS.EPC,
+  CHECKLIST_KEYS.FLOOR_PLAN,
+  CHECKLIST_KEYS.CRIME_SCORE,
+  CHECKLIST_KEYS.PLANNING_PERMISSIONS,
+  CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS,
 ];
 
-export const isClickableItemKey = (key: string): key is ClickableItemKey => {
-  const result = CLICKABLE_KEYS.includes(key as ClickableItemKey);
-
-  // Log error if the key should be clickable but isn't in our list
-  if (
-    !result &&
-    (key === "epc" ||
-      key === "floorPlan" ||
-      key === "crimeScore" ||
-      key === "planningPermissions" ||
-      key === "nearbyPlanningPermissions")
-  ) {
-    console.error(`Key "${key}" appears to be clickable but is not defined in CLICKABLE_KEYS`);
-  }
-
-  return result;
+// Update the type guard to accept ChecklistKey and use the constant array
+export const isClickableItemKey = (key: ChecklistKey): key is ClickableItemKey => {
+  // The includes method works fine here because CLICKABLE_KEYS is typed as ClickableItemKey[]
+  // and key is ChecklistKey. TypeScript can compare them.
+  return CLICKABLE_KEYS.includes(key as ClickableItemKey); // Cast needed as includes expects the subset type
 };
