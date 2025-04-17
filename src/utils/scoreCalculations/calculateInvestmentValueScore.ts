@@ -16,6 +16,8 @@ import {
   HIGH_TURNOVER_BONUS,
   HIGH_TURNOVER_THRESHOLD,
   HIGH_VOLATILITY_PENALTY,
+  LONG_LISTING_DURATION_THRESHOLD_DAYS,
+  LONG_LISTING_PENALTY,
   LOW_CAGR_THRESHOLD,
   LOW_GROWTH_PENALTY,
   LOW_RENTAL_YIELD_PENALTY,
@@ -25,10 +27,16 @@ import {
   MAX_SCORE,
   MAX_VALUE_BONUS,
   MAX_VALUE_PENALTY,
+  REDUCED_PRICE_PENALTY,
   VALUE_MODIFIER_SENSITIVITY_THRESHOLD,
   VOLATILITY_THRESHOLD,
 } from "@/constants/scoreConstants";
-import { CategoryScoreData, PreprocessedData, PropertyDataListItem } from "@/types/property";
+import {
+  CategoryScoreData,
+  DataStatus,
+  PreprocessedData,
+  PropertyDataListItem,
+} from "@/types/property";
 import { findItemByKey, parseCurrency, parsePercentage } from "@/utils/parsingHelpers";
 
 /**
@@ -53,6 +61,8 @@ export const calculateInvestmentValueScore = (
   const propensitySellFromPremium = premiumData?.propensityToSell;
   const propensityLetFromPremium = premiumData?.propensityToLet;
   const outcodeAvgPriceFromPremium = premiumData?.outcodeAvgSalesPrice;
+  const listingDaysOnMarket = preprocessedData.listingDaysOnMarket;
+  const listingHistoryStatus = preprocessedData.listingHistoryStatus;
 
   // --- Get Values from Checklist Items (can be overridden by premium data later if needed) ---
   const askingPriceItem = findItemByKey(items, "price");
@@ -160,6 +170,15 @@ export const calculateInvestmentValueScore = (
   // Volatility Modifier (using checklist item)
   if (volatility !== null && volatility > VOLATILITY_THRESHOLD) {
     scoreModifiers.push(HIGH_VOLATILITY_PENALTY);
+  }
+
+  // Listing History Modifier
+  if (listingDaysOnMarket !== null && listingDaysOnMarket > LONG_LISTING_DURATION_THRESHOLD_DAYS) {
+    scoreModifiers.push(LONG_LISTING_PENALTY);
+  }
+  // Apply penalty if the helper function detected a price reduction
+  if (listingHistoryStatus === DataStatus.FOUND_NEGATIVE) {
+    scoreModifiers.push(REDUCED_PRICE_PENALTY);
   }
 
   // --- Combine Modifiers ---

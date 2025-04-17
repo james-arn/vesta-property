@@ -1,5 +1,4 @@
 import {
-  AirportNoise,
   NearbyPlanningApplication,
   PlanningApplication,
   PremiumStreetDataResponse,
@@ -36,7 +35,7 @@ export const processPremiumStreetData = (
     conservationAreaDataAvailable: attributes?.localities?.conservation_area_data_available ?? null,
     conservationArea: attributes?.localities?.conservation_area ?? null,
   };
-  const airportNoiseAssessment = (attributes?.airport_noise as AirportNoise) ?? null;
+  const airportNoiseAssessment = attributes?.airport_noise ?? null;
   const policeForceProximity = attributes?.localities?.police_force ?? null;
   const propertyPlanningApplications =
     (attributes?.planning_applications as PlanningApplication[]) ?? null;

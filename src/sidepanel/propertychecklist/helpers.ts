@@ -44,48 +44,76 @@ export function getStatusFromBoolean(
   return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
 }
 
-export function calculateListingHistoryDetails(listingHistory: string | null): {
+// Define the new return type
+export interface ListingHistoryDetails {
   status: DataStatus;
-  value: string | null;
-} {
+  value: string | null; // The display string
+  daysOnMarket: number | null;
+}
+
+export function calculateListingHistoryDetails(
+  listingHistory: string | null
+): ListingHistoryDetails {
   if (!listingHistory) {
-    return { status: DataStatus.ASK_AGENT, value: listingHistory };
+    return { status: DataStatus.ASK_AGENT, value: listingHistory, daysOnMarket: null };
   }
 
+  // Handle simple cases first
   if (listingHistory.toLowerCase() === "added today") {
-    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
+    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory, daysOnMarket: 0 };
   } else if (listingHistory.toLowerCase() === "added yesterday") {
-    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
+    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory, daysOnMarket: 1 };
   }
 
+  // Attempt to parse date
   const dateMatch = listingHistory.match(/Added on (\d{2})\/(\d{2})\/(\d{4})/);
-
   if (!dateMatch) {
-    return { status: DataStatus.ASK_AGENT, value: listingHistory };
+    // Cannot parse date, return original string and null days
+    return { status: DataStatus.ASK_AGENT, value: listingHistory, daysOnMarket: null };
   }
-  // first comma is intentional, it stores 'Added on'
-  const [, day, month, year] = dateMatch;
 
-  const listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const currentDate = new Date();
-  const timeDiff = currentDate.getTime() - listingDate.getTime();
-  const daysOnMarket = timeDiff / (1000 * 3600 * 24);
+  const [, day, month, year] = dateMatch;
+  let daysOnMarketCalc: number | null = null;
+  let listingDate: Date | null = null;
+
+  try {
+    listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (!isNaN(listingDate.getTime())) {
+      const currentDate = new Date();
+      const timeDiff = currentDate.getTime() - listingDate.getTime();
+      // Use Math.floor for whole days, or Math.ceil if partial days count
+      daysOnMarketCalc = Math.floor(timeDiff / (1000 * 3600 * 24));
+    } else {
+      console.warn("Parsed invalid date from listing history:", listingHistory);
+    }
+  } catch (error) {
+    console.error("Error parsing date from listing history:", listingHistory, error);
+  }
 
   let status = DataStatus.FOUND_POSITIVE;
-  let value = listingHistory;
+  let displayValue = listingHistory;
+  const LONG_LISTING_THRESHOLD_DAYS = 90;
 
-  if (daysOnMarket > 90) {
-    // More than 3 months
-    const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarket);
-    value += `, on the market for ${timeOnMarket}. It's worth asking the agent why.`;
-    status = DataStatus.ASK_AGENT;
+  if (daysOnMarketCalc !== null && daysOnMarketCalc > LONG_LISTING_THRESHOLD_DAYS) {
+    const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarketCalc);
+    // Modify display value less aggressively, keep status positive unless explicitly reduced
+    displayValue += `, listed ${timeOnMarket} ago.`;
+    // Status could potentially change here if needed based on duration, but keep positive for now
+    // status = DataStatus.ASK_AGENT; // Or maybe FOUND_NEGATIVE? Decide based on UX.
     console.log(
-      `Property on market for more than 90 days (${timeOnMarket}), updating status to ASK_AGENT.`
+      `Property on market for more than ${LONG_LISTING_THRESHOLD_DAYS} days (${timeOnMarket}).`
     );
   }
 
-  console.log("Returning status and value:", { status, value });
-  return { status, value };
+  // Check for explicit price reduction mentions (simple check)
+  if (listingHistory.toLowerCase().includes("reduced")) {
+    status = DataStatus.FOUND_NEGATIVE; // Indicate reduction found
+    console.log("Price reduction mentioned in listing history.");
+    // Optionally add to displayValue if desired
+    // displayValue += " (Price Reduced)";
+  }
+
+  return { status, value: displayValue, daysOnMarket: daysOnMarketCalc };
 }
 
 export function getYesNoOrAskAgentFromBoolean(value: boolean | null): string {

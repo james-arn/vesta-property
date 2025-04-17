@@ -179,4 +179,7 @@ export interface PreprocessedData {
     conservationAreaDataAvailable: boolean | null;
     conservationArea: string | null;
   } | null;
+  listingHistoryStatus: DataStatus | null;
+  listingHistoryDisplayValue: string | null;
+  listingDaysOnMarket: number | null;
 }

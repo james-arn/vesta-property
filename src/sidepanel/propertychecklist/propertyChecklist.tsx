@@ -21,13 +21,12 @@ import {
   PropertyDataListItem,
 } from "../../types/property";
 import {
-  calculateListingHistoryDetails,
   getCAGRStatus,
   getStatusFromBoolean,
   getVolatilityStatus,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
-  priceDiscrepancyMessages,
+  priceDiscrepancyMessages
 } from "./helpers";
 
 export function generatePropertyChecklist(
@@ -50,23 +49,24 @@ export function generatePropertyChecklist(
     finalEpcSource,
     calculatedLeaseMonths,
     broadbandDisplayValue,
-    broadbandStatus
+    broadbandStatus,
+    listingHistoryStatus,
+    listingHistoryDisplayValue,
   } = preprocessedData;
+
+  const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
 
   const getStatusFromPremium = (
     value: unknown | null | undefined
   ): DataStatus => {
     if (isPreprocessedDataLoading) return DataStatus.IS_LOADING;
     if (preprocessedDataError || processedPremiumData?.status === "error") return DataStatus.ASK_AGENT;
-    if (processedPremiumData?.status === "success") {
+    if (hasPremiumDataLoadedSuccessfully) {
       const isValid = value !== null && value !== undefined;
       return isValid ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
     }
     return DataStatus.ASK_AGENT;
   };
-
-  const { status: listingHistoryStatus, value: listingHistoryValue } =
-    calculateListingHistoryDetails(propertyData.listingHistory);
 
   const crimeScoreData = crimeScoreQuery?.data;
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
@@ -284,9 +284,9 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.GENERAL,
       label: "Listing history",
       key: "listingHistory",
-      status: listingHistoryStatus,
-      value: listingHistoryValue,
-      askAgentMessage: "What's the listing history?",
+      status: listingHistoryStatus ?? DataStatus.ASK_AGENT,
+      value: listingHistoryDisplayValue ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      askAgentMessage: listingHistoryStatus === DataStatus.ASK_AGENT ? "What's the listing history?" : "",
       toolTipExplainer:
         "Listing history provides insights into the property's market activity, such as price changes and time on the market.\n\n" +
         "This can indicate whether the property has been difficult to sell or if it has had price reductions.",
@@ -862,9 +862,12 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RISKS,
       label: "Airport Noise Assessment",
       key: "airportNoiseAssessment",
-      status: getStatusFromPremium(processedPremiumData?.airportNoiseAssessment),
-      value:
-        processedPremiumData?.airportNoiseAssessment?.category ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      status: hasPremiumDataLoadedSuccessfully
+        ? DataStatus.FOUND_POSITIVE
+        : DataStatus.ASK_AGENT,
+      value: hasPremiumDataLoadedSuccessfully
+        ? processedPremiumData?.airportNoiseAssessment?.category ?? "No noise"
+        : CHECKLIST_NO_VALUE.NOT_MENTIONED,
       askAgentMessage: "",
       toolTipExplainer:
         "Evaluates the level of noise pollution from nearby airports and flight paths.\n\n" +

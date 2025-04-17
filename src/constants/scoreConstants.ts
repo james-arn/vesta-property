@@ -31,6 +31,11 @@ export const HIGH_PROPENSITY_SELL_BONUS = 3;
 export const HIGH_PROPENSITY_LET_BONUS = 2;
 export const HIGH_VOLATILITY_PENALTY = -5;
 
+// Add constants for listing history scoring
+export const LONG_LISTING_DURATION_THRESHOLD_DAYS = 90; // Days before penalty applies
+export const LONG_LISTING_PENALTY = -5; // Penalty for being listed too long
+export const REDUCED_PRICE_PENALTY = -3; // Penalty if price reduction detected
+
 // Running Costs Weights
 export const RUNNING_COSTS_WEIGHTS = {
   COUNCIL_TAX: 0.4,

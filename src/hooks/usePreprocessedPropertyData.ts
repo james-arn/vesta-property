@@ -1,5 +1,6 @@
 import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
 import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
+import { calculateListingHistoryDetails } from "@/sidepanel/propertychecklist/helpers";
 import { EpcBandResult } from "@/types/epc";
 import { ProcessedPremiumDataStatus, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
 import {
@@ -40,7 +41,6 @@ export const usePreprocessedPropertyData = ({
     isEpcDebugModeOn,
   });
 
-  // Parse asking price once
   const askingPrice = useMemo(() => {
     return parseCurrency(propertyData?.salePrice ?? null);
   }, [propertyData?.salePrice]);
@@ -187,6 +187,15 @@ export const usePreprocessedPropertyData = ({
     };
   }, [propertyData?.broadband]);
 
+  // --- Listing History Processing ---
+  const {
+    status: listingHistoryStatus,
+    value: listingHistoryDisplayValue,
+    daysOnMarket: listingDaysOnMarket,
+  } = useMemo(() => {
+    return calculateListingHistoryDetails(propertyData?.listingHistory ?? null);
+  }, [propertyData?.listingHistory]);
+
   const miningImpactStatus = propertyData?.miningImpactStatus;
 
   const preprocessedData: PreprocessedData = useMemo(() => {
@@ -206,6 +215,9 @@ export const usePreprocessedPropertyData = ({
       broadbandStatus,
       miningImpactStatus: miningImpactStatus ?? null,
       conservationAreaDetails: processedPremiumDataResult?.conservationAreaDetails ?? null,
+      listingHistoryStatus,
+      listingHistoryDisplayValue,
+      listingDaysOnMarket,
     };
   }, [
     isPreprocessedDataLoading,
@@ -223,6 +235,9 @@ export const usePreprocessedPropertyData = ({
     broadbandStatus,
     miningImpactStatus,
     processedPremiumDataResult?.conservationAreaDetails,
+    listingHistoryStatus,
+    listingHistoryDisplayValue,
+    listingDaysOnMarket,
   ]);
 
   return preprocessedData;
