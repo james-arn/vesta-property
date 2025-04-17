@@ -9,7 +9,7 @@ import {
   DataStatus,
   PropertyDataListItem,
   RightOfWayDetails,
-} from "@/types/property"; // Adjust path as needed
+} from "@/types/property";
 import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
 import {
   calculateLegalPointsForStatus,

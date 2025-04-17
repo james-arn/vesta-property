@@ -106,9 +106,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]) {
             return item.status === DataStatus.ASK_AGENT;
         }
-        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LEGAL_CONSTRAINTS] && item.key === CHECKLIST_KEYS.TENURE && item.status === DataStatus.FOUND_POSITIVE) {
-            return false;
-        }
         return true;
     });
 
