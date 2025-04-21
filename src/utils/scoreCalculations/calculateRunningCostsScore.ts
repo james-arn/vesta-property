@@ -66,7 +66,7 @@ export const calculateRunningCostsScore = (
     return {
       score: { scoreValue: 50, maxScore: MAX_SCORE, scoreLabel: "Running Costs Uncertain" },
       contributingItems,
-      warningMessage: "EPC data missing, Running Costs score is an estimate.",
+      warningMessages: ["EPC data missing, Running Costs score is an estimate."],
     };
   }
 
@@ -182,8 +182,6 @@ export const calculateRunningCostsScore = (
     );
   }
 
-  const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
-
   return {
     score: {
       scoreValue: finalScoreValue,
@@ -191,6 +189,6 @@ export const calculateRunningCostsScore = (
       scoreLabel: scoreLabel,
     },
     contributingItems,
-    warningMessage: combinedWarningMessage,
+    warningMessages: warnings,
   };
 };

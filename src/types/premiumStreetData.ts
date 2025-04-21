@@ -1,4 +1,4 @@
-import { RightOfWayDetails } from "./property"; // Import the shared type
+import { RightOfWayDetails } from "./property";
 
 export interface AddressMatchData {
   id: string;

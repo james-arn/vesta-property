@@ -97,12 +97,9 @@ export const calculateEnvironmentalRiskScore = (
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(normalizedScore))); // Cap score between 0-100
   const scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
 
-  // Combine warnings into a single message
-  const finalWarningMessage = allWarnings.length > 0 ? allWarnings.join(" ") : undefined;
-
   return {
     score: { scoreValue: finalScoreValue, maxScore: MAX_SCORE, scoreLabel },
     contributingItems,
-    warningMessage: finalWarningMessage,
+    warningMessages: allWarnings,
   };
 };

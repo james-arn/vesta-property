@@ -4,7 +4,11 @@ import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
-import { ListedBuilding, ProcessedPremiumStreetData } from "./premiumStreetData";
+import {
+  ListedBuilding,
+  ProcessedPremiumStreetData,
+  RestrictiveCovenant,
+} from "./premiumStreetData";
 import { Station } from "./rightmovePageModel";
 
 export enum DataStatus {
@@ -28,6 +32,8 @@ export interface PropertyDataListItem {
   confidence?: Confidence | null;
   isUnlockedWithPremium: boolean;
   isBoostedWithPremium: boolean;
+  restrictiveCovenants?: RestrictiveCovenant[] | null;
+  publicRightOfWay?: RightOfWayDetails | null;
 }
 
 export interface AgentDetails {
@@ -78,7 +84,6 @@ export interface RightOfWayDetails {
   parish: string | null;
   route_no: string | null;
   row_type: RightOfWayRowType;
-  // It might be useful to add the original boolean check here too
   exists?: boolean;
 }
 
@@ -159,7 +164,7 @@ export interface DashboardScore {
 export interface CategoryScoreData {
   score: DashboardScore;
   contributingItems: PropertyDataListItem[];
-  warningMessage?: string; // if missing items that would affect the score
+  warningMessages: string[]; // Array of warnings for missing data affecting score reliability
 }
 
 export type DashboardScores = {
@@ -198,4 +203,5 @@ export interface PreprocessedData {
   publicRightOfWayObligation: RightOfWayDetails | null;
   privateRightOfWayObligation: boolean | null;
   listedProperty: ListedBuilding[] | null;
+  restrictiveCovenants: RestrictiveCovenant[] | null;
 }

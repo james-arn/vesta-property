@@ -44,7 +44,7 @@ const calculateCombinedConnectivityScore = (
   broadbandItem: PropertyDataListItem | undefined,
   schoolsItem: PropertyDataListItem | undefined,
   preprocessedData: PreprocessedData
-): { combinedScoreValue: number; scoreLabel: string; warningMessage?: string } => {
+): { combinedScoreValue: number; scoreLabel: string; warningMessages?: string[] } => {
   // --- Weighting --- (Adjust as needed)
   const stationWeight = 0.5;
   const broadbandWeight = 0.2;
@@ -95,17 +95,17 @@ const calculateCombinedConnectivityScore = (
   }
 
   // --- Generate Warning --- //
-  let warningParts: string[] = [];
+  const warningMessages: string[] = [];
   if (
     !nearestStationsItem ||
     [DataStatus.ASK_AGENT, DataStatus.FOUND_NEGATIVE, DataStatus.IS_LOADING].includes(
       nearestStationsItem.status
     )
   ) {
-    warningParts.push("Station data limited/unavailable.");
+    warningMessages.push("Station data limited/unavailable.");
   }
   if (preprocessedData.broadbandStatus !== DataStatus.FOUND_POSITIVE) {
-    warningParts.push("Broadband speed unknown/unavailable.");
+    warningMessages.push("Broadband speed unknown/unavailable.");
   }
   if (
     !schoolsItem ||
@@ -113,11 +113,10 @@ const calculateCombinedConnectivityScore = (
       schoolsItem.status
     )
   ) {
-    warningParts.push("School data limited/unavailable.");
+    warningMessages.push("School data limited/unavailable.");
   }
-  const warningMessage = warningParts.length > 0 ? warningParts.join(" ") : undefined;
 
-  return { combinedScoreValue, scoreLabel, warningMessage };
+  return { combinedScoreValue, scoreLabel, warningMessages };
 };
 
 // --- Overall Connectivity Score --- //
@@ -137,7 +136,7 @@ const calculateConnectivityScore = (
   // Ensure schoolsScoreValue is valid for calculation, default if necessary
   const effectiveSchoolsScore = rawSchoolsScoreValue ?? 50; // Use the default if null
 
-  const { combinedScoreValue, scoreLabel, warningMessage } = calculateCombinedConnectivityScore(
+  const { combinedScoreValue, scoreLabel, warningMessages } = calculateCombinedConnectivityScore(
     stationScoreValue,
     broadbandScoreValue,
     effectiveSchoolsScore,
@@ -154,7 +153,7 @@ const calculateConnectivityScore = (
   return {
     score: { scoreValue: combinedScoreValue, maxScore: MAX_SCORE, scoreLabel },
     contributingItems,
-    warningMessage,
+    warningMessages: warningMessages ?? [],
   };
 };
 

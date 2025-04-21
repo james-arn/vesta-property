@@ -103,7 +103,8 @@ export const calculateFloodRisk = (
   floodedLast5YearsItem: PropertyDataListItem | undefined,
   detailedRiskAssessmentItem: PropertyDataListItem | undefined
 ): FactorProcessingResult => {
-  const internalWarnings: string[] = []; // Use a local array for warnings
+  const internalWarnings: string[] = [];
+  let hasDetailedAssessmentData = false; // Flag to track if detailed assessment is valid
 
   const FLOOD_FACTORS_MAX_SCORE = {
     last5Years: 50,
@@ -119,12 +120,16 @@ export const calculateFloodRisk = (
     if (floodedLast5YearsItem !== undefined) {
       const flooded = parseYesNoUnknown(floodedLast5YearsItem.value);
       const score = flooded === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
-      if (flooded === null) {
-        internalWarnings.push("Flooded in last 5 years status unknown/missing.");
+      // Only warn if detailed assessment is NOT available
+      if (flooded === null && !hasDetailedAssessmentData) {
+        internalWarnings.push("Flooded in last 5 years: Status unknown/missing.");
       }
       return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
     } else {
-      internalWarnings.push("Flooded in last 5 years data item missing.");
+      // Only warn if detailed assessment is NOT available
+      if (!hasDetailedAssessmentData) {
+        internalWarnings.push("Flooded in last 5 years: Data item missing.");
+      }
       return { score: 0, maxScore: 0 };
     }
   })();
@@ -133,14 +138,17 @@ export const calculateFloodRisk = (
   const defencesResult = (() => {
     if (floodDefencesItem !== undefined) {
       const defencesPresent = parseYesNoUnknown(floodDefencesItem.value);
-      // Score increases if defences are *absent*
       const score = defencesPresent === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
-      if (defencesPresent === null) {
-        internalWarnings.push("Flood defences status unknown/missing.");
+      // Only warn if detailed assessment is NOT available
+      if (defencesPresent === null && !hasDetailedAssessmentData) {
+        internalWarnings.push("Flood defences: Status unknown/missing.");
       }
       return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
     } else {
-      internalWarnings.push("Flood defences data item missing.");
+      // Only warn if detailed assessment is NOT available
+      if (!hasDetailedAssessmentData) {
+        internalWarnings.push("Flood defences: Data item missing.");
+      }
       return { score: 0, maxScore: 0 };
     }
   })();
@@ -162,12 +170,19 @@ export const calculateFloodRisk = (
         );
       }
       const score = hasSources ? FLOOD_FACTORS_MAX_SCORE.sources : 0;
-      if (sourcesValue === undefined || sourcesValue === null || sourcesValue === "N/A") {
-        internalWarnings.push("Flood sources data unknown/missing.");
+      // Only warn if detailed assessment is NOT available
+      if (
+        (sourcesValue === undefined || sourcesValue === null || sourcesValue === "N/A") &&
+        !hasDetailedAssessmentData
+      ) {
+        internalWarnings.push("Flood sources: Data unknown/missing.");
       }
       return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
     } else {
-      internalWarnings.push("Flood sources data item missing.");
+      // Only warn if detailed assessment is NOT available
+      if (!hasDetailedAssessmentData) {
+        internalWarnings.push("Flood sources: Data item missing.");
+      }
       return { score: 0, maxScore: 0 };
     }
   })();
@@ -194,6 +209,7 @@ export const calculateFloodRisk = (
       let score = 0;
 
       if (isFloodRisk(assessmentValue)) {
+        hasDetailedAssessmentData = true; // Set flag if detailed assessment is valid
         const floodRiskData = assessmentValue;
         const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
           .map((risk) => (risk ? risk.toLowerCase() : undefined))
@@ -224,8 +240,6 @@ export const calculateFloodRisk = (
         assessmentValue === "N/A"
       ) {
         internalWarnings.push("Detailed flood risk assessment data missing or N/A.");
-      } else {
-        internalWarnings.push("Unexpected format for detailed flood risk assessment data.");
       }
       return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.assessment };
     } else {
@@ -260,7 +274,9 @@ export const calculateFloodRisk = (
     scoreContribution: normalizedScore,
     maxPossibleScore: factorsConsidered > 0 ? MAX_SCORE : 0,
     warning:
-      internalWarnings.length > 0 ? `Flood Risk issues: ${internalWarnings.join(" ")}` : undefined,
+      internalWarnings.length > 0
+        ? `Flood Risk Analysis Notes: ${internalWarnings.join("; ")}`
+        : undefined,
   };
 };
 

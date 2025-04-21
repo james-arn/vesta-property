@@ -209,8 +209,6 @@ export const calculateInvestmentValueScore = (
   }
   // Add more specific warnings based on missing premium data points if desired
 
-  const combinedWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
-
   return {
     score: {
       scoreValue: Math.round(finalScore),
@@ -218,6 +216,6 @@ export const calculateInvestmentValueScore = (
       scoreLabel: getScoreLabel(finalScore),
     },
     contributingItems,
-    warningMessage: combinedWarningMessage,
+    warningMessages: warnings,
   };
 };

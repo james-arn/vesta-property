@@ -1,4 +1,4 @@
-export const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-]?\s*([A-G])/i;
+export const EPC_RATING_REGEX = /EPC(?:\s+Rating)?\s*[:\-=]?\s*([A-G])/i;
 
 // Regex for new fields
 export const LEASE_TERM_REGEX = /(?:lease term|remaining lease|lease length)[:\s]*(\d+)\s*years?/i;

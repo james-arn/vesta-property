@@ -1,5 +1,5 @@
 import { LEGAL_CONSTRAINT_POINTS } from "@/constants/scoreConstants";
-import { PropertyDataListItem } from "@/types/property";
+import { DataStatus, PropertyDataListItem } from "@/types/property";
 
 export const getLegalConstraintsLabel = (constraintScore: number): string => {
   if (constraintScore >= 80) return "Severe Constraints";
@@ -23,5 +23,14 @@ export const calculateLegalPointsForStatus = (
   item: PropertyDataListItem | undefined,
   pointsIfPositive: number
 ): number => {
-  return item?.status === "FOUND_POSITIVE" ? pointsIfPositive : 0;
+  return item?.status === DataStatus.FOUND_POSITIVE ? pointsIfPositive : 0;
+};
+
+// New helper for statuses where FOUND_NEGATIVE adds points
+export const calculateLegalPointsForNegativeStatus = (
+  item: PropertyDataListItem | undefined,
+  pointsIfNegative: number
+): number => {
+  // Only add points if the status indicates a negative finding (e.g., constraint found)
+  return item?.status === DataStatus.FOUND_NEGATIVE ? pointsIfNegative : 0;
 };

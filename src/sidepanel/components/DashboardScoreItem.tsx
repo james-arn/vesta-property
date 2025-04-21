@@ -101,7 +101,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         );
     }
 
-    const { score, contributingItems, warningMessage } = categoryScoreData;
+    const { score, contributingItems, warningMessages } = categoryScoreData;
     const relevantContributingItems = contributingItems.filter(item => {
         if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]) {
             return item.status === DataStatus.ASK_AGENT;
@@ -121,14 +121,18 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             <h3 className="font-semibold text-slate-800 mb-1.5">{title}</h3>
                             <div className="flex items-center space-x-2 mr-1.5">
                                 <ScoreVisualisation score={score} invertColorScale={invertColorScale} />
-                                {warningMessage && (
+                                {warningMessages && warningMessages.length > 0 && (
                                     <TooltipProvider>
                                         <Tooltip delayDuration={0}>
                                             <TooltipTrigger asChild>
                                                 <FaExclamationTriangle className="h-3 w-3 shrink-0 text-yellow-500" />
                                             </TooltipTrigger>
                                             <TooltipContent side="top" align="center">
-                                                <p className="max-w-xs text-sm">{warningMessage}</p>
+                                                <ul className="list-disc pl-4 space-y-1 max-w-xs text-sm text-left">
+                                                    {warningMessages.map((msg, index) => (
+                                                        <li key={index}>{msg}</li>
+                                                    ))}
+                                                </ul>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>

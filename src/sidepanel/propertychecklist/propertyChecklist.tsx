@@ -23,11 +23,14 @@ import {
 } from "../../types/property";
 import {
   getCAGRStatus,
+  getRestrictiveCovenantMessages,
+  getRestrictiveCovenantsStatus,
+  getRestrictiveCovenantsValue,
   getStatusFromBoolean,
   getVolatilityStatus,
   getYesNoOrAskAgentStringFromBoolean,
   getYesNoOrMissingStatus,
-  priceDiscrepancyMessages
+  priceDiscrepancyMessages,
 } from "./helpers";
 
 export function generatePropertyChecklist(
@@ -56,6 +59,7 @@ export function generatePropertyChecklist(
     privateRightOfWayObligation,
     publicRightOfWayObligation,
     listedProperty,
+    restrictiveCovenants,
   } = preprocessedData;
 
   const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
@@ -215,6 +219,18 @@ export function generatePropertyChecklist(
       };
     }
   })();
+
+  const restrictiveCovenantStatus = getRestrictiveCovenantsStatus(
+    restrictiveCovenants,
+    isPreprocessedDataLoading
+  );
+
+  const covenantsWereFound = Array.isArray(restrictiveCovenants) && restrictiveCovenants.length > 0;
+
+  const restrictiveCovenantItemMessages = getRestrictiveCovenantMessages(
+    restrictiveCovenantStatus,
+    covenantsWereFound
+  );
 
   const checklist: (PropertyDataListItem | null)[] = [
     {
@@ -702,14 +718,14 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Restrictive Covenants",
       key: CHECKLIST_KEYS.RESTRICTIVE_COVENANTS,
-      status: hasPremiumDataLoadedSuccessfully
-        ? getStatusFromPremium(processedPremiumData?.restrictiveCovenants)
-        : getStatusFromBoolean(propertyData.restrictions, true),
-      value: hasPremiumDataLoadedSuccessfully
-        ? getYesNoOrAskAgentStringFromBoolean(propertyData.restrictions)
-        : CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: "Any restrictions?",
-      toolTipExplainer: "Legal obligations tied to the property deed that restrict its use or modification (e.g., no business use, limits on extensions)",
+      status: restrictiveCovenantStatus,
+      value: getRestrictiveCovenantsValue(
+        restrictiveCovenants,
+        isPreprocessedDataLoading
+      ),
+      restrictiveCovenants: restrictiveCovenants,
+      askAgentMessage: restrictiveCovenantItemMessages.askAgentMessage,
+      toolTipExplainer: restrictiveCovenantItemMessages.toolTipExplainer,
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
     },
@@ -753,16 +769,15 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Public Right of Way Obligation",
       key: CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY,
-      status: publicRightOfWayObligation?.exists === true
+      status: publicRightOfWayObligation?.exists === false
         ? DataStatus.FOUND_POSITIVE
-        : publicRightOfWayObligation?.exists === false
-          ? DataStatus.FOUND_NEGATIVE
-          : getStatusFromPremium(publicRightOfWayObligation),
+        : DataStatus.ASK_AGENT,
       value: publicRightOfWayObligation?.exists === true
         ? "Yes"
         : publicRightOfWayObligation?.exists === false
           ? "No"
           : CHECKLIST_NO_VALUE.NOT_MENTIONED,
+      publicRightOfWay: publicRightOfWayObligation,
       askAgentMessage: "",
       toolTipExplainer: "Indicates if a public footpath or bridleway crosses the property land.",
       isUnlockedWithPremium: false,
@@ -844,7 +859,7 @@ export function generatePropertyChecklist(
         "A fee paid by leaseholders (usually flats) for the upkeep of communal areas and services.\n\n" +
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: isLeasehold ? true : false,
+      isBoostedWithPremium: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -863,7 +878,7 @@ export function generatePropertyChecklist(
         "An annual fee paid by leaseholders to the freeholder for the use of the land the property sits on.\n\n" +
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
       isUnlockedWithPremium: false,
-      isBoostedWithPremium: isLeasehold ? true : false,
+      isBoostedWithPremium: false,
     },
     // Risks
     {

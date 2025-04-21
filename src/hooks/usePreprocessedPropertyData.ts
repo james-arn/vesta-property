@@ -10,7 +10,6 @@ import {
   EpcData,
   EpcDataSourceType,
   PreprocessedData,
-  RightOfWayDetails,
 } from "@/types/property";
 import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
@@ -18,6 +17,7 @@ import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpe
 import { getStatusFromString } from "@/utils/statusHelpers";
 import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
+import { processRestrictiveCovenants } from "./helpers/preProcessedDataHelpers";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
 import { useProcessedEpcData } from "./useProcessedEpcData";
 
@@ -206,26 +206,18 @@ export const usePreprocessedPropertyData = ({
     // Check if premium data provides more detail
     const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
 
-    // Decide which version to use
-    const finalPublicRoW =
-      premiumPublicRoW &&
-      (premiumPublicRoW.distance !== null ||
-        premiumPublicRoW.date_updated !== null ||
-        premiumPublicRoW.parish !== null ||
-        premiumPublicRoW.route_no !== null ||
-        premiumPublicRoW.row_type !== null)
-        ? premiumPublicRoW // Use premium if it has details beyond just 'exists'
-        : initialPublicRoW; // Otherwise, use the initial scrape data
+    const finalPublicRoW = premiumPublicRoW ?? initialPublicRoW ?? null;
 
     const listedProperty =
       premiumStreetDataQuery?.status === "success"
         ? (processedPremiumDataResult?.listedBuildingsOnPlot ?? propertyData?.listedProperty ?? []) // empty array if no listed buildings on plot
         : (propertyData?.listedProperty ?? null);
 
-    const restrictiveCovenants =
-      premiumStreetDataQuery?.status === "success"
-        ? (processedPremiumDataResult?.restrictiveCovenants ?? propertyData?.restrictions ?? [])
-        : (propertyData?.restrictions ?? null);
+    const restrictiveCovenants = processRestrictiveCovenants(
+      premiumStreetDataQuery?.status ?? "idle",
+      processedPremiumDataResult?.restrictiveCovenants,
+      propertyData?.restrictions
+    );
 
     return {
       isPreprocessedDataLoading,
@@ -249,6 +241,7 @@ export const usePreprocessedPropertyData = ({
       listingHistoryDisplayValue,
       listingDaysOnMarket,
       listedProperty,
+      restrictiveCovenants,
     };
   }, [
     isPreprocessedDataLoading,
@@ -272,24 +265,10 @@ export const usePreprocessedPropertyData = ({
     propertyData?.privateRightOfWayObligation,
     propertyData?.publicRightOfWayObligation,
     propertyData?.listedProperty,
+    propertyData?.restrictions,
+    premiumStreetDataQuery?.status,
+    processedPremiumDataResult?.restrictiveCovenants,
   ]);
 
   return preprocessedData;
-};
-
-// Helper function to map boolean to RightOfWayDetails
-const mapBooleanToRightOfWayDetails = (
-  exists: boolean | null | undefined
-): RightOfWayDetails | null => {
-  if (exists === null || exists === undefined) {
-    return null;
-  }
-  return {
-    exists: exists,
-    distance: null,
-    date_updated: null,
-    parish: null,
-    route_no: null,
-    row_type: null,
-  };
 };

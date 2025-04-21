@@ -1,5 +1,7 @@
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { DashboardScores, PreprocessedData, PropertyDataListItem } from "@/types/property";
+import { findItemByKey, getItemValue } from "../parsingHelpers";
 import { calculateCompletenessScore } from "./calculateCompletenessScore";
 import { calculateConditionScore } from "./calculateConditionScore";
 import calculateConnectivityScore from "./calculateConnectivityScore";
@@ -46,7 +48,15 @@ export const calculateDashboardScores = (
     scores[DashboardScoreCategory.ENVIRONMENTAL_RISK] = environmentalData;
   }
 
-  const legalConstraintsData = calculateLegalConstraintsScore(items, preprocessedData);
+  const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);
+  const tenureValue = getItemValue(tenureItem);
+
+  const legalCalculationData = {
+    calculatedLeaseMonths: preprocessedData.calculatedLeaseMonths,
+    tenure: typeof tenureValue === "string" ? tenureValue : null,
+  };
+
+  const legalConstraintsData = calculateLegalConstraintsScore(items, legalCalculationData);
   if (legalConstraintsData) {
     scores[DashboardScoreCategory.LEGAL_CONSTRAINTS] = legalConstraintsData;
   }

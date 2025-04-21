@@ -3,7 +3,7 @@ import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { ProcessedPremiumDataStatus } from "@/types/premiumStreetData";
+import { ProcessedPremiumDataStatus, RestrictiveCovenant } from "@/types/premiumStreetData";
 import {
   Confidence,
   ConfidenceLevels,
@@ -272,5 +272,88 @@ export const getPremiumStatus = (
     case "idle":
     default:
       return DataStatus.ASK_AGENT;
+  }
+};
+
+// Helper to get status for restrictive covenants
+export const getRestrictiveCovenantsStatus = (
+  covenants: RestrictiveCovenant[] | null,
+  isLoading: boolean = false
+): DataStatus => {
+  if (isLoading) {
+    return DataStatus.IS_LOADING;
+  }
+  if (covenants === null) {
+    // Null means unknown, or known to exist but details unavailable initially
+    return DataStatus.ASK_AGENT; // Status is unknown
+  }
+  if (covenants.length === 0) {
+    // Empty array means definitively none found
+    return DataStatus.FOUND_POSITIVE; // Positive = good = no restrictions found
+  }
+  // Array with items means restrictions were found - requires investigation
+  return DataStatus.ASK_AGENT; // Use Ask Agent to signal investigation needed
+};
+
+export const getRestrictiveCovenantsValue = (
+  covenants: RestrictiveCovenant[] | null,
+  isLoading: boolean = false
+): string => {
+  if (isLoading) {
+    return "Loading...";
+  }
+
+  if (covenants === null) {
+    // Initial listing DOM scrape has not found any restrictive covenants
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  }
+  if (covenants.length === 0) {
+    return CHECKLIST_NO_VALUE.NONE_FOUND;
+  }
+  // This will be overridden by the custom rendering in ChecklistItem.tsx
+  return "Yes";
+};
+
+export const getRestrictiveCovenantMessages = (
+  status: DataStatus,
+  covenantsFound: boolean
+): { askAgentMessage: string; toolTipExplainer: string } => {
+  switch (status) {
+    case DataStatus.FOUND_POSITIVE: // None found
+      return {
+        askAgentMessage: "",
+        toolTipExplainer:
+          "No restrictive covenants were found in the available data. Your conveyancer will confirm this by checking the official Title Register.",
+      };
+    case DataStatus.ASK_AGENT: // Status is Ask Agent
+      if (covenantsFound) {
+        // Ask Agent because covenants *were* found
+        return {
+          askAgentMessage:
+            "Restrictive covenants are indicated. Please ensure my conveyancer receives the full details from the Title Register.",
+          toolTipExplainer:
+            "Legal obligations restricting property use/modification (e.g., limits on extensions). \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry for the definitive wording and implications.",
+        };
+      } else {
+        // Ask Agent because status was initially unknown
+        return {
+          askAgentMessage:
+            "Are there any restrictive covenants on this property? Please ensure the Title Register is checked.",
+          toolTipExplainer:
+            "Could not determine if restrictive covenants apply from available data. \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry.",
+        };
+      }
+    case DataStatus.IS_LOADING:
+      return {
+        askAgentMessage: "",
+        toolTipExplainer: "Checking for restrictive covenants...",
+      };
+    default:
+      // Default case (should ideally not be hit)
+      return {
+        askAgentMessage: "",
+        toolTipExplainer:
+          "Legal obligations restricting property use/modification (e.g., limits on extensions). \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry for the definitive wording and implications.",
+      };
   }
 };

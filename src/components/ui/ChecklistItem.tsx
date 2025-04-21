@@ -6,7 +6,7 @@ import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
-import { ConfidenceLevels, DataStatus, PropertyDataListItem, RightOfWayDetails } from "@/types/property";
+import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
 
@@ -118,37 +118,70 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         if (key === CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY) {
-            const details = item.value as RightOfWayDetails | null;
-            if (!details || details.exists === null || details.exists === undefined) {
-                // Should ideally use status here, but value might be null
-                return <span>{CHECKLIST_NO_VALUE.NOT_MENTIONED}</span>;
-            }
-            if (details.exists === false) {
-                return <span>No</span>; // Or "None Found"
-            }
-            // Exists is true
-            const hasDetails = details.distance !== null ||
-                details.date_updated !== null ||
-                details.parish !== null ||
-                details.route_no !== null ||
-                details.row_type !== null;
+            const details = item.publicRightOfWay;
+            if (details && details.exists === true) {
+                const hasDetails = details.distance !== null ||
+                    details.date_updated !== null ||
+                    details.parish !== null ||
+                    details.route_no !== null ||
+                    details.row_type !== null;
 
-            if (hasDetails) {
-                // Render details in a structured way
+                if (hasDetails) {
+                    // Render detailed view using 'details' object
+                    return (
+                        <div className="text-xs text-gray-600 flex flex-col space-y-0.5">
+                            <span>Yes</span>
+                            {details.row_type && <span>Type: {details.row_type}</span>}
+                            {details.distance !== null && <span>Distance: {details.distance}m</span>}
+                            {details.route_no && <span>Route No: {details.route_no}</span>}
+                            {details.parish && <span>Parish: {details.parish}</span>}
+                            {details.date_updated && <span>Updated: {details.date_updated}</span>}
+                        </div>
+                    );
+                }
+                // Exists is true, but no details in the object
+                return <span>Yes</span>;
+            }
+            // If details don't exist or exist=false/null/undefined, render the simple value
+            return <span>{item.value}</span>; // Renders "No" or "Not Mentioned"
+        }
+
+        else if (key === CHECKLIST_KEYS.RESTRICTIVE_COVENANTS) {
+            const covenants = item.restrictiveCovenants;
+
+            if (Array.isArray(covenants) && covenants.length > 0) {
                 return (
-                    <div className="text-xs text-gray-600 flex flex-col space-y-0.5">
-                        <span>Yes</span> {/* Still indicate existence */}
-                        {details.row_type && <span>Type: {details.row_type}</span>}
-                        {details.distance !== null && <span>Distance: {details.distance}m</span>}
-                        {details.route_no && <span>Route No: {details.route_no}</span>}
-                        {details.parish && <span>Parish: {details.parish}</span>}
-                        {/* Consider formatting the date if needed */}
-                        {details.date_updated && <span>Updated: {details.date_updated}</span>}
+                    <div className="min-w-0 flex flex-col space-y-2 text-xs">
+                        {covenants.map((covenant, index) => (
+                            <div key={covenant.unique_identifier || index} className={`pt-1 ${index > 0 ? 'border-t border-gray-200 mt-1' : ''}`}>
+                                {
+                                    covenant.associated_property_description && (
+                                        <div>
+                                            <span className="font-semibold">Description:</span>
+                                            <span className="ml-1 break-words">{covenant.associated_property_description}</span>
+                                        </div>
+                                    )
+                                }
+                                {
+                                    covenant.unique_identifier && (
+                                        <div className="mt-0.5">
+                                            <span className="font-semibold">Identifier:</span>
+                                            <span className="ml-1 font-mono text-[11px] break-words">{covenant.unique_identifier}</span>
+                                        </div>
+                                    )
+                                }
+                                {
+                                    !covenant.associated_property_description && !covenant.unique_identifier && (
+                                        <span>Details unavailable for this covenant.</span>
+                                    )
+                                }
+                            </div>
+                        ))}
                     </div>
                 );
             }
-            // Exists is true, but no other details (from basic scrape)
-            return <span>Yes</span>;
+            // Otherwise (null, undefined, or empty array), render the simple string value
+            return <span>{item.value}</span>; // Renders "None Found", "Not Mentioned", "Loading..."
         }
 
         // Special case floor plan
@@ -244,7 +277,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             console.warn(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
         }
 
-        return <span>{value || CHECKLIST_NO_VALUE.NOT_FOUND}</span>;
+        return <span>{item.value || CHECKLIST_NO_VALUE.NOT_FOUND}</span>;
     };
 
     return (
@@ -257,7 +290,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             <div className="flex items-center ml-2">
                 <span>{label}</span>
             </div>
-            <div className="text-gray-800 ml-4 flex items-center">{renderValue()}</div>
+            <div className="min-w-0 text-gray-800 ml-4 flex items-center">{renderValue()}</div>
             <div className="flex items-center justify-end ml-4 space-x-1">
                 {showBoost && (
                     <TooltipProvider>

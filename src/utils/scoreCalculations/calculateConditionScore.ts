@@ -197,11 +197,9 @@ export const calculateConditionScore = (
     scoreLabel: scoreLabel,
   };
 
-  const finalWarningMessage = warnings.length > 0 ? warnings.join(" ") : undefined;
-
   return {
     score: finalScore,
     contributingItems: relevantItems,
-    warningMessage: finalWarningMessage,
+    warningMessages: warnings,
   };
 };

@@ -5,4 +5,5 @@ export const CHECKLIST_NO_VALUE = {
   NOT_AVAILABLE: "Not available",
   NOT_KNOWN: "Not known",
   NOT_SPECIFIED: "Not specified",
+  NONE_FOUND: "None found",
 } as const;

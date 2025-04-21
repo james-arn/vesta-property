@@ -30,7 +30,7 @@ export const calculateCompletenessScore = (
     return {
       score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
       contributingItems: [],
-      warningMessage: "No applicable items found for completeness calculation.",
+      warningMessages: ["No applicable items found for completeness calculation."],
     };
   }
 
@@ -53,15 +53,19 @@ export const calculateCompletenessScore = (
     scoreLabel: scoreLabel,
   };
 
-  let warningMessage: string | undefined = undefined;
+  // Initialize warningMessages as an empty array
+  const warningMessages: string[] = [];
   if (askAgentCount > 0) {
-    warningMessage = `${askAgentCount} applicable item(s) require contacting the agent for information.`;
+    // Push the message into the array
+    warningMessages.push(
+      `${askAgentCount} applicable item(s) require contacting the agent for information.`
+    );
   }
 
   return {
     score: finalScore,
     // Items contributing negatively (requiring agent input)
     contributingItems: askAgentItems,
-    warningMessage: warningMessage,
+    warningMessages,
   };
 };
