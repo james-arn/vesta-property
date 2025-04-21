@@ -189,15 +189,18 @@ export function generatePropertyChecklist(
       askingVsEstimateAbsolute !== undefined
     ) {
       const isUndervalued = askingVsEstimateAbsolute > 0;
-      const formattedPercentage = askingVsEstimatePercentage.toFixed(1);
+      const formattedPercentage = Math.abs(askingVsEstimatePercentage).toFixed(1);
       const formattedAbsolute = formatCurrencyGBP(Math.abs(askingVsEstimateAbsolute));
       const valueString = `${formattedPercentage}% (${formattedAbsolute}) ${isUndervalued ? "undervalued" : "overvalued"}`;
+      const signficantlyOvervalued = askingVsEstimatePercentage < -10;
 
       return {
         key: CHECKLIST_KEYS.ASKING_VS_ESTIMATE_COMPARISON,
         label: "Asking Price vs Estimate",
         value: valueString,
-        status: DataStatus.FOUND_POSITIVE,
+        status: signficantlyOvervalued
+          ? DataStatus.ASK_AGENT
+          : DataStatus.FOUND_POSITIVE,
         checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
         askAgentMessage: "", // For reference only.
         toolTipExplainer: `Compares the asking price to the estimated market value. ${isUndervalued ? "Undervalued properties may represent better immediate value." : "Overvalued properties might indicate a seller's high expectation or unique features not captured by the estimate."}`,
@@ -209,7 +212,7 @@ export function generatePropertyChecklist(
       return {
         key: CHECKLIST_KEYS.ASKING_VS_ESTIMATE_COMPARISON,
         label: "Asking Price vs Estimate",
-        value: CHECKLIST_NO_VALUE.NOT_AVAILABLE, // Use existing constant
+        value: CHECKLIST_NO_VALUE.NOT_AVAILABLE,
         status: DataStatus.ASK_AGENT, // Indicate action needed (unlock premium)
         checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
         askAgentMessage: "", // No direct agent question here
