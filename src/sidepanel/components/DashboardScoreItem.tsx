@@ -46,6 +46,7 @@ interface DashboardScoreItemProps {
     togglePlanningPermissionCard: () => void;
     toggleNearbyPlanningPermissionCard?: () => void;
     handleEpcValueChange: (newValue: string) => void;
+    onOpenUpsellModal: () => void;
 
     // Expansion state, queries, and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
@@ -76,6 +77,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     togglePlanningPermissionCard,
     toggleNearbyPlanningPermissionCard,
     handleEpcValueChange,
+    onOpenUpsellModal,
     crimeQuery,
     premiumStreetDataQuery,
     crimeChartExpanded,
@@ -163,6 +165,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         isEpcDebugModeOn={isEpcDebugModeOn}
                                         onValueClick={handleClick}
                                         onEpcChange={handleEpcValueChange}
+                                        onOpenUpsellModal={onOpenUpsellModal}
                                     />
                                 );
                             })}

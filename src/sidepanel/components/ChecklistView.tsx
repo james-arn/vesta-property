@@ -12,8 +12,7 @@ import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
-
-interface ChecklistViewProps {
+export interface ChecklistViewProps {
     filteredChecklistData: PropertyDataListItem[];
     openGroups: Record<string, boolean>;
     toggleGroup: (group: string) => void;
@@ -38,6 +37,7 @@ interface ChecklistViewProps {
     nearbyPlanningPermissionCardExpanded: boolean;
     nearbyPlanningPermissionContentRef: RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
+    onTriggerPremiumFlow: () => void;
 }
 
 export const ChecklistView: React.FC<ChecklistViewProps> = ({
@@ -65,6 +65,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     nearbyPlanningPermissionCardExpanded,
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
+    onTriggerPremiumFlow,
 }) => {
     // Keep track of the last rendered group within this component instance
     let lastGroup = "";
@@ -108,6 +109,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                     onEpcChange={item.key === CHECKLIST_KEYS.EPC ? handleEpcValueChange : undefined}
                                     epcDebugCanvasRef={item.key === CHECKLIST_KEYS.EPC && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                                     isEpcDebugModeOn={isEpcDebugModeOn}
+                                    onOpenUpsellModal={onTriggerPremiumFlow}
                                 />
 
                                 {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeQuery.data && (

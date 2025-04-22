@@ -7,10 +7,10 @@ import {
 
 // Helper function for score label (can be moved to a helper file if preferred)
 const getListingCompletenessScoreLabel = (score: number): string => {
-  if (score >= 95) return "Very Complete";
+  if (score >= 95) return "Complete";
   if (score >= 80) return "Mostly Complete";
-  if (score >= 60) return "Partially Complete";
-  if (score >= 40) return "Somewhat Incomplete";
+  if (score >= 60) return "Missing Details";
+  if (score >= 40) return "Incomplete";
   return "Very Incomplete";
 };
 

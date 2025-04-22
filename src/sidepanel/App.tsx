@@ -25,13 +25,15 @@ import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardDa
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import { usePremiumFlow } from '@/hooks/usePremiumFlow';
 import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
+import { ChecklistViewProps } from "@/sidepanel/components/ChecklistView";
 import {
   generateAgentMessage,
   getValueClickHandler
 } from "./helpers";
 import SettingsBar from "./settingsbar/SettingsBar";
+
 const LazyChecklistView = lazy(() =>
-  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
+  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView as React.FC<ChecklistViewProps> }))
 );
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
@@ -304,6 +306,7 @@ const App: React.FC = () => {
               nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
               nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
               nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+              onTriggerPremiumFlow={triggerPremiumFlow}
             />
           ) : (
             <Suspense fallback={<SideBarLoading />}>
@@ -332,6 +335,7 @@ const App: React.FC = () => {
                 nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
                 nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
                 nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                onTriggerPremiumFlow={triggerPremiumFlow}
               />
             </Suspense>
           )

@@ -4,7 +4,7 @@ export enum DashboardScoreCategory {
   INVESTMENT_VALUE = "INVESTMENT_VALUE",
   CONNECTIVITY = "CONNECTIVITY",
   CONDITION = "CONDITION",
-  ENVIRONMENTAL_RISK = "ENVIRONMENTAL_RISK",
+  ENVIRONMENT_RISK = "ENVIRONMENTAL_RISK",
   LEGAL_CONSTRAINTS = "LEGAL_CONSTRAINTS",
   LISTING_COMPLETENESS = "LISTING_COMPLETENESS",
 }
@@ -61,7 +61,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "buildingSafety", // Keywords might indicate condition issues (e.g., mould)
     "occupancyStatus", // Potential wear difference
   ],
-  [DashboardScoreCategory.ENVIRONMENTAL_RISK]: [
+  [DashboardScoreCategory.ENVIRONMENT_RISK]: [
     "crimeScore",
     "floodDefences",
     "floodSources",
@@ -92,7 +92,7 @@ export const DASHBOARD_CATEGORY_DISPLAY_NAMES: Record<DashboardScoreCategory, st
   [DashboardScoreCategory.INVESTMENT_VALUE]: "Investment Value",
   [DashboardScoreCategory.CONNECTIVITY]: "Connectivity",
   [DashboardScoreCategory.CONDITION]: "Condition",
-  [DashboardScoreCategory.ENVIRONMENTAL_RISK]: "Environmental Risk",
+  [DashboardScoreCategory.ENVIRONMENT_RISK]: "Environment Risk",
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: "Legal Constraints",
   [DashboardScoreCategory.LISTING_COMPLETENESS]: "Listing Completeness",
 };

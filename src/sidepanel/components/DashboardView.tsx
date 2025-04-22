@@ -66,6 +66,7 @@ interface DashboardViewProps {
     nearbyPlanningPermissionCardExpanded: boolean;
     nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
+    onTriggerPremiumFlow: () => void;
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
@@ -73,7 +74,7 @@ const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
     [DashboardScoreCategory.INVESTMENT_VALUE]: TrendingUp,
     [DashboardScoreCategory.CONNECTIVITY]: Network,
     [DashboardScoreCategory.CONDITION]: Home,
-    [DashboardScoreCategory.ENVIRONMENTAL_RISK]: ShieldAlert,
+    [DashboardScoreCategory.ENVIRONMENT_RISK]: ShieldAlert,
     [DashboardScoreCategory.LEGAL_CONSTRAINTS]: Scale,
     [DashboardScoreCategory.LISTING_COMPLETENESS]: ListChecks,
 };
@@ -102,7 +103,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     planningPermissionContentHeight,
     nearbyPlanningPermissionCardExpanded,
     nearbyPlanningPermissionContentRef,
-    nearbyPlanningPermissionContentHeight
+    nearbyPlanningPermissionContentHeight,
+    onTriggerPremiumFlow
 }) => {
     // Define the upgrade URL from config here
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
@@ -116,7 +118,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         DashboardScoreCategory.INVESTMENT_VALUE,
         DashboardScoreCategory.CONNECTIVITY,
         DashboardScoreCategory.CONDITION,
-        DashboardScoreCategory.ENVIRONMENTAL_RISK,
+        DashboardScoreCategory.ENVIRONMENT_RISK,
         DashboardScoreCategory.LEGAL_CONSTRAINTS,
         DashboardScoreCategory.LISTING_COMPLETENESS,
     ];
@@ -131,17 +133,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 // Determine if the color scale should be inverted for this category
                 const invertColorScale =
                     category === DashboardScoreCategory.RUNNING_COSTS ||
-                    category === DashboardScoreCategory.ENVIRONMENTAL_RISK ||
+                    category === DashboardScoreCategory.ENVIRONMENT_RISK ||
                     category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
-
-                // Skip rendering if score data is missing (unless it's completeness which handles its own undefined state)
-                if (!categoryScoreData && category !== DashboardScoreCategory.LISTING_COMPLETENESS) {
-                    // Optionally render a placeholder or just skip
-                    // console.log(`Skipping rendering for ${title} due to missing score data.`);
-                    // return null; // Or render a placeholder item
-
-                    // Render the item but let it display "Score data unavailable."
-                }
 
                 return (
                     <DashboardScoreItem
@@ -173,6 +166,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
                         nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
                         nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                        onOpenUpsellModal={onTriggerPremiumFlow}
                     />
                 );
             })}

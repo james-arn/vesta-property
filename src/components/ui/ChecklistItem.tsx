@@ -7,8 +7,8 @@ import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/pr
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { isClickableItemKey } from "@/types/clickableChecklist";
 import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
-import React from 'react';
-import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUserEdit } from "react-icons/fa";
+import React, { useState } from 'react';
+import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUnlock, FaUserEdit } from "react-icons/fa";
 
 export interface ChecklistItemProps {
     item: PropertyDataListItem;
@@ -19,6 +19,7 @@ export interface ChecklistItemProps {
     onEpcChange?: (newValue: string) => void;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
+    onOpenUpsellModal?: () => void;
 }
 
 // Mapping DataStatus to styling and icons
@@ -50,8 +51,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     onEpcChange,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
+    onOpenUpsellModal,
 }) => {
     const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium } = item;
+    const [isLockHovered, setIsLockHovered] = useState(false);
 
     const isEpcItem = key === CHECKLIST_KEYS.EPC;
 
@@ -106,12 +109,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED
             && displayStatus !== DataStatus.IS_LOADING;
 
-        // If it's a premium item without a value yet, show the premium placeholder
         if (isLocked) {
             const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock with Premium`;
             return (
                 <div className="flex items-center text-gray-500">
-                    <FaLock className="mr-2" size={12} />
                     <span>{lockedDescription}</span>
                 </div>
             );
@@ -292,7 +293,33 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             </div>
             <div className="min-w-0 text-gray-800 ml-4 flex items-center">{renderValue()}</div>
             <div className="flex items-center justify-end ml-4 space-x-1">
-                {showBoost && (
+                {/* Conditionally render Lock Icon */}
+                {isLocked && (
+                    <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={onOpenUpsellModal}
+                                    onMouseEnter={() => setIsLockHovered(true)}
+                                    onMouseLeave={() => setIsLockHovered(false)}
+                                    className="p-0.5 rounded-full cursor-pointer hover:bg-gray-200 transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                    aria-label="Unlock with Premium"
+                                >
+                                    {isLockHovered ? (
+                                        <FaUnlock className="w-3 h-3 text-blue-500" />
+                                    ) : (
+                                        <FaLock className="w-3 h-3 text-gray-500" />
+                                    )}
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="center" className="max-w-xs">
+                                Click to find out more.
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+                {/* Conditionally render Boost Icon (only if not locked) */}
+                {!isLocked && showBoost && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>

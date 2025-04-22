@@ -45,7 +45,7 @@ export const calculateDashboardScores = (
 
   const environmentalData = calculateEnvironmentalRiskScore(items, preprocessedData);
   if (environmentalData) {
-    scores[DashboardScoreCategory.ENVIRONMENTAL_RISK] = environmentalData;
+    scores[DashboardScoreCategory.ENVIRONMENT_RISK] = environmentalData;
   }
 
   const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);

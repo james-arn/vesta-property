@@ -33,7 +33,7 @@ export const calculateEnvironmentalRiskScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
 ): CategoryScoreData => {
-  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.ENVIRONMENTAL_RISK] || [];
+  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.ENVIRONMENT_RISK] || [];
   const contributingItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
   );
