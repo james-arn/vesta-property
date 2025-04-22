@@ -67,12 +67,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const canUpgrade = !isPremiumDataFetched;
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
-    const handleUpgradeClick = () => {
-        if (upgradeUrl) {
-            window.open(upgradeUrl, '_blank');
-        }
-    };
-
     // Check if the URL ends with a known image extension
     const isImageSourceWithUrl =
         isEpcItem &&
@@ -324,7 +318,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
                                 <button
-                                    onClick={canUpgrade ? handleUpgradeClick : undefined}
+                                    onClick={canUpgrade ? onOpenUpsellModal : undefined}
                                     className={`p-0.5 rounded-full ${canUpgrade ? 'cursor-pointer hover:bg-yellow-100' : ''} focus:outline-none focus:ring-1 focus:ring-yellow-400`}
                                     aria-label={canUpgrade ? "Find out more with Premium" : "Premium deep dive available"}
                                 >
