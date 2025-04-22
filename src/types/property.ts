@@ -135,7 +135,7 @@ export interface ExtractedPropertyScrapingData {
   };
   leaseTerm: string | null;
   groundRent: string | null;
-  serviceCharge: string | null;
+  serviceCharge: number | null;
   nearestStations: Station[];
   nearbySchools: NearbySchool[];
 }

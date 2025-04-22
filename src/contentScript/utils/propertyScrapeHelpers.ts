@@ -16,6 +16,7 @@ import {
   EPC_RATING_REGEX,
   GROUND_RENT_REGEX,
   LEASE_TERM_REGEX,
+  MONTHLY_CHARGE_PERIOD_REGEX,
   NEARBY_SCHOOLS_BUTTON_SELECTOR,
   SALE_HISTORY_ROW_SELECTOR,
   SCHOOL_ROW_SELECTOR_PREFIX,
@@ -26,6 +27,7 @@ import { gardenRegex, heatingRegex, parkingRegex } from "@/constants/regex";
 import { TermExtractionResult } from "@/types/domScraping";
 import { DataStatus, NearbySchool, PropertyItem, SaleHistoryEntry } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
+import { parseMonetaryValue } from "@/utils/formatting";
 import { logErrorToSentry } from "@/utils/sentry";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
 
@@ -237,13 +239,22 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
 
   const serviceChargeAnnualMatch = combinedTextLower.match(SERVICE_CHARGE_ANNUAL_REGEX);
   const serviceChargeMatch = combinedTextLower.match(SERVICE_CHARGE_REGEX);
-  let serviceChargeValue = null;
+  let serviceChargeValue: number | null = null;
+
   if (serviceChargeAnnualMatch && serviceChargeAnnualMatch[1]) {
     // Prioritize explicit annual amount
-    serviceChargeValue = serviceChargeAnnualMatch[1];
+    const annualAmount = parseMonetaryValue(serviceChargeAnnualMatch[1]);
+    serviceChargeValue = annualAmount;
   } else if (serviceChargeMatch && serviceChargeMatch[1]) {
-    // Fallback to general service charge amount
-    serviceChargeValue = serviceChargeMatch[1];
+    // Fallback to general service charge amount, check for pcm
+    const amountString = serviceChargeMatch[1];
+    const periodString = serviceChargeMatch[2]; // Capture group 2 for the period
+    const parsedAmount = parseMonetaryValue(amountString);
+
+    if (parsedAmount !== null) {
+      const isMonthly = periodString && MONTHLY_CHARGE_PERIOD_REGEX.test(periodString);
+      serviceChargeValue = isMonthly ? parsedAmount * 12 : parsedAmount;
+    }
   }
 
   return {

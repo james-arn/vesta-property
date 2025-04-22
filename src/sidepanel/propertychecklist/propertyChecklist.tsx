@@ -852,10 +852,14 @@ export function generatePropertyChecklist(
       key: CHECKLIST_KEYS.SERVICE_CHARGE,
       status:
         isLeasehold
-          ? getStatusFromString(propertyData.serviceCharge)
+          ? propertyData.serviceCharge !== null
+            ? DataStatus.FOUND_POSITIVE
+            : DataStatus.ASK_AGENT
           : DataStatus.NOT_APPLICABLE,
       value: isLeasehold
-        ? propertyData.serviceCharge
+        ? propertyData.serviceCharge !== null
+          ? `${formatCurrencyGBP(propertyData.serviceCharge)} pa`
+          : CHECKLIST_NO_VALUE.NOT_MENTIONED
         : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: "What is the service charge per annum?",
       toolTipExplainer:

@@ -190,11 +190,11 @@ export const calculateInvestmentValueScore = (
 
   // --- Determine Label and Warnings ---
   const getScoreLabel = (score: number): string => {
-    if (score >= 75) return "Strong Investment Potential";
-    if (score >= 60) return "Good Investment Potential";
-    if (score >= 40) return "Average Investment Potential";
-    if (score >= 25) return "Below Average Investment Potential";
-    return "Weak Investment Potential";
+    if (score >= 75) return "Strong Potential";
+    if (score >= 60) return "Good Potential";
+    if (score >= 40) return "Average Potential";
+    if (score >= 25) return "Below Average Potential";
+    return "Weak Potential";
   };
 
   const warnings: string[] = [];

@@ -220,7 +220,7 @@ export async function extractPropertyDataFromDOM(
     windows: windows,
     leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    serviceCharge: serviceChargeFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    serviceCharge: serviceChargeFromText,
     nearestStations: nearestTrainStations,
     nearbySchools: nearbySchools,
   };

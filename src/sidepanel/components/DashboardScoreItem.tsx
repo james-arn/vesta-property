@@ -118,7 +118,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                     <div className="flex items-start w-full">
                         {IconComponent && <IconComponent className="h-5 w-5 mr-3 text-slate-600 shrink-0" />}
                         <div className="flex flex-col w-full text-left">
-                            <h3 className="font-semibold text-slate-800 mb-1.5">{title}</h3>
+                            <h3 className="font-semibold text-slate-800">{title}</h3>
                             <div className="flex items-center space-x-2 mr-1.5">
                                 <ScoreVisualisation score={score} invertColorScale={invertColorScale} />
                                 {warningMessages && warningMessages.length > 0 && (

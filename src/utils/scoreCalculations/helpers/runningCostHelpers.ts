@@ -8,18 +8,18 @@ import { DataStatus } from "@/types/property";
 import { parseMonetaryValue } from "@/utils/formatting";
 
 export const calculateServiceChargeCostScore = (
-  serviceChargeValue?: string | number | null,
+  serviceChargeValue?: number | null,
   itemStatus?: DataStatus | null
 ): number => {
   if (itemStatus && itemStatus !== DataStatus.FOUND_POSITIVE) {
     return SERVICE_CHARGE_COST_SCORES.UNKNOWN; // Use UNKNOWN if status isn't positive
   }
 
-  const numericValue = parseMonetaryValue(serviceChargeValue);
+  const numericValue = serviceChargeValue;
 
-  // If service charge is explicitly not found or unparseable, use UNKNOWN.
-  // If it's parseable as 0 or less, assume it's negligible for cost calculation.
-  if (numericValue === null) {
+  // If service charge is explicitly null/undefined, use UNKNOWN.
+  // If it's 0 or less, assume it's negligible for cost calculation.
+  if (numericValue === null || numericValue === undefined) {
     return SERVICE_CHARGE_COST_SCORES.UNKNOWN;
   }
   if (numericValue <= 0) {
