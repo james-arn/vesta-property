@@ -1,33 +1,23 @@
+import { calculateHueFromPercentage } from '@/lib/colorHelpers'; // Import the helper
 import { DashboardScore } from '@/types/property'; // Import the score type
 import React from 'react';
 
 interface ScoreVisualisationProps {
     score: DashboardScore;
     invertColorScale?: boolean;
+    showLabel?: boolean; // Add optional prop to control label visibility
 }
 
 export const ScoreVisualisation: React.FC<ScoreVisualisationProps> = ({
     score,
-    invertColorScale = false // Default to false (high score = green)
+    invertColorScale = false, // Default to false (high score = green)
+    showLabel = true // Default showLabel to true
 }) => {
     const { scoreValue, maxScore, scoreLabel } = score;
 
     // Percentage represents fill amount (higher score = fuller bar)
     const percentage = maxScore > 0 ? Math.max(0, Math.min(100, (scoreValue / maxScore) * 100)) : 0;
 
-    // Function to map percentage to hue (0-120: Red -> Yellow -> Green)
-    const calculateHueFromPercentage = (p: number): number => {
-        const clampedPercentage = Math.max(0, Math.min(100, p));
-        if (clampedPercentage <= 50) {
-            // Map 0-50% to Hue 0-60 (Red to Yellow)
-            return (clampedPercentage / 50) * 60;
-        } else {
-            // Map 50-100% to Hue 60-120 (Yellow to Green)
-            return 60 + ((clampedPercentage - 50) / 50) * 60;
-        }
-    };
-
-    // Calculate the base hue (Low score = Red, High score = Green)
     const baseHue = calculateHueFromPercentage(percentage);
 
     // Invert the hue if needed (e.g., for Risk/Cost where high score = bad = Red)
@@ -46,7 +36,7 @@ export const ScoreVisualisation: React.FC<ScoreVisualisationProps> = ({
                     className="h-full rounded-full transition-all duration-500 ease-out"
                     style={{
                         width: `${percentage}%`,
-                        backgroundColor: hslColor // Apply final (potentially inverted) HSL color
+                        backgroundColor: hslColor
                     }}
                     aria-valuenow={scoreValue}
                     aria-valuemin={0}
@@ -55,7 +45,8 @@ export const ScoreVisualisation: React.FC<ScoreVisualisationProps> = ({
                     aria-label={`${scoreLabel} score: ${scoreValue} out of ${maxScore}`}
                 ></div>
             </div>
-            {scoreLabel && (
+            {/* Conditionally render the label based on showLabel prop */}
+            {scoreLabel && showLabel && (
                 <span className="text-xs font-medium text-muted-foreground w-20 text-right shrink-0">
                     {scoreLabel}
                 </span>

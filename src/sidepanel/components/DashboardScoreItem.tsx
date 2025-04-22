@@ -112,20 +112,27 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     const hasRelevantContributingItems = relevantContributingItems && relevantContributingItems.length > 0;
 
     return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden shadow-sm bg-white">
+        <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
             <AccordionItem value={title} className="border-b-0">
-                <AccordionTrigger className="px-3 py-3 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 [&[data-state=open]]:border-b border-slate-100">
-                    <div className="flex items-start w-full">
-                        {IconComponent && <IconComponent className="h-5 w-5 mr-3 text-slate-600 shrink-0" />}
-                        <div className="flex flex-col w-full text-left">
-                            <h3 className="font-semibold text-slate-800">{title}</h3>
-                            <div className="flex items-center space-x-2 mr-1.5">
-                                <ScoreVisualisation score={score} invertColorScale={invertColorScale} />
+                <AccordionTrigger className="px-3 py-2 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 group">
+                    <div className="grid grid-cols-[20px_90px_1fr] items-center w-full gap-x-3 mr-3">
+                        {IconComponent && <IconComponent className="h-5 w-5 text-slate-600" />}
+                        <h3 className="font-semibold text-slate-800 text-left max-w-[90px]">{title}</h3>
+                        <div className="flex flex-col items-start">
+                            <ScoreVisualisation score={score} invertColorScale={invertColorScale} showLabel={false} />
+                            <div className="flex items-center mt-1">
+                                {score.scoreLabel && (
+                                    <span className="text-xs font-medium text-slate-600 text-left">
+                                        {score.scoreLabel}
+                                    </span>
+                                )}
                                 {warningMessages && warningMessages.length > 0 && (
                                     <TooltipProvider>
                                         <Tooltip delayDuration={0}>
                                             <TooltipTrigger asChild>
-                                                <FaExclamationTriangle className="h-3 w-3 shrink-0 text-yellow-500" />
+                                                <div className="relative ml-1.5">
+                                                    <FaExclamationTriangle className="h-3.5 w-3.5 shrink-0 text-yellow-500" />
+                                                </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" align="center">
                                                 <ul className="list-disc pl-4 space-y-1 max-w-xs text-sm text-left">
@@ -141,7 +148,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </div>
                     </div>
                 </AccordionTrigger>
-                <AccordionContent className="bg-slate-50/50 border-t border-slate-100">
+                <AccordionContent className="bg-slate-50/50 border-t border-slate-100 pt-0 pb-2 px-3">
                     {hasRelevantContributingItems ? (
                         <ul className="list-none p-0 m-0 space-y-1">
                             {relevantContributingItems.map(item => {

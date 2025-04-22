@@ -72,26 +72,26 @@ const calculateCombinedConnectivityScore = (
     VERY_POOR: 20,
   } as const;
 
-  let scoreLabel = "Average Connectivity";
+  let scoreLabel = "Average";
 
   if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.EXCELLENT) {
-    scoreLabel = "Excellent Connectivity";
+    scoreLabel = "Excellent";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.VERY_GOOD) {
-    scoreLabel = "Very Good Connectivity";
+    scoreLabel = "Very Good";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.GOOD) {
-    scoreLabel = "Good Connectivity";
+    scoreLabel = "Well Connected";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.ABOVE_AVERAGE) {
-    scoreLabel = "Above Average Connectivity";
+    scoreLabel = "Above Average";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.AVERAGE) {
-    scoreLabel = "Average Connectivity";
+    scoreLabel = "Average";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.BELOW_AVERAGE) {
-    scoreLabel = "Below Average Connectivity";
+    scoreLabel = "Below Average";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.POOR) {
-    scoreLabel = "Poor Connectivity";
+    scoreLabel = "Poorly Connected";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.VERY_POOR) {
-    scoreLabel = "Very Poor Connectivity";
+    scoreLabel = "Very Poor";
   } else {
-    scoreLabel = "Extremely Poor Connectivity";
+    scoreLabel = "Extremely Poor";
   }
 
   // --- Generate Warning --- //
