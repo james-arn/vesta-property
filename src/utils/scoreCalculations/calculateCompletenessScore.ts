@@ -2,7 +2,6 @@ import {
   CategoryScoreData,
   DashboardScore,
   DataStatus,
-  PreprocessedData,
   PropertyDataListItem,
 } from "@/types/property";
 
@@ -16,30 +15,36 @@ const getListingCompletenessScoreLabel = (score: number): string => {
 };
 
 export const calculateCompletenessScore = (
-  items: PropertyDataListItem[],
-  // Add preprocessedData parameter for consistency with other calculators
-  preprocessedData: PreprocessedData
+  items: PropertyDataListItem[]
 ): CategoryScoreData | undefined => {
-  // Filter out items that are not applicable
-  const applicableItems = items.filter((item) => item.status !== DataStatus.NOT_APPLICABLE);
-  const applicableTotal = applicableItems.length;
+  // 1. Filter for items expected in a standard listing
+  const expectedItems = items.filter((item) => item.isExpectedInListing);
 
-  if (applicableTotal === 0) {
-    // Cannot calculate if there are no applicable items
-    // Return a default high score or undefined based on desired behavior
+  // 2. Filter out items that are not applicable *from the expected list*
+  const applicableExpectedItems = expectedItems.filter(
+    (item) => item.status !== DataStatus.NOT_APPLICABLE
+  );
+  const applicableExpectedTotal = applicableExpectedItems.length;
+
+  if (applicableExpectedTotal === 0) {
+    // If no items are expected OR all expected items are N/A
     return {
-      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
+      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" }, // Assume complete if nothing expected/applicable
       contributingItems: [],
-      warningMessages: ["No applicable items found for completeness calculation."],
+      warningMessages: ["No applicable expected items found for completeness calculation."],
     };
   }
 
-  // Count items where the status is ASK_AGENT among applicable items
-  const askAgentItems = applicableItems.filter((item) => item.status === DataStatus.ASK_AGENT);
-  const askAgentCount = askAgentItems.length;
+  // 3. Count expected items where the status indicates missing info (ASK_AGENT)
+  const missingExpectedItems = applicableExpectedItems.filter(
+    (item) => item.status === DataStatus.ASK_AGENT
+  );
+  const missingExpectedCount = missingExpectedItems.length;
 
-  // Calculate the score: 100% minus the percentage of applicable items needing agent input
-  const scoreValue = 100 - (askAgentCount / applicableTotal) * 100;
+  // 4. Calculate the score based on the proportion of *applicable expected items* that are present
+  // Score = (Present Items / Total Applicable Expected Items) * 100
+  const scoreValue =
+    ((applicableExpectedTotal - missingExpectedCount) / applicableExpectedTotal) * 100;
 
   // Ensure score is within 0-100 bounds and round it
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));
@@ -55,17 +60,17 @@ export const calculateCompletenessScore = (
 
   // Initialize warningMessages as an empty array
   const warningMessages: string[] = [];
-  if (askAgentCount > 0) {
-    // Push the message into the array
+  if (missingExpectedCount > 0) {
+    // Add a warning if some expected items are missing
     warningMessages.push(
-      `${askAgentCount} applicable item(s) require contacting the agent for information.`
+      `${missingExpectedCount} expected item(s) are missing from the listing or require agent input.`
     );
   }
 
   return {
     score: finalScore,
-    // Items contributing negatively (requiring agent input)
-    contributingItems: askAgentItems,
+    // Items contributing negatively are the expected ones that are missing
+    contributingItems: missingExpectedItems,
     warningMessages,
   };
 };

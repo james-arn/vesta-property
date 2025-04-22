@@ -61,7 +61,7 @@ export const calculateDashboardScores = (
     scores[DashboardScoreCategory.LEGAL_CONSTRAINTS] = legalConstraintsData;
   }
 
-  const listingCompletenessData = calculateCompletenessScore(items, preprocessedData);
+  const listingCompletenessData = calculateCompletenessScore(items);
   if (listingCompletenessData) {
     scores[DashboardScoreCategory.LISTING_COMPLETENESS] = listingCompletenessData;
   }

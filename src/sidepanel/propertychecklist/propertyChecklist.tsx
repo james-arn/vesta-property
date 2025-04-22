@@ -19,7 +19,7 @@ import {
   DataStatus,
   ExtractedPropertyScrapingData,
   PreprocessedData,
-  PropertyDataListItem,
+  PropertyDataListItem
 } from "../../types/property";
 import {
   getCAGRStatus,
@@ -88,6 +88,7 @@ export function generatePropertyChecklist(
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
+    isExpectedInListing: true,
     epcBandData:
       processedEpcResult?.scores && 'currentBand' in processedEpcResult.scores
         ? processedEpcResult.scores as EpcBandResult
@@ -118,7 +119,7 @@ export function generatePropertyChecklist(
       ...baseEpcItem,
       value: finalEpcValue ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       status: finalEpcValue ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
-      confidence: finalEpcConfidence,
+      confidence: finalEpcConfidence ?? ConfidenceLevels.NONE,
       askAgentMessage: finalEpcValue ? "" : "Could not determine EPC. Ask Agent?",
       toolTipExplainer: finalEpcValue
         ? `EPC Rating determined as ${finalEpcValue}. Confidence: ${finalEpcConfidence}, Source: ${finalEpcSource}`
@@ -133,6 +134,7 @@ export function generatePropertyChecklist(
     checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: isLeasehold ? true : false,
+    isExpectedInListing: isLeasehold,
   };
   let leaseTermChecklistItem: PropertyDataListItem;
   if (propertyData.tenure?.toLowerCase() !== "leasehold") {
@@ -206,6 +208,7 @@ export function generatePropertyChecklist(
         toolTipExplainer: `Compares the asking price to the estimated market value. ${isUndervalued ? "Undervalued properties may represent better immediate value." : "Overvalued properties might indicate a seller's high expectation or unique features not captured by the estimate."}`,
         isUnlockedWithPremium: true,
         isBoostedWithPremium: false,
+        isExpectedInListing: false,
       };
     } else {
       // Premium data unavailable: Show placeholder
@@ -219,6 +222,7 @@ export function generatePropertyChecklist(
         toolTipExplainer: "Compares the asking price to the estimated market value. Comparison requires Estimated Sale Value (Premium Data Feature).",
         isUnlockedWithPremium: true,
         isBoostedWithPremium: false,
+        isExpectedInListing: false,
       };
     }
   })();
@@ -248,6 +252,7 @@ export function generatePropertyChecklist(
         "Not only mortgage payments and deposit, but also any stamp duty, legal and moving costs.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -262,6 +267,7 @@ export function generatePropertyChecklist(
         "Each tenure type has different responsibilities, rights, and costs associated with it.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -276,6 +282,7 @@ export function generatePropertyChecklist(
         "A prime location can enhance lifestyle and convenience, while also impacting safety and community engagement.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -290,6 +297,7 @@ export function generatePropertyChecklist(
         "Understanding the property type helps in assessing its value, potential use, and market demand.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -303,6 +311,7 @@ export function generatePropertyChecklist(
         "Common accessible features include level access, lift access, ramped access, wet rooms, wide doorways, step-free access, level access showers, and lateral living (a property where all key rooms are on the entry level).",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -316,6 +325,7 @@ export function generatePropertyChecklist(
         "This can indicate whether the property has been difficult to sell or if it has had price reductions.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.GENERAL,
@@ -329,6 +339,7 @@ export function generatePropertyChecklist(
         "This can affect availability for viewing and moving in, and potentially indicate property condition based on tenure history.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
 
     // Investment Potential
@@ -351,6 +362,7 @@ export function generatePropertyChecklist(
         "adjusted for the time span between these transactions. It helps determine whether the price is aligned with historical market trends.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     askingVsEstimatePriceComparisonItem,
     {
@@ -377,6 +389,7 @@ export function generatePropertyChecklist(
           : ""),
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -401,6 +414,7 @@ export function generatePropertyChecklist(
         "Keep in mind that with only a few data points available, this metric might not be fully representative and could display as 'N/A'.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -414,6 +428,7 @@ export function generatePropertyChecklist(
         "Useful as a benchmark against the asking price, but accuracy can vary based on data availability and property uniqueness.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -427,6 +442,7 @@ export function generatePropertyChecklist(
         "Important for buy-to-let investors to assess potential income and returns.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -440,6 +456,7 @@ export function generatePropertyChecklist(
         "A key metric for investors comparing the profitability of different property investments.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -456,6 +473,7 @@ export function generatePropertyChecklist(
         "Can reflect market liquidity and potential competition or availability.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -472,6 +490,7 @@ export function generatePropertyChecklist(
         "Reflects the strength of the local rental market and potential for buy-to-let investment.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -526,6 +545,7 @@ export function generatePropertyChecklist(
         "A higher percentage (turnover rate) indicates a more liquid/active market. Typical UK average is around 4-5%.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INVESTMENT_POTENTIAL,
@@ -539,9 +559,10 @@ export function generatePropertyChecklist(
         "Provides a general benchmark for property values in the area.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     // Utilities
-    epcChecklistItem, // Include generated EPC item
+    epcChecklistItem,
     {
       checklistGroup: PropertyGroups.UTILITIES,
       label: "Heating",
@@ -552,6 +573,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "The type of heating system used in the property, such as gas central heating, electric heating, or oil-fired heating.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.UTILITIES,
@@ -563,6 +585,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Broadband speed impacts internet usage for work, streaming, and gaming.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.UTILITIES,
@@ -574,6 +597,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Information on the signal strength and availability of major mobile network providers at the property.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.UTILITIES,
@@ -587,9 +611,10 @@ export function generatePropertyChecklist(
         "Council tax bands are based on property value, and some exemptions apply (e.g., students).",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
 
-    // Interior (Restore full tooltips)
+    // Interior
     {
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Bedrooms",
@@ -600,6 +625,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "The number of bedrooms in the property, a key factor in determining its size and value.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -611,6 +637,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "The number of bathrooms in the property, impacting convenience and overall value.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -625,6 +652,7 @@ export function generatePropertyChecklist(
         "Size can also impact the property's energy efficiency and maintenance costs.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -638,6 +666,7 @@ export function generatePropertyChecklist(
         "It provides a visual representation of the property's layout and can be useful for understanding the property's size, layout, and potential for renovation or extension.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -651,6 +680,7 @@ export function generatePropertyChecklist(
         "Affects insulation, maintenance requirements, longevity, and potentially mortgageability or insurance.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.INTERIOR,
@@ -664,9 +694,10 @@ export function generatePropertyChecklist(
         "Influences architectural style, potential need for renovations, energy efficiency, and presence of period features.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
 
-    // Exterior (Restore full tooltips)
+    // Exterior
     {
       checklistGroup: PropertyGroups.EXTERIOR,
       label: "Parking",
@@ -677,6 +708,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Details about parking availability, such as driveway, garage, or on-street parking permits.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.EXTERIOR,
@@ -690,6 +722,7 @@ export function generatePropertyChecklist(
         "It can range from a small patio or balcony to a large garden with various features like lawns, trees, and outdoor living areas.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.EXTERIOR,
@@ -713,10 +746,11 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Information about the windows, such as material (uPVC, wood) and glazing type (single, double, triple).",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
 
-    // Rights & Restrictions (Restore full tooltips)
-    leaseTermChecklistItem, // Tooltip handled internally
+    // Rights & Restrictions
+    leaseTermChecklistItem,
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Restrictive Covenants",
@@ -731,6 +765,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: restrictiveCovenantItemMessages.toolTipExplainer,
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -767,6 +802,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Indicates if the property is listed (Grade I, II*, II), which imposes restrictions on alterations.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -785,6 +821,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Indicates if a public footpath or bridleway crosses the property land.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -796,6 +833,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Indicates if a private footpath or bridleway crosses the property land.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -809,6 +847,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Indicates if the property is within a conservation area, which adds controls over demolition, alterations, and tree work.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -827,6 +866,7 @@ export function generatePropertyChecklist(
         "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. ",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -845,6 +885,7 @@ export function generatePropertyChecklist(
         "Reviewing the planning permission history can reveal existing restrictions or opportunities for future renovations, which is crucial information when buying a property. ",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -867,6 +908,7 @@ export function generatePropertyChecklist(
         "Review what it covers, historical costs, and any planned major works that could increase future charges.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: isLeasehold,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
@@ -886,6 +928,7 @@ export function generatePropertyChecklist(
         "Check the amount, review schedule, and terms, as high or escalating ground rents can be problematic.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: isLeasehold,
     },
     // Risks
     {
@@ -898,6 +941,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Information about the property's risk from coastal erosion, relevant for seaside properties.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: true,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -913,6 +957,7 @@ export function generatePropertyChecklist(
         "Provides more detail than basic checks, crucial for insurance and understanding potential mitigation needs.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -930,6 +975,7 @@ export function generatePropertyChecklist(
         "Significant noise can impact quality of life and potentially property value.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -941,6 +987,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Detailed assessment of coastal erosion risk, indicating if mitigation plans might be applicable.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -954,6 +1001,7 @@ export function generatePropertyChecklist(
         "It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -973,6 +1021,7 @@ export function generatePropertyChecklist(
         "Understanding the flood sources can help assess the property's risk of flooding and the effectiveness of flood defences.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -988,6 +1037,7 @@ export function generatePropertyChecklist(
         "Buyers should check for any past flooding incidents and existing flood defences.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -1002,6 +1052,7 @@ export function generatePropertyChecklist(
         "may flag potential concerns. The absence of any mention means further clarification might be needed.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.RISKS,
@@ -1015,9 +1066,10 @@ export function generatePropertyChecklist(
         "It's important to check the mining impact to ensure the property is not at risk of mining subsidence or other mining-related risks.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
 
-    // Neighbourhood (Restore full tooltips)
+    // Neighbourhood
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
       label: "Crime Score",
@@ -1029,6 +1081,7 @@ export function generatePropertyChecklist(
         "Provides an overview of reported crime statistics near the property, indicating general neighbourhood safety.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
@@ -1057,6 +1110,7 @@ export function generatePropertyChecklist(
         "Knowing the distance to the nearest stations helps evaluate travel times and convenience.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
@@ -1102,10 +1156,11 @@ export function generatePropertyChecklist(
       })(),
       askAgentMessage: "What are the nearest schools and their Ofsted ratings?",
       toolTipExplainer:
-        "Proximity to well-regarded schools is often a key factor for families.\\n\\n" +
+        "Proximity to well-regarded schools is often a key factor for families. " +
         "This shows the closest schools found based on the listing information, including their rating (e.g., Ofsted) and distance.",
       isUnlockedWithPremium: false,
       isBoostedWithPremium: false,
+      isExpectedInListing: true,
     },
     {
       checklistGroup: PropertyGroups.NEIGHBOURHOOD,
@@ -1115,16 +1170,28 @@ export function generatePropertyChecklist(
       value: processedPremiumData?.policeForceProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "",
       toolTipExplainer:
-        "Information about the nearest police station and local policing team presence.\n\n" +
+        "Information about the nearest police station and local policing team presence. " +
         "Can be relevant for understanding community safety resources and response times.",
       isUnlockedWithPremium: true,
       isBoostedWithPremium: false,
+      isExpectedInListing: false,
     },
   ];
 
   // Filter out items not applicable based on property type AND filter out nulls
   const filteredChecklist = checklist.filter((item): item is PropertyDataListItem => {
     if (!item) return false; // Explicitly filter out nulls here with type predicate
+
+    // Ensure isExpectedInListing has a default value if somehow missed during creation
+    if (item.isExpectedInListing === undefined) {
+      console.warn(`ChecklistItem ${item.key} is missing isExpectedInListing flag. Defaulting to false.`);
+      item.isExpectedInListing = false;
+    }
+    // Ensure confidence has a default value if missing
+    if (item.confidence === undefined) {
+      item.confidence = ConfidenceLevels.NONE;
+    }
+
     if (item.key === CHECKLIST_KEYS.COUNCIL_TAX && propertyData.propertyType === 'Commercial') {
       return false;
     }

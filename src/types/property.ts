@@ -32,6 +32,7 @@ export interface PropertyDataListItem {
   confidence?: Confidence | null;
   isUnlockedWithPremium: boolean;
   isBoostedWithPremium: boolean;
+  isExpectedInListing: boolean;
   restrictiveCovenants?: RestrictiveCovenant[] | null;
   publicRightOfWay?: RightOfWayDetails | null;
 }

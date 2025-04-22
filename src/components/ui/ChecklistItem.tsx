@@ -108,7 +108,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
         // If it's a premium item without a value yet, show the premium placeholder
         if (isLocked) {
-            const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock ${label} with Premium`;
+            const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock with Premium`;
             return (
                 <div className="flex items-center text-gray-500">
                     <FaLock className="mr-2" size={12} />

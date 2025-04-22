@@ -12,7 +12,7 @@ import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/cons
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { PremiumStreetDataResponse } from '@/types/premiumStreetData';
-import { CategoryScoreData, DataStatus, PropertyDataListItem } from '@/types/property';
+import { CategoryScoreData, PropertyDataListItem } from '@/types/property';
 import { UseQueryResult } from '@tanstack/react-query';
 import React, { lazy, Suspense } from 'react';
 import { FaExclamationTriangle } from "react-icons/fa";
@@ -102,14 +102,8 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     }
 
     const { score, contributingItems, warningMessages } = categoryScoreData;
-    const relevantContributingItems = contributingItems.filter(item => {
-        if (title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]) {
-            return item.status === DataStatus.ASK_AGENT;
-        }
-        return true;
-    });
 
-    const hasRelevantContributingItems = relevantContributingItems && relevantContributingItems.length > 0;
+    const hasContributingItems = contributingItems?.length > 0;
 
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
@@ -149,9 +143,9 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                     </div>
                 </AccordionTrigger>
                 <AccordionContent className="bg-slate-50/50 border-t border-slate-100 pt-0 pb-2 px-3">
-                    {hasRelevantContributingItems ? (
+                    {hasContributingItems ? (
                         <ul className="list-none p-0 m-0 space-y-1">
-                            {relevantContributingItems.map(item => {
+                            {contributingItems.map((item: PropertyDataListItem) => {
                                 const handleClick = getValueClickHandler(
                                     item,
                                     openNewTab,
@@ -174,12 +168,16 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             })}
                         </ul>
                     ) : (
-                        <p className="text-sm text-muted-foreground">No specific contributing factors identified.</p>
+                        <p className="text-sm text-muted-foreground">
+                            {title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]
+                                ? "All expected listing information appears present."
+                                : "No specific contributing factors identified."}
+                        </p>
                     )}
 
                     {/* Conditionally render expandable sections within AccordionContent */}
                     {/* Check if this category contains the crime score item AND if it's expanded */}
-                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.CRIME_SCORE) && crimeQuery.data && (
+                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.CRIME_SCORE) && crimeQuery.data && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
                                 <div ref={crimeContentRef}>
@@ -193,7 +191,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </Suspense>
                     )}
                     {/* Check if this category contains planning items AND if the property section is expanded */}
-                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                                 <div ref={planningPermissionContentRef}>
@@ -208,7 +206,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </Suspense>
                     )}
                     {/* Check if this category contains planning items AND if the nearby section is expanded */}
-                    {relevantContributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                                 <div ref={nearbyPlanningPermissionContentRef}>

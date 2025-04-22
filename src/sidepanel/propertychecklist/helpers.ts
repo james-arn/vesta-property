@@ -197,6 +197,7 @@ export const determineEpcChecklistItemDetails = (
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
+    isExpectedInListing: true,
   };
 
   // --- Loading State ---
