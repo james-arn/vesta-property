@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 // Correct import path and type
-import { DashboardScores, PropertyDataListItem } from '@/types/property';
+import { CategoryScoreData, DashboardScores, PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -22,14 +22,8 @@ import {
     ShieldAlert,
     TrendingUp
 } from 'lucide-react';
-import { calculateOverallScore } from '../helpers/dashboardHelpers';
 import { DashboardScoreItem } from './DashboardScoreItem';
 import { DashboardTile } from './DashboardTile';
-
-interface DashboardCalculationData {
-    calculatedLeaseMonths: number | null;
-    epcScoreForCalculation: number;
-}
 
 type GetValueClickHandlerType = (
     item: PropertyDataListItem,
@@ -39,22 +33,23 @@ type GetValueClickHandlerType = (
     toggleNearbyPlanningPermissionCard?: () => void
 ) => (() => void) | undefined;
 
-// Dynamically import charts and cards
-const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
 interface DashboardViewProps {
     checklistsData: PropertyDataListItem[] | null;
-    dashboardScores: DashboardScores;
-    isPremiumDataFetched: boolean;
-    processedEpcResult?: EpcProcessorResult | null;
-    epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
-    isEpcDebugModeOn: boolean;
+    categoryScores: DashboardScores;
+    overallScore: number | null;
+    dataCoverageScoreData: CategoryScoreData | undefined;
+    isLoading: boolean;
     getValueClickHandler: GetValueClickHandlerType;
     openNewTab: (url: string) => void;
     toggleCrimeChart: () => void;
     togglePlanningPermissionCard: () => void;
     toggleNearbyPlanningPermissionCard?: () => void;
+    isPremiumDataFetched: boolean;
+    processedEpcResult: EpcProcessorResult | null | undefined;
+    epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+    isEpcDebugModeOn: boolean;
     handleEpcValueChange: (newValue: string) => void;
 
     // Expansion state and refs
@@ -83,17 +78,15 @@ const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
     checklistsData,
-    dashboardScores,
-    isPremiumDataFetched,
-    processedEpcResult,
-    epcDebugCanvasRef,
-    isEpcDebugModeOn,
+    categoryScores,
+    overallScore,
+    dataCoverageScoreData,
+    isLoading,
     getValueClickHandler,
     openNewTab,
     toggleCrimeChart,
     togglePlanningPermissionCard,
     toggleNearbyPlanningPermissionCard,
-    handleEpcValueChange,
     crimeQuery,
     premiumStreetDataQuery,
     crimeChartExpanded,
@@ -105,20 +98,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     nearbyPlanningPermissionCardExpanded,
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
-    onTriggerPremiumFlow
+    onTriggerPremiumFlow,
+    isPremiumDataFetched,
+    processedEpcResult,
+    epcDebugCanvasRef,
+    isEpcDebugModeOn,
+    handleEpcValueChange
 }) => {
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
-    const hasDashboardScores = Object.keys(dashboardScores).length > 0;
+    const hasCategoryScores = Object.keys(categoryScores).length > 0;
 
-    if (!checklistsData || !hasDashboardScores) {
+    if (!checklistsData || !hasCategoryScores) {
         return <div className="p-4 text-center text-muted-foreground">
             {!checklistsData ? "Loading checklist data..." : "Calculating dashboard scores..."}
         </div>;
     }
 
-    const overallScore = calculateOverallScore(dashboardScores);
-    const dataCoverageScoreData = dashboardScores[DashboardScoreCategory.LISTING_COMPLETENESS];
     const dataCoverageScoreValue = dataCoverageScoreData?.score?.scoreValue ?? null;
 
     const categoryOrder: DashboardScoreCategory[] = [
@@ -131,7 +127,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         DashboardScoreCategory.LISTING_COMPLETENESS,
     ];
 
-    // Define tooltip content
     const overallScoreTooltip = (
         <p>Average score across Running Costs, Investment Value, Connectivity, Condition, Environment Risk, and Legal Constraints.</p>
     );
@@ -160,7 +155,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 <div>
                     {categoryOrder.map((category) => {
-                        const categoryScoreData = dashboardScores[category];
+                        const categoryScoreData = categoryScores[category];
                         if (!categoryScoreData) {
                             console.warn(`DashboardView: Missing score data for category: ${category}`);
                             return null;
@@ -177,36 +172,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
 
                         return (
-                            <DashboardScoreItem
-                                key={category}
-                                title={title}
-                                categoryScoreData={categoryScoreData}
-                                invertColorScale={invertColorScale}
-                                icon={IconComponent}
-                                isPremiumDataFetched={isPremiumDataFetched}
-                                upgradeUrl={upgradeUrl}
-                                epcData={processedEpcResult ?? undefined}
-                                epcDebugCanvasRef={epcDebugCanvasRef}
-                                isEpcDebugModeOn={isEpcDebugModeOn}
-                                getValueClickHandler={getValueClickHandler}
-                                openNewTab={openNewTab}
-                                toggleCrimeChart={toggleCrimeChart}
-                                togglePlanningPermissionCard={togglePlanningPermissionCard}
-                                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                                handleEpcValueChange={handleEpcValueChange}
-                                crimeQuery={crimeQuery}
-                                premiumStreetDataQuery={premiumStreetDataQuery}
-                                crimeChartExpanded={crimeChartExpanded}
-                                crimeContentRef={crimeContentRef}
-                                crimeContentHeight={crimeContentHeight}
-                                planningPermissionCardExpanded={planningPermissionCardExpanded}
-                                planningPermissionContentRef={planningPermissionContentRef}
-                                planningPermissionContentHeight={planningPermissionContentHeight}
-                                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                                onOpenUpsellModal={onTriggerPremiumFlow}
-                            />
+                            <Suspense fallback={<LoadingSpinner />} key={category}>
+                                <DashboardScoreItem
+                                    title={title}
+                                    categoryScoreData={categoryScoreData}
+                                    icon={IconComponent}
+                                    getValueClickHandler={getValueClickHandler}
+                                    openNewTab={openNewTab}
+                                    toggleCrimeChart={toggleCrimeChart}
+                                    togglePlanningPermissionCard={togglePlanningPermissionCard}
+                                    toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                                    isPremiumDataFetched={isPremiumDataFetched}
+                                    upgradeUrl={upgradeUrl}
+                                    crimeQuery={crimeQuery}
+                                    premiumStreetDataQuery={premiumStreetDataQuery}
+                                    crimeChartExpanded={crimeChartExpanded}
+                                    crimeContentRef={crimeContentRef}
+                                    crimeContentHeight={crimeContentHeight}
+                                    planningPermissionCardExpanded={planningPermissionCardExpanded}
+                                    planningPermissionContentRef={planningPermissionContentRef}
+                                    planningPermissionContentHeight={planningPermissionContentHeight}
+                                    nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+                                    nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+                                    nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                                    onOpenUpsellModal={onTriggerPremiumFlow}
+                                    handleEpcValueChange={handleEpcValueChange}
+                                    epcData={processedEpcResult ?? undefined}
+                                    epcDebugCanvasRef={epcDebugCanvasRef}
+                                    isEpcDebugModeOn={isEpcDebugModeOn}
+                                    invertColorScale={invertColorScale}
+                                />
+                            </Suspense>
                         );
                     })}
                 </div>
@@ -240,7 +236,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </Suspense>
                 )}
 
-                {Object.keys(dashboardScores).length === 0 && checklistsData && (
+                {Object.keys(categoryScores).length === 0 && checklistsData && (
                     <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
                 )}
             </div>

@@ -133,11 +133,12 @@ const App: React.FC = () => {
 
   useFeedbackAutoPrompt(propertyData.propertyId);
 
-  // --- Use the hook for checklist/dashboard data --- 
   const {
     propertyChecklistData,
-    dashboardScores,
-    preprocessedData
+    preprocessedData,
+    categoryScores,
+    overallScore,
+    dataCoverageScoreData
   } = useChecklistAndDashboardData({
     propertyData,
     crimeScoreQuery: crimeQuery,
@@ -146,7 +147,6 @@ const App: React.FC = () => {
     isEpcDebugModeOn,
   });
 
-  // --- Use the hook for checklist display logic --- 
   const {
     filters,
     openGroups,
@@ -249,7 +249,7 @@ const App: React.FC = () => {
     return <SideBarLoading />;
   }
 
-  const isPremiumDataFetched = premiumStreetDataQuery.isSuccess;
+  const isPremiumDataFetched = premiumStreetDataQuery.isFetched;
 
   if (!propertyData.propertyId) {
     // If no property ID, show the info alert
@@ -279,22 +279,24 @@ const App: React.FC = () => {
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-grow p-4 overflow-y-auto">
-        {currentView === VIEWS.DASHBOARD && dashboardScores
+        {currentView === VIEWS.DASHBOARD && categoryScores
           ? (
-
             <DashboardView
               checklistsData={propertyChecklistData}
-              dashboardScores={dashboardScores}
+              categoryScores={categoryScores}
+              overallScore={overallScore}
+              dataCoverageScoreData={dataCoverageScoreData}
+              isLoading={isPropertyDataLoading}
               isPremiumDataFetched={isPremiumDataFetched}
               processedEpcResult={preprocessedData.processedEpcResult}
               epcDebugCanvasRef={epcDebugCanvasRef}
               isEpcDebugModeOn={isEpcDebugModeOn}
+              handleEpcValueChange={handleEpcValueChange}
               getValueClickHandler={getValueClickHandler}
               openNewTab={openNewTab}
               toggleCrimeChart={toggleCrimeChart}
               togglePlanningPermissionCard={togglePlanningPermissionCard}
               toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-              handleEpcValueChange={handleEpcValueChange}
               crimeQuery={crimeQuery}
               premiumStreetDataQuery={premiumStreetDataQuery}
               crimeChartExpanded={crimeChartExpanded}
@@ -312,18 +314,17 @@ const App: React.FC = () => {
             <Suspense fallback={<SideBarLoading />}>
               <LazyChecklistView
                 filteredChecklistData={filteredChecklistData}
-                openGroups={openGroups}
-                toggleGroup={toggleGroup}
                 getValueClickHandler={getValueClickHandler}
                 openNewTab={openNewTab}
                 toggleCrimeChart={toggleCrimeChart}
                 togglePlanningPermissionCard={togglePlanningPermissionCard}
                 toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                isPremiumDataFetched={isPremiumDataFetched}
-                processedEpcResult={preprocessedData.processedEpcResult}
                 handleEpcValueChange={handleEpcValueChange}
-                isEpcDebugModeOn={isEpcDebugModeOn}
+                isPremiumDataFetched={isPremiumDataFetched}
+                processedEpcResult={preprocessedData.processedEpcResult ?? undefined}
                 epcDebugCanvasRef={epcDebugCanvasRef}
+                isEpcDebugModeOn={isEpcDebugModeOn}
+                onTriggerPremiumFlow={triggerPremiumFlow}
                 crimeQuery={crimeQuery}
                 premiumStreetDataQuery={premiumStreetDataQuery}
                 crimeChartExpanded={crimeChartExpanded}
@@ -335,7 +336,8 @@ const App: React.FC = () => {
                 nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
                 nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
                 nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                onTriggerPremiumFlow={triggerPremiumFlow}
+                openGroups={openGroups}
+                toggleGroup={toggleGroup}
               />
             </Suspense>
           )

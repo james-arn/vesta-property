@@ -2,12 +2,16 @@ import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { generatePropertyChecklist } from "@/sidepanel/propertychecklist/propertyChecklist";
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import {
+  CategoryScoreData,
   DashboardScores,
   ExtractedPropertyScrapingData,
   PreprocessedData,
   PropertyDataListItem,
 } from "@/types/property";
-import { calculateDashboardScores } from "@/utils/scoreCalculations";
+import {
+  calculateDashboardScores,
+  CalculatedDashboardResult as CalculationResultType,
+} from "@/utils/scoreCalculations";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { usePreprocessedPropertyData } from "./usePreprocessedPropertyData";
@@ -22,8 +26,10 @@ export interface UseChecklistAndDashboardDataArgs {
 
 export interface UseChecklistAndDashboardDataResult {
   propertyChecklistData: PropertyDataListItem[];
-  dashboardScores: DashboardScores | undefined;
   preprocessedData: PreprocessedData;
+  categoryScores: DashboardScores;
+  overallScore: number | null;
+  dataCoverageScoreData: CategoryScoreData | undefined;
 }
 
 export const useChecklistAndDashboardData = ({
@@ -50,15 +56,21 @@ export const useChecklistAndDashboardData = ({
     return generatePropertyChecklist(propertyData, crimeScoreQuery, preprocessedData);
   }, [propertyData, crimeScoreQuery, preprocessedData]);
 
-  const dashboardScores = useMemo(() => {
+  const calculationResult = useMemo((): CalculationResultType | null => {
     if (preprocessedData.isPreprocessedDataLoading || preprocessedData.preprocessedDataError)
-      return undefined;
+      return null;
     return calculateDashboardScores(propertyChecklistData, preprocessedData);
   }, [propertyChecklistData, preprocessedData]);
 
+  const categoryScores = calculationResult?.categoryScores ?? {};
+  const overallScore = calculationResult?.overallScore ?? null;
+  const dataCoverageScoreData = calculationResult?.dataCoverageScoreData;
+
   return {
     propertyChecklistData,
-    dashboardScores,
     preprocessedData,
+    categoryScores,
+    overallScore,
+    dataCoverageScoreData,
   };
 };
