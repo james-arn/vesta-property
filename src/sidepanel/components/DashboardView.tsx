@@ -4,6 +4,9 @@ import { DashboardScores, PropertyDataListItem } from '@/types/property';
 // Placeholder imports - uncomment later
 // import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import {
+    TooltipProvider,
+} from "@/components/ui/tooltip";
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
@@ -12,16 +15,16 @@ import { getCategoryDisplayName } from '@/sidepanel/helpers';
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
 import { UseQueryResult } from '@tanstack/react-query';
 import {
-    Home // Example for Condition
-    , // Example for Value
-    ListChecks, // Example for Risk
-    Network, // Example for Completeness
-    PoundSterling, // Example for Running Costs
-    Scale, // Example for Legal Constraints
-    ShieldAlert, // Example for Environmental Risk?
+    Home,
+    Network,
+    PoundSterling,
+    Scale,
+    ShieldAlert,
     TrendingUp
 } from 'lucide-react';
+import { calculateOverallScore } from '../helpers/dashboardHelpers';
 import { DashboardScoreItem } from './DashboardScoreItem';
+import { DashboardTile } from './DashboardTile';
 
 interface DashboardCalculationData {
     calculatedLeaseMonths: number | null;
@@ -76,7 +79,6 @@ const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
     [DashboardScoreCategory.CONDITION]: Home,
     [DashboardScoreCategory.ENVIRONMENT_RISK]: ShieldAlert,
     [DashboardScoreCategory.LEGAL_CONSTRAINTS]: Scale,
-    [DashboardScoreCategory.LISTING_COMPLETENESS]: ListChecks,
 };
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -92,7 +94,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     togglePlanningPermissionCard,
     toggleNearbyPlanningPermissionCard,
     handleEpcValueChange,
-    // Expansion state and refs
     crimeQuery,
     premiumStreetDataQuery,
     crimeChartExpanded,
@@ -106,12 +107,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow
 }) => {
-    // Define the upgrade URL from config here
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
-    if (!checklistsData) {
-        return <div className="p-4 text-center text-muted-foreground">Loading dashboard data...</div>;
+    const hasDashboardScores = Object.keys(dashboardScores).length > 0;
+
+    if (!checklistsData || !hasDashboardScores) {
+        return <div className="p-4 text-center text-muted-foreground">
+            {!checklistsData ? "Loading checklist data..." : "Calculating dashboard scores..."}
+        </div>;
     }
+
+    const overallScore = calculateOverallScore(dashboardScores);
+    const dataCoverageScoreData = dashboardScores[DashboardScoreCategory.LISTING_COMPLETENESS];
+    const dataCoverageScoreValue = dataCoverageScoreData?.score?.scoreValue ?? null;
 
     const categoryOrder: DashboardScoreCategory[] = [
         DashboardScoreCategory.RUNNING_COSTS,
@@ -123,85 +131,119 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         DashboardScoreCategory.LISTING_COMPLETENESS,
     ];
 
+    // Define tooltip content
+    const overallScoreTooltip = (
+        <p>Average score across Running Costs, Investment Value, Connectivity, Condition, Environment Risk, and Legal Constraints.</p>
+    );
+    const dataCoverageTooltip = (
+        <>
+            <p>Score reflects completeness of standard listing information found.</p>
+            <p className="mt-1">Additional premium data points (e.g., planning history, crime details) are available.</p>
+        </>
+    );
+
     return (
-        <div className="dashboard-view space-y-2">
-            {categoryOrder.map((category) => {
-                const categoryScoreData = dashboardScores[category];
-                const title = getCategoryDisplayName(category);
-                const IconComponent = categoryIcons[category];
-
-                // Determine if the color scale should be inverted for this category
-                const invertColorScale =
-                    category === DashboardScoreCategory.RUNNING_COSTS ||
-                    category === DashboardScoreCategory.ENVIRONMENT_RISK ||
-                    category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
-
-                return (
-                    <DashboardScoreItem
-                        key={category}
-                        title={title}
-                        categoryScoreData={categoryScoreData}
-                        invertColorScale={invertColorScale}
-                        icon={IconComponent}
-                        isPremiumDataFetched={isPremiumDataFetched}
-                        upgradeUrl={upgradeUrl}
-                        epcData={processedEpcResult ?? undefined}
-                        epcDebugCanvasRef={epcDebugCanvasRef}
-                        isEpcDebugModeOn={isEpcDebugModeOn}
-                        getValueClickHandler={getValueClickHandler}
-                        openNewTab={openNewTab}
-                        toggleCrimeChart={toggleCrimeChart}
-                        togglePlanningPermissionCard={togglePlanningPermissionCard}
-                        toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                        handleEpcValueChange={handleEpcValueChange}
-                        // Pass down query data and expansion state/refs
-                        crimeQuery={crimeQuery}
-                        premiumStreetDataQuery={premiumStreetDataQuery}
-                        crimeChartExpanded={crimeChartExpanded}
-                        crimeContentRef={crimeContentRef}
-                        crimeContentHeight={crimeContentHeight}
-                        planningPermissionCardExpanded={planningPermissionCardExpanded}
-                        planningPermissionContentRef={planningPermissionContentRef}
-                        planningPermissionContentHeight={planningPermissionContentHeight}
-                        nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                        nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                        nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                        onOpenUpsellModal={onTriggerPremiumFlow}
+        <TooltipProvider delayDuration={300}>
+            <div className="dashboard-view space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                    <DashboardTile
+                        title="Overall Score"
+                        scoreValue={overallScore}
+                        tooltipContent={overallScoreTooltip}
                     />
-                );
-            })}
-            {premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
-                <Suspense fallback={<LoadingSpinner />}>
-                    <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
-                        <div ref={planningPermissionContentRef}>
-                            <LazyPlanningPermissionCard
-                                planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                                isLoading={premiumStreetDataQuery.isLoading}
-                                displayMode="property"
-                            />
-                        </div>
-                    </div>
-                </Suspense>
-            )}
-            {premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
-                <Suspense fallback={<LoadingSpinner />}>
-                    <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
-                        <div ref={nearbyPlanningPermissionContentRef}>
-                            <LazyPlanningPermissionCard
-                                planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
-                                isLoading={premiumStreetDataQuery.isLoading}
-                                displayMode="nearby"
-                            />
-                        </div>
-                    </div>
-                </Suspense>
-            )}
+                    <DashboardTile
+                        title="Data Coverage"
+                        scoreValue={dataCoverageScoreValue}
+                        tooltipContent={dataCoverageTooltip}
+                    />
+                </div>
 
-            {Object.keys(dashboardScores).length === 0 && !checklistsData && (
-                <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
-            )}
-        </div>
+                <div>
+                    {categoryOrder.map((category) => {
+                        const categoryScoreData = dashboardScores[category];
+                        if (!categoryScoreData) {
+                            console.warn(`DashboardView: Missing score data for category: ${category}`);
+                            return null;
+                        }
+                        if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
+                            return null;
+                        }
+                        const title = getCategoryDisplayName(category);
+                        const IconComponent = categoryIcons[category];
+
+                        const invertColorScale =
+                            category === DashboardScoreCategory.RUNNING_COSTS ||
+                            category === DashboardScoreCategory.ENVIRONMENT_RISK ||
+                            category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
+
+                        return (
+                            <DashboardScoreItem
+                                key={category}
+                                title={title}
+                                categoryScoreData={categoryScoreData}
+                                invertColorScale={invertColorScale}
+                                icon={IconComponent}
+                                isPremiumDataFetched={isPremiumDataFetched}
+                                upgradeUrl={upgradeUrl}
+                                epcData={processedEpcResult ?? undefined}
+                                epcDebugCanvasRef={epcDebugCanvasRef}
+                                isEpcDebugModeOn={isEpcDebugModeOn}
+                                getValueClickHandler={getValueClickHandler}
+                                openNewTab={openNewTab}
+                                toggleCrimeChart={toggleCrimeChart}
+                                togglePlanningPermissionCard={togglePlanningPermissionCard}
+                                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                                handleEpcValueChange={handleEpcValueChange}
+                                crimeQuery={crimeQuery}
+                                premiumStreetDataQuery={premiumStreetDataQuery}
+                                crimeChartExpanded={crimeChartExpanded}
+                                crimeContentRef={crimeContentRef}
+                                crimeContentHeight={crimeContentHeight}
+                                planningPermissionCardExpanded={planningPermissionCardExpanded}
+                                planningPermissionContentRef={planningPermissionContentRef}
+                                planningPermissionContentHeight={planningPermissionContentHeight}
+                                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+                                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+                                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                                onOpenUpsellModal={onTriggerPremiumFlow}
+                            />
+                        );
+                    })}
+                </div>
+
+                {premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
+                            <div ref={planningPermissionContentRef}>
+                                <LazyPlanningPermissionCard
+                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                    isLoading={premiumStreetDataQuery.isLoading}
+                                    displayMode="property"
+                                />
+                            </div>
+                        </div>
+                    </Suspense>
+                )}
+                {premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                    <Suspense fallback={<LoadingSpinner />}>
+                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
+                            <div ref={nearbyPlanningPermissionContentRef}>
+                                <LazyPlanningPermissionCard
+                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
+                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                    isLoading={premiumStreetDataQuery.isLoading}
+                                    displayMode="nearby"
+                                />
+                            </div>
+                        </div>
+                    </Suspense>
+                )}
+
+                {Object.keys(dashboardScores).length === 0 && checklistsData && (
+                    <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
+                )}
+            </div>
+        </TooltipProvider>
     );
 }; 

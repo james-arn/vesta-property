@@ -89,7 +89,7 @@ const calculateCombinedConnectivityScore = (
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.POOR) {
     scoreLabel = "Poorly Connected";
   } else if (combinedScoreValue >= CONNECTIVITY_SCORE_THRESHOLDS.VERY_POOR) {
-    scoreLabel = "Very Poor";
+    scoreLabel = "Very Poorly Connected";
   } else {
     scoreLabel = "Extremely Poor";
   }
