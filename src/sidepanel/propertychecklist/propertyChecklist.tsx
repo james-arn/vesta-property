@@ -85,7 +85,7 @@ export function generatePropertyChecklist(
     label: "EPC Rating",
     key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
-    dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
+    dashboardGroup: DashboardScoreCategory.COST_EFFICIENCY,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
     isExpectedInListing: true,

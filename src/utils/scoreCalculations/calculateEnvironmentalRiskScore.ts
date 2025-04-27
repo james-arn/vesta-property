@@ -23,15 +23,15 @@ import {
 } from "./helpers/environmentalProcessingHelpers";
 
 const RISK_THRESHOLDS = [
-  { threshold: 65, label: "High Risk" },
-  { threshold: 50, label: "Medium-High Risk" },
-  { threshold: 35, label: "Medium Risk" },
-  { threshold: 20, label: "Low-Medium Risk" },
-  { threshold: 0, label: "Low Risk" },
+  { threshold: 80, label: "Low Risk" }, // Corresponds to inverted score >= 80
+  { threshold: 65, label: "Low-Medium Risk" }, // Corresponds to inverted score >= 65
+  { threshold: 50, label: "Medium Risk" }, // Corresponds to inverted score >= 50
+  { threshold: 35, label: "Medium-High Risk" }, // Corresponds to inverted score >= 35
+  { threshold: 0, label: "High Risk" }, // Corresponds to inverted score >= 0
 ];
 
-const getEnvironmentalRiskLabel = (riskScore: number): string => {
-  const matchedThreshold = RISK_THRESHOLDS.find(({ threshold }) => riskScore >= threshold);
+const getEnvironmentalRiskLabel = (invertedScore: number): string => {
+  const matchedThreshold = RISK_THRESHOLDS.find(({ threshold }) => invertedScore >= threshold);
   return matchedThreshold?.label || "Low Risk"; // Default to low risk
 };
 
@@ -102,13 +102,18 @@ export const calculateEnvironmentalRiskScore = (
   let scoreLabel = "Data Missing"; // Default label if uncalculated
 
   if (calculationStatus === CALCULATED_STATUS.CALCULATED) {
-    const normalizedScore = (totalWeightedScore / maxPossibleWeightedScore) * 100;
-    const finalScoreValue = Math.max(0, Math.min(100, Math.round(normalizedScore)));
+    const normalizedRiskScore = (totalWeightedScore / maxPossibleWeightedScore) * 100;
+    // Invert the score: Higher safety (lower risk) gets a higher score.
+    const invertedScoreValue = MAX_SCORE - normalizedRiskScore;
+    const finalScoreValue = Math.max(0, Math.min(100, Math.round(invertedScoreValue)));
+
+    // Use the inverted score to get the label
     scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
+
     finalScore = {
-      scoreValue: finalScoreValue,
+      scoreValue: finalScoreValue, // Return the inverted score (high = good)
       maxScore: MAX_SCORE,
-      scoreLabel: scoreLabel,
+      scoreLabel: scoreLabel, // Label still describes risk level
     };
     if (finalScoreValue === 0 && allWarnings.length === 0) {
       // Add warning if score is 0 but no specific factor warnings exist

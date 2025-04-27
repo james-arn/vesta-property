@@ -22,7 +22,7 @@ import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
 import {
   calculateGroundRentCostScore,
   calculateServiceChargeCostScore,
-} from "./helpers/runningCostHelpers";
+} from "./helpers/costEfficiencyHelpers";
 import { calculateEpcScoreValue } from "./scoreCalculationHelpers";
 
 // Helper specific to council tax calculation (remains local)
@@ -44,11 +44,11 @@ const mapCouncilTaxToScore = (band?: string | null): number => {
     : defaultScore;
 };
 
-export const calculateRunningCostsScore = (
+export const calculateCostEfficiencyScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
 ): CategoryScoreData => {
-  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
+  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.COST_EFFICIENCY] || [];
   const contributingItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
   );
@@ -127,16 +127,19 @@ export const calculateRunningCostsScore = (
     groundRentCostScore * RUNNING_COSTS_WEIGHTS.GROUND_RENT +
     serviceChargeCostScore * RUNNING_COSTS_WEIGHTS.SERVICE_CHARGE;
 
-  const finalScoreValue = Math.max(0, Math.min(MAX_SCORE, Math.round(totalCostScore)));
+  // Invert the score: Higher efficiency (lower cost) gets a higher score.
+  const invertedScore = MAX_SCORE - totalCostScore;
+  const finalScoreValue = Math.max(0, Math.min(MAX_SCORE, Math.round(invertedScore)));
 
-  const getRunningCostScoreLabel = (costScore: number): string => {
-    if (costScore >= 70) return "Very High Cost";
-    if (costScore >= 55) return "High Cost";
-    if (costScore >= 40) return "Medium Cost";
-    if (costScore >= 25) return "Low-Medium Cost";
-    return "Low Cost";
+  // Adjust label generation to reflect efficiency based on the inverted score
+  const getCostEfficiencyScoreLabel = (efficiencyScore: number): string => {
+    if (efficiencyScore >= 75) return "High Efficiency"; // Corresponds to Low Cost
+    if (efficiencyScore >= 60) return "Good Efficiency"; // Corresponds to Low-Medium Cost
+    if (efficiencyScore >= 45) return "Average Efficiency"; // Corresponds to Medium Cost
+    if (efficiencyScore >= 30) return "Poor Efficiency"; // Corresponds to High Cost
+    return "Very Poor Efficiency"; // Corresponds to Very High Cost
   };
-  const scoreLabel = getRunningCostScoreLabel(finalScoreValue);
+  const scoreLabel = getCostEfficiencyScoreLabel(finalScoreValue);
 
   if (councilTaxItem?.status === DataStatus.ASK_AGENT) {
     warnings.push("Council Tax band missing, score uses estimate.");

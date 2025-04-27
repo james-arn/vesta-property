@@ -66,7 +66,7 @@ interface DashboardViewProps {
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
-    [DashboardScoreCategory.RUNNING_COSTS]: PoundSterling,
+    [DashboardScoreCategory.COST_EFFICIENCY]: PoundSterling,
     [DashboardScoreCategory.INVESTMENT_VALUE]: TrendingUp,
     [DashboardScoreCategory.CONNECTIVITY]: Network,
     [DashboardScoreCategory.CONDITION]: Home,
@@ -116,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const dataCoverageScoreValue = dataCoverageScoreData?.score?.scoreValue ?? null;
 
     const categoryOrder: DashboardScoreCategory[] = [
-        DashboardScoreCategory.RUNNING_COSTS,
+        DashboardScoreCategory.COST_EFFICIENCY,
         DashboardScoreCategory.INVESTMENT_VALUE,
         DashboardScoreCategory.CONNECTIVITY,
         DashboardScoreCategory.CONDITION,
@@ -164,10 +164,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         const title = getCategoryDisplayName(category);
                         const IconComponent = categoryIcons[category];
 
-                        const invertColorScale =
-                            category === DashboardScoreCategory.RUNNING_COSTS ||
-                            category === DashboardScoreCategory.ENVIRONMENT_RISK ||
-                            category === DashboardScoreCategory.LEGAL_CONSTRAINTS;
+                        // All scores now follow high = good principle, no need to invert colours.
+                        const invertColorScale = false;
 
                         return (
                             <Suspense fallback={<LoadingSpinner />} key={category}>

@@ -16,7 +16,7 @@ import calculateConnectivityScore from "./calculateConnectivityScore";
 import { calculateEnvironmentalRiskScore } from "./calculateEnvironmentalRiskScore";
 import { calculateInvestmentValueScore } from "./calculateInvestmentValueScore";
 import { calculateLegalConstraintsScore } from "./calculateLegalConstraintsScore";
-import { calculateRunningCostsScore } from "./calculateRunningCostsScore";
+import { calculateCostEfficiencyScore } from "./calculateRunningCostsScore";
 
 // Define a new return type
 export interface CalculatedDashboardResult {
@@ -68,9 +68,9 @@ export const calculateDashboardScores = (
   const categoryScores: DashboardScores = {};
 
   // Calculate score for each category
-  const runningCostsData = calculateRunningCostsScore(items, preprocessedData);
+  const runningCostsData = calculateCostEfficiencyScore(items, preprocessedData);
   if (runningCostsData) {
-    categoryScores[DashboardScoreCategory.RUNNING_COSTS] = runningCostsData;
+    categoryScores[DashboardScoreCategory.COST_EFFICIENCY] = runningCostsData;
   }
 
   const investmentData = calculateInvestmentValueScore(items, preprocessedData);
