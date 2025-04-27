@@ -18,9 +18,6 @@ import React, { lazy, Suspense } from 'react';
 import { FaExclamationTriangle } from "react-icons/fa";
 import { ScoreVisualisation } from './ScoreVisualisation';
 
-
-
-// Lazy load components needed for expansion
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
