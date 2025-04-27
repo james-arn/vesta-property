@@ -74,22 +74,28 @@ export const usePreprocessedPropertyData = ({
   const preprocessedDataError = (epcError as Error | null) || premiumError;
 
   // --- Determine Final EPC Values ---
+  const initialEpcValue = propertyData?.epc?.value;
+  const initialEpcConfidence = propertyData?.epc?.confidence;
+  const initialEpcSource = propertyData?.epc?.source;
+
   const { finalEpcValue, finalEpcConfidence, finalEpcSource, epcScoreForCalculation } =
     useMemo(() => {
-      const currentEpcResult = processedEpcResult;
-      const userProvidedValue: string | null | undefined = initialEpcData?.value;
-      const userProvidedConfidence: Confidence | undefined = initialEpcData?.confidence;
-
-      if (isEpcProcessing || !currentEpcResult) {
+      // --- Prioritize User Override ---
+      if (initialEpcConfidence === ConfidenceLevels.USER_PROVIDED && initialEpcValue) {
+        const score = mapGradeToScore(initialEpcValue);
         return {
-          finalEpcValue: null,
-          finalEpcConfidence: initialEpcData?.confidence ?? ConfidenceLevels.NONE,
-          finalEpcSource: initialEpcData?.source ?? null,
-          epcScoreForCalculation: null,
+          finalEpcValue: initialEpcValue,
+          finalEpcConfidence: ConfidenceLevels.USER_PROVIDED,
+          finalEpcSource: initialEpcSource ?? EpcDataSourceType.NONE,
+          epcScoreForCalculation: score,
         };
       }
 
-      if (isEpcError || currentEpcResult.error) {
+      // --- If no user override, proceed with automated processing result ---
+      const automatedResult = processedEpcResult;
+
+      // --- Handle Loading State ---
+      if (isEpcProcessing || !automatedResult) {
         return {
           finalEpcValue: null,
           finalEpcConfidence: ConfidenceLevels.NONE,
@@ -98,27 +104,28 @@ export const usePreprocessedPropertyData = ({
         };
       }
 
-      const shouldUseUserValue: boolean =
-        (userProvidedConfidence === ConfidenceLevels.USER_PROVIDED && !!userProvidedValue) ||
-        (currentEpcResult &&
-          currentEpcResult.confidence !== ConfidenceLevels.HIGH &&
-          !!userProvidedValue);
+      // --- Handle Error State ---
+      if (isEpcError || automatedResult.error) {
+        return {
+          finalEpcValue: null,
+          finalEpcConfidence: ConfidenceLevels.NONE,
+          finalEpcSource: null,
+          epcScoreForCalculation: null,
+        };
+      }
 
-      const value: string | null = shouldUseUserValue
-        ? userProvidedValue!
-        : (currentEpcResult?.value ?? null);
-      const confidence: Confidence = shouldUseUserValue
-        ? ConfidenceLevels.USER_PROVIDED
-        : (currentEpcResult?.confidence ?? ConfidenceLevels.NONE);
-      const source: EpcDataSourceType | null = shouldUseUserValue
-        ? (initialEpcData?.source ?? null)
-        : (currentEpcResult?.source ?? null);
+      // --- Process Successful Automated Result ---
+      const value: string | null = automatedResult?.value ?? null;
+      const confidence: Confidence = automatedResult?.confidence ?? ConfidenceLevels.NONE;
+      const source: EpcDataSourceType | null = automatedResult?.source ?? null;
 
+      // Determine the score, preferring the score calculated during processing if available
       let score: number | null = null;
-      if (shouldUseUserValue) {
-        score = mapGradeToScore(userProvidedValue ?? null);
-      } else if (currentEpcResult?.scores && "currentBand" in currentEpcResult.scores) {
-        const bandResult = currentEpcResult.scores as EpcBandResult;
+      if (
+        automatedResult?.automatedProcessingResult &&
+        "currentBand" in automatedResult.automatedProcessingResult
+      ) {
+        const bandResult = automatedResult.automatedProcessingResult as EpcBandResult;
         score = bandResult.currentBand?.score ?? null;
         if (score === null) {
           console.warn(
@@ -127,11 +134,14 @@ export const usePreprocessedPropertyData = ({
           );
           score = mapGradeToScore(value);
         }
-      } else if (currentEpcResult?.scores && "currentEpcRating" in currentEpcResult.scores) {
-        const extractedResult = currentEpcResult.scores;
+      } else if (
+        automatedResult?.automatedProcessingResult &&
+        "currentEpcRating" in automatedResult.automatedProcessingResult
+      ) {
+        const extractedResult = automatedResult.automatedProcessingResult;
         score = mapGradeToScore(extractedResult.currentEpcRating);
       } else {
-        score = mapGradeToScore(currentEpcResult?.value ?? null);
+        score = mapGradeToScore(value);
       }
 
       return {
@@ -140,7 +150,14 @@ export const usePreprocessedPropertyData = ({
         finalEpcSource: source,
         epcScoreForCalculation: score,
       };
-    }, [processedEpcResult, initialEpcData, isEpcProcessing, isEpcError]);
+    }, [
+      initialEpcValue,
+      initialEpcConfidence,
+      initialEpcSource,
+      processedEpcResult,
+      isEpcProcessing,
+      isEpcError,
+    ]);
 
   const nearbySchoolsScoreValue = useMemo(() => {
     return calculateNearbySchoolsScoreValue(propertyData?.nearbySchools);

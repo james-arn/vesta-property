@@ -21,7 +21,7 @@ export interface EpcProcessorResult extends EpcData {
 export const INITIAL_EPC_RESULT_STATE: EpcProcessorResult = {
   url: null,
   displayUrl: null,
-  scores: null,
+  automatedProcessingResult: null,
   value: null,
   confidence: ConfidenceLevels.NONE,
   source: EpcDataSourceType.NONE,
@@ -218,7 +218,7 @@ const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult>
         url: processingUrl,
         isLoading: false,
         status: extractedEpcValue ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
-        scores: extractedData,
+        automatedProcessingResult: extractedData,
         value: extractedEpcValue,
         confidence: extractedEpcValue ? ConfidenceLevels.HIGH : ConfidenceLevels.NONE,
         source: extractedEpcValue ? EpcDataSourceType.PDF : EpcDataSourceType.NONE, // Source is PDF if value found
@@ -288,7 +288,7 @@ const processImageUrl = async (
           : hasBands
             ? DataStatus.FOUND_POSITIVE
             : DataStatus.ASK_AGENT,
-        scores: result,
+        automatedProcessingResult: result,
         value: extractedEpcValue,
         confidence: result.error
           ? ConfidenceLevels.NONE

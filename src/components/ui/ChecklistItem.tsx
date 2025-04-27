@@ -1,4 +1,3 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
@@ -9,6 +8,7 @@ import { isClickableItemKey } from "@/types/clickableChecklist";
 import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React, { useState } from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUnlock, FaUserEdit } from "react-icons/fa";
+import { EpcChecklistItem } from "./EpcChecklistItem";
 
 export interface ChecklistItemProps {
     item: PropertyDataListItem;
@@ -59,7 +59,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const isEpcItem = key === CHECKLIST_KEYS.EPC;
 
     const isLocked = isUnlockedWithPremium && !isPremiumDataFetched;
-    // Determine if the initial value is meaningful using the constant
+    // Determine if the initial value is meaningless using the constant
     const valueIsMeaningless = !item.value ||
         (typeof item.value === 'string' && (Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value));
     // Show boost only if boostable, not locked, and the initial value is meaningless
@@ -77,26 +77,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
     const isWarning = displayStatus === DataStatus.ASK_AGENT && !isLocked;
-
-    const renderConfidenceIcon = () => {
-        if (!isEpcItem || !epcData || !epcData.confidence || epcData.confidence === ConfidenceLevels.NONE) {
-            return null;
-        }
-        const ConfidenceIcon = confidenceIcons[epcData.confidence];
-        let iconColor = 'text-gray-400'; // Default
-        if (epcData.confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
-        if (epcData.confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
-        if (epcData.confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
-
-        const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== ConfidenceLevels.HIGH &&
-            epcData.confidence !== ConfidenceLevels.USER_PROVIDED &&
-            isImageSourceWithUrl)
-            ? '. Please double check against the EPC image and correct if necessary'
-            : ''
-            }`;
-
-        return ConfidenceIcon ? <ConfidenceIcon className={`ml-2 w-3 h-3 ${iconColor}`} title={tooltipText} /> : null;
-    };
 
     const renderValue = () => {
         const isClickable = isClickableItemKey(key)
@@ -192,41 +172,13 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         if (isEpcItem) {
-            const canEditEpc = onEpcChange && epcData &&
-                epcData.confidence !== ConfidenceLevels.HIGH &&
-                epcData.confidence !== ConfidenceLevels.USER_PROVIDED;
-
-            const epcValueToDisplay = epcData?.value ?? value ?? "N/A";
-
-            if (canEditEpc && !epcData.isLoading) {
-                return (
-                    <div className="flex items-center">
-                        <Select onValueChange={onEpcChange} defaultValue={epcData?.value ?? undefined}>
-                            <SelectTrigger className="h-7 text-xs px-2 w-[60px]">
-                                <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {EPC_RATINGS.map(rating => (
-                                    <SelectItem key={rating} value={rating} className="text-xs">
-                                        {rating}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {renderConfidenceIcon()}
-                    </div>
-                );
-            }
-
-            // Non-editable EPC display - No onClick needed
             return (
-                <span
-                    className={`flex items-center`}
-                    style={{ display: 'inline-flex' }}
-                >
-                    {epcValueToDisplay}
-                    {renderConfidenceIcon()}
-                </span>
+                <EpcChecklistItem
+                    epcData={epcData}
+                    onEpcChange={onEpcChange}
+                    fallbackValue={value}
+                    isImageSourceWithUrl={isImageSourceWithUrl}
+                />
             );
         }
 

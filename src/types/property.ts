@@ -57,6 +57,7 @@ export const EpcDataSourceType = {
   PDF: "PDF",
   IMAGE: "Image",
   NONE: "None",
+  USER_PROVIDED: "UserProvided",
 } as const;
 
 export type EpcDataSourceType = (typeof EpcDataSourceType)[keyof typeof EpcDataSourceType];
@@ -64,8 +65,14 @@ export type EpcDataSourceType = (typeof EpcDataSourceType)[keyof typeof EpcDataS
 export interface EpcData {
   url: string | null;
   displayUrl?: string | null;
-  scores: EpcBandResult | ExtractedEpcData | null;
-  value: string | null;
+  /**
+   * Stores the detailed results from the automated EPC detection process
+   * (e.g., from image analysis or PDF extraction). This is the raw output
+   * and might include extracted ratings, confidence from that process, etc.
+   * It is preserved even if the user manually overrides the `value`.
+   */
+  automatedProcessingResult: EpcBandResult | ExtractedEpcData | null;
+  value: string | null; // The final EPC rating (A-G), potentially user-provided
   confidence: Confidence;
   source: EpcDataSourceType;
   error?: string | null;

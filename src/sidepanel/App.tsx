@@ -2,7 +2,6 @@ import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { ActionEvents } from '@/constants/actionEvents';
-import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import VIEWS from '@/constants/views';
 import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
@@ -15,11 +14,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ConfidenceLevels,
+  EpcData,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
   PropertyDataListItem
 } from "../types/property";
 
+import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
 import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
@@ -211,6 +212,15 @@ const App: React.FC = () => {
     dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: updatedEpcPayload });
 
     if (propertyData.propertyId) {
+      const updatedEpcData: EpcData = {
+        value: newValue,
+        confidence: ConfidenceLevels.USER_PROVIDED,
+        source: EpcDataSourceType.USER_PROVIDED,
+        url: null,
+        displayUrl: null,
+        automatedProcessingResult: null,
+        error: null,
+      }
       queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
         [REACT_QUERY_KEYS.PROPERTY_DATA, propertyData.propertyId],
         (oldData) => {
@@ -220,16 +230,7 @@ const App: React.FC = () => {
           }
           return {
             ...oldData,
-            epc: {
-              ...oldData.epc,
-              value: newValue,
-              confidence: ConfidenceLevels.USER_PROVIDED,
-              source: oldData.epc?.source ?? EpcDataSourceType.NONE,
-              url: oldData.epc?.url ?? null,
-              displayUrl: oldData.epc?.displayUrl ?? null,
-              scores: oldData.epc?.scores ?? null,
-              error: oldData.epc?.error ?? null,
-            }
+            epc: updatedEpcData,
           };
         }
       );

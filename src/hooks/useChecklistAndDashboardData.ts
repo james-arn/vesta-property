@@ -13,7 +13,7 @@ import {
   CalculatedDashboardResult as CalculationResultType,
 } from "@/utils/scoreCalculations";
 import { UseQueryResult } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePreprocessedPropertyData } from "./usePreprocessedPropertyData";
 
 export interface UseChecklistAndDashboardDataArgs {
@@ -56,15 +56,22 @@ export const useChecklistAndDashboardData = ({
     return generatePropertyChecklist(propertyData, crimeScoreQuery, preprocessedData);
   }, [propertyData, crimeScoreQuery, preprocessedData]);
 
-  const calculationResult = useMemo((): CalculationResultType | null => {
-    if (preprocessedData.isPreprocessedDataLoading || preprocessedData.preprocessedDataError)
-      return null;
-    return calculateDashboardScores(propertyChecklistData, preprocessedData);
-  }, [propertyChecklistData, preprocessedData]);
+  const [calculationResultState, setCalculationResultState] =
+    useState<CalculationResultType | null>(null);
 
-  const categoryScores = calculationResult?.categoryScores ?? {};
-  const overallScore = calculationResult?.overallScore ?? null;
-  const dataCoverageScoreData = calculationResult?.dataCoverageScoreData;
+  useEffect(() => {
+    if (preprocessedData.isPreprocessedDataLoading || preprocessedData.preprocessedDataError) {
+      setCalculationResultState(null);
+      return;
+    }
+
+    const result = calculateDashboardScores(propertyChecklistData, preprocessedData);
+    setCalculationResultState(result);
+  }, [preprocessedData]);
+
+  const categoryScores = calculationResultState?.categoryScores ?? {};
+  const overallScore = calculationResultState?.overallScore ?? null;
+  const dataCoverageScoreData = calculationResultState?.dataCoverageScoreData;
 
   return {
     propertyChecklistData,

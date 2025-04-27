@@ -63,7 +63,7 @@ export async function extractPropertyDataFromDOM(
 
   const epcData: EpcData = {
     url: epcUrl,
-    scores: null,
+    automatedProcessingResult: null,
     value: initialEpcValue,
     confidence: initialEpcConfidence,
     source: initialSource,

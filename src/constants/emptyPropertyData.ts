@@ -24,7 +24,7 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
   garden: null,
   epc: {
     url: null,
-    scores: null,
+    automatedProcessingResult: null,
     value: null,
     confidence: ConfidenceLevels.NONE,
     source: EpcDataSourceType.NONE,

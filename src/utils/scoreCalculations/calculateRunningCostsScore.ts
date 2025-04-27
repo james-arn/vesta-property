@@ -54,7 +54,6 @@ export const calculateRunningCostsScore = (
   );
 
   const councilTaxItem = findItemByKey(items, CHECKLIST_KEYS.COUNCIL_TAX);
-  const epcItem = findItemByKey(items, CHECKLIST_KEYS.EPC);
   const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);
   const groundRentItem = findItemByKey(items, CHECKLIST_KEYS.GROUND_RENT);
   const serviceChargeItem = findItemByKey(items, CHECKLIST_KEYS.SERVICE_CHARGE);

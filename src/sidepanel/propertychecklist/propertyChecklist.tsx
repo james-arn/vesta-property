@@ -90,8 +90,8 @@ export function generatePropertyChecklist(
     isBoostedWithPremium: true,
     isExpectedInListing: true,
     epcBandData:
-      processedEpcResult?.scores && 'currentBand' in processedEpcResult.scores
-        ? processedEpcResult.scores as EpcBandResult
+      processedEpcResult?.automatedProcessingResult && 'currentBand' in processedEpcResult.automatedProcessingResult
+        ? processedEpcResult.automatedProcessingResult as EpcBandResult
         : undefined,
   };
   let epcChecklistItem: PropertyDataListItem;
