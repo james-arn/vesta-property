@@ -1,8 +1,5 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import {
-  CALCULATED_STATUS,
-  DashboardScoreCategory,
-} from "@/constants/dashboardScoreCategoryConsts";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import {
   CategoryScoreData,
   DashboardScores,
@@ -13,47 +10,17 @@ import { findItemByKey, getItemValue } from "../parsingHelpers";
 import { calculateCompletenessScore } from "./calculateCompletenessScore";
 import { calculateConditionScore } from "./calculateConditionScore";
 import calculateConnectivityScore from "./calculateConnectivityScore";
+import { calculateCostEfficiencyScore } from "./calculateCostEfficiencyScore";
 import { calculateEnvironmentalRiskScore } from "./calculateEnvironmentalRiskScore";
 import { calculateInvestmentValueScore } from "./calculateInvestmentValueScore";
 import { calculateLegalConstraintsScore } from "./calculateLegalConstraintsScore";
-import { calculateCostEfficiencyScore } from "./calculateRunningCostsScore";
+import calculateOverallScore from "./helpers/calculateOverallScore";
 
-// Define a new return type
 export interface CalculatedDashboardResult {
   categoryScores: DashboardScores;
   overallScore: number | null;
   dataCoverageScoreData: CategoryScoreData | undefined;
 }
-
-/**
- * Calculates the overall property score by averaging the scores of relevant categories.
- * Excludes the LISTING_COMPLETENESS category.
- * Moved from dashboardHelpers.ts
- * @param scores - The dashboard scores object.
- * @returns The calculated overall score (0-100) or null if no relevant scores are available.
- */
-const calculateOverallScore = (scores: DashboardScores): number | null => {
-  const relevantScores = Object.entries(scores)
-    // Filter using constant
-    .filter(
-      ([key, data]) =>
-        key !== DashboardScoreCategory.LISTING_COMPLETENESS &&
-        data?.calculationStatus === CALCULATED_STATUS.CALCULATED && // Use constant
-        data.score !== null
-    )
-    // Map to the scoreValue, handling potential nulls within the score object
-    .map(([, data]): number | null => data.score!.scoreValue ?? null)
-    // Filter out null or NaN score values
-    .filter((scoreValue): scoreValue is number => scoreValue !== null && !isNaN(scoreValue));
-
-  if (relevantScores.length === 0) {
-    // Return null if no categories were successfully calculated
-    return null;
-  }
-
-  const sum = relevantScores.reduce((acc, scoreValue) => acc + scoreValue, 0);
-  return Math.round(sum / relevantScores.length);
-};
 
 /**
  * Calculates all dashboard category scores and the overall score based on the property checklist items and preprocessed data.
