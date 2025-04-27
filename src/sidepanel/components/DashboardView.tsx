@@ -1,8 +1,5 @@
 import React, { lazy, Suspense } from 'react';
 // Correct import path and type
-import { CategoryScoreData, DashboardScores, PropertyDataListItem } from '@/types/property';
-// Placeholder imports - uncomment later
-// import { calculateDashboardScores } from '../helpers/dashboardHelpers';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import {
     TooltipProvider,
@@ -13,6 +10,7 @@ import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import { CategoryScoreData, DashboardScores, PropertyDataListItem } from '@/types/property';
 import { UseQueryResult } from '@tanstack/react-query';
 import {
     Home,

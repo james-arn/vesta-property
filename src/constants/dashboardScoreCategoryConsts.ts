@@ -96,3 +96,12 @@ export const DASHBOARD_CATEGORY_DISPLAY_NAMES: Record<DashboardScoreCategory, st
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: "Legal Constraints",
   [DashboardScoreCategory.LISTING_COMPLETENESS]: "Listing Completeness",
 };
+
+export const CALCULATED_STATUS = {
+  CALCULATED: "CALCULATED",
+  UNCALCULATED_MISSING_DATA: "UNCALCULATED_MISSING_DATA",
+  NOT_APPLICABLE: "NOT_APPLICABLE",
+} as const;
+
+export const DISABLED_BAR_BACKGROUND =
+  "repeating-linear-gradient(135deg, hsl(var(--muted)), hsl(var(--muted)) 4px, hsl(var(--muted-foreground)/0.5) 4px, hsl(var(--muted-foreground)/0.5) 8px)";

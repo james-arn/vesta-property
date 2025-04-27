@@ -94,11 +94,11 @@ export const mapAgeBandToModifier = (ageBand: string | undefined): number => {
  * @returns A descriptive string label.
  */
 export const getConditionScoreLabel = (score: number): string => {
-  if (score >= 80) return "Very good condition";
-  if (score >= 65) return "Good condition";
-  if (score >= 45) return "Average condition";
-  if (score >= 30) return "Poor condition";
-  return "Very poor condition";
+  if (score >= 80) return "Very Good Condition";
+  if (score >= 65) return "Good Condition";
+  if (score >= 45) return "Average Condition";
+  if (score >= 30) return "Poor Condition";
+  return "Very Poor Condition";
 };
 
 /**

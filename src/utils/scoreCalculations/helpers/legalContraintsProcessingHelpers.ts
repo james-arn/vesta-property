@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { LEGAL_CONSTRAINT_POINTS } from "@/constants/scoreConstants";
 import { DataStatus, PropertyDataListItem } from "@/types/property";
 
@@ -33,4 +34,18 @@ export const calculateLegalPointsForNegativeStatus = (
 ): number => {
   // Only add points if the status indicates a negative finding (e.g., constraint found)
   return item?.status === DataStatus.FOUND_NEGATIVE ? pointsIfNegative : 0;
+};
+
+export const isDataMissing = (item: PropertyDataListItem | undefined): boolean => {
+  if (!item || item.status === DataStatus.IS_LOADING) {
+    return true; // Undefined item or still loading is definitely missing data
+  }
+  if (
+    typeof item.value === "string" &&
+    Object.values(CHECKLIST_NO_VALUE).includes(item.value as any)
+  ) {
+    return true;
+  }
+  // Otherwise, assume data is present (even if status is ASK_AGENT or NOT_APPLICABLE - handled by specific logic)
+  return false;
 };

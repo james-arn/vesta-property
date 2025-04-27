@@ -1,11 +1,13 @@
-import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
+import { CHECKLIST_KEYS, ChecklistKey } from "@/constants/checklistKeys";
 import {
+  CALCULATED_STATUS,
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
 import { LEGAL_CONSTRAINT_POINTS } from "@/constants/scoreConstants";
 import {
   CategoryScoreData,
+  DashboardScore,
   DataStatus,
   PropertyDataListItem,
   RightOfWayDetails,
@@ -15,154 +17,178 @@ import {
   calculateLegalPointsForStatus,
   calculateTenureConstraintPoints,
   getLegalConstraintsLabel,
+  isDataMissing,
 } from "./helpers/legalContraintsProcessingHelpers";
 
 interface CalculationData {
   calculatedLeaseMonths: number | null;
-  tenure: string | null; // Pass tenure for leasehold check
+  tenure: string | null;
 }
 
-const isDataMissing = (status: DataStatus | undefined): boolean => {
-  return (
-    status === undefined || status === DataStatus.ASK_AGENT || status === DataStatus.IS_LOADING
-  );
-};
+interface FactorConfig {
+  key: ChecklistKey;
+  pointsIfPositive: number;
+  warningMessage: string;
+  isApplicable?: (isLeasehold: boolean, calculationData: CalculationData) => boolean;
+  calculatePoints?: (
+    item: PropertyDataListItem | undefined,
+    calculationData: CalculationData
+  ) => number;
+}
 
 // --- Main Calculation Function ---
 export const calculateLegalConstraintsScore = (
   items: PropertyDataListItem[],
   calculationData: CalculationData
-): CategoryScoreData | undefined => {
+): CategoryScoreData => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.LEGAL_CONSTRAINTS] || [];
   const contributingItems = items.filter((item) => contributingFactorKeys.includes(item.key));
-  const warningMessages: string[] = [];
+  const MIN_SCORABLE_ITEMS = 2; // Need at least 2 factors with data to calculate
 
-  const hasLeaseData = calculationData.calculatedLeaseMonths !== null;
-  const isLeasehold = calculationData.tenure?.toLowerCase() === "leasehold";
+  const { calculatedLeaseMonths, tenure } = calculationData;
+  const isLeasehold = tenure?.toLowerCase() === "leasehold";
 
-  // Check if we can even calculate a score
-  if (contributingItems.length === 0 && (!isLeasehold || !hasLeaseData)) {
-    // If no relevant items and no applicable lease info, cannot calculate score
-    return undefined;
-  }
+  // Define all factors to process
+  const factors: FactorConfig[] = [
+    {
+      key: CHECKLIST_KEYS.TENURE,
+      pointsIfPositive: 0, // Points calculated differently
+      warningMessage: "Tenure information missing.",
+      calculatePoints: (item) => calculateTenureConstraintPoints(getItemValue(item)),
+    },
+    {
+      key: CHECKLIST_KEYS.LEASE_TERM,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.SEVERE,
+      warningMessage: "Lease term information missing.",
+      isApplicable: (isLeasehold) => isLeasehold,
+      calculatePoints: (_, calcData) =>
+        calcData.calculatedLeaseMonths !== null && calcData.calculatedLeaseMonths < 12 * 80
+          ? LEGAL_CONSTRAINT_POINTS.SEVERE
+          : 0,
+    },
+    {
+      key: CHECKLIST_KEYS.LISTED_PROPERTY,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.HIGH,
+      warningMessage: "Listed property status missing.",
+      calculatePoints: (item) => calculateLegalPointsForStatus(item, LEGAL_CONSTRAINT_POINTS.HIGH),
+    },
+    {
+      key: CHECKLIST_KEYS.RESTRICTIVE_COVENANTS,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.MEDIUM,
+      warningMessage: "Restrictive covenants status missing.",
+      calculatePoints: (item) =>
+        calculateLegalPointsForStatus(item, LEGAL_CONSTRAINT_POINTS.MEDIUM),
+    },
+    {
+      key: CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM,
+      warningMessage: "Public Right of Way status missing.",
+      calculatePoints: (item) => {
+        const details = item?.value as RightOfWayDetails | null;
+        const status = details?.exists ? DataStatus.FOUND_POSITIVE : DataStatus.FOUND_NEGATIVE;
+        return calculateLegalPointsForStatus(
+          item ? { ...item, status } : undefined,
+          LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM
+        );
+      },
+    },
+    {
+      key: CHECKLIST_KEYS.PRIVATE_RIGHT_OF_WAY,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM,
+      warningMessage: "Private Right of Way status missing.",
+      calculatePoints: (item) =>
+        calculateLegalPointsForStatus(item, LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM),
+    },
+    {
+      key: CHECKLIST_KEYS.PLANNING_PERMISSIONS,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.LOW,
+      warningMessage: "Property planning permission status missing.",
+      calculatePoints: (item) => calculateLegalPointsForStatus(item, LEGAL_CONSTRAINT_POINTS.LOW),
+    },
+    {
+      key: CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS,
+      pointsIfPositive: LEGAL_CONSTRAINT_POINTS.LOW,
+      warningMessage: "Nearby planning permission status missing.",
+      calculatePoints: (item) => calculateLegalPointsForStatus(item, LEGAL_CONSTRAINT_POINTS.LOW),
+    },
+  ];
 
-  // --- Calculate points & add warnings for each constraint factor ---
+  // Process factors using reduce
+  const initialState = { points: [] as number[], warnings: [] as string[], scorableCount: 0 };
+  const processedFactors = factors.reduce((acc, factor) => {
+    const item = findItemByKey(items, factor.key);
+    const applicable = factor.isApplicable
+      ? factor.isApplicable(isLeasehold, calculationData)
+      : true;
 
-  // 1. Tenure
-  const tenureItem = findItemByKey(items, CHECKLIST_KEYS.TENURE);
-  const tenurePoints = calculateTenureConstraintPoints(getItemValue(tenureItem));
-  if (isDataMissing(tenureItem?.status)) {
-    warningMessages.push("Tenure information missing, score may be less reliable.");
-  }
-
-  // 2. Lease Term
-  const { calculatedLeaseMonths } = calculationData;
-  let leaseTermPoints = 0;
-  if (isLeasehold) {
-    leaseTermPoints =
-      calculatedLeaseMonths !== null && calculatedLeaseMonths < 12 * 80
-        ? LEGAL_CONSTRAINT_POINTS.SEVERE
-        : 0;
-    // Check lease term warning only if property is leasehold
-    const leaseTermItem = findItemByKey(items, CHECKLIST_KEYS.LEASE_TERM);
-    if (isDataMissing(leaseTermItem?.status) && calculatedLeaseMonths === null) {
-      warningMessages.push("Lease term information missing.");
+    if (!applicable) {
+      return { ...acc, points: [...acc.points, 0] }; // Not applicable, 0 points
     }
-  }
 
-  // 3. Listed Property
-  const listedPropertyItem = findItemByKey(items, CHECKLIST_KEYS.LISTED_PROPERTY);
-  const listedPropertyPoints = calculateLegalPointsForStatus(
-    listedPropertyItem,
-    LEGAL_CONSTRAINT_POINTS.HIGH
-  );
-  if (isDataMissing(listedPropertyItem?.status)) {
-    warningMessages.push("Listed property status missing.");
-  }
+    // Use updated isDataMissing check
+    const dataIsMissing = isDataMissing(item);
 
-  // 4. Restrictive Covenants
-  const restrictiveCovenantsItem = findItemByKey(items, CHECKLIST_KEYS.RESTRICTIVE_COVENANTS);
-  const restrictiveCovenantPoints = calculateLegalPointsForStatus(
-    restrictiveCovenantsItem,
-    LEGAL_CONSTRAINT_POINTS.MEDIUM
-  );
-  if (isDataMissing(restrictiveCovenantsItem?.status)) {
-    warningMessages.push("Restrictive covenants status missing, score may be less reliable.");
-  }
+    // Specific check for lease term - consider scorable if term item OR calculated months exist
+    let factorHasData = !dataIsMissing;
+    if (factor.key === CHECKLIST_KEYS.LEASE_TERM && isLeasehold) {
+      // We consider lease term data present if the item isn't missing OR if we have the calculated months
+      factorHasData = factorHasData || calculatedLeaseMonths !== null;
+    }
 
-  // 5. Public Right of Way
-  const publicRightOfWayItem = findItemByKey(items, CHECKLIST_KEYS.PUBLIC_RIGHT_OF_WAY);
-  const publicRoWDetails = publicRightOfWayItem?.value as RightOfWayDetails | null;
-  const publicRoWStatus = publicRoWDetails?.exists
-    ? DataStatus.FOUND_POSITIVE
-    : DataStatus.FOUND_NEGATIVE;
-  const publicRightOfWayPoints = calculateLegalPointsForStatus(
-    // Use the derived status for calculation
-    publicRightOfWayItem ? { ...publicRightOfWayItem, status: publicRoWStatus } : undefined,
-    LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM
-  );
-  const publicRightOfWayItemStatus = publicRightOfWayItem?.status;
-  if (publicRightOfWayItemStatus === DataStatus.ASK_AGENT) {
-    warningMessages.push("Public Right of Way status missing, score may be less reliable.");
-  }
+    if (factorHasData) {
+      const calculatedPoints = factor.calculatePoints
+        ? factor.calculatePoints(item, calculationData)
+        : // Check item status within calculatePoints if ASK_AGENT needs specific handling
+          0;
+      return {
+        points: [...acc.points, calculatedPoints],
+        warnings: acc.warnings,
+        scorableCount: acc.scorableCount + 1,
+      };
+    } else {
+      // Data is missing for this applicable factor
+      return {
+        points: [...acc.points, 0], // Add 0 points
+        warnings: [...acc.warnings, factor.warningMessage],
+        scorableCount: acc.scorableCount,
+      };
+    }
+  }, initialState);
 
-  // 6. Private Right of Way
-  const privateRightOfWayItem = findItemByKey(items, CHECKLIST_KEYS.PRIVATE_RIGHT_OF_WAY);
-  const privateRightOfWayPoints = calculateLegalPointsForStatus(
-    privateRightOfWayItem,
-    LEGAL_CONSTRAINT_POINTS.LOW_MEDIUM
-  );
-  if (isDataMissing(privateRightOfWayItem?.status)) {
-    warningMessages.push("Private Right of Way status missing.");
-  }
-
-  // 7. Planning Permissions (on property)
-  const planningPermissionsItem = findItemByKey(items, CHECKLIST_KEYS.PLANNING_PERMISSIONS);
-  const planningPermissionsPoints = calculateLegalPointsForStatus(
-    planningPermissionsItem,
-    LEGAL_CONSTRAINT_POINTS.LOW
-  );
-  if (isDataMissing(planningPermissionsItem?.status)) {
-    warningMessages.push("Property planning permission status missing.");
-  }
-
-  // 8. Nearby Planning Permissions
-  const nearbyPlanningPermissionsItem = findItemByKey(
-    items,
-    CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS
-  );
-  const nearbyPlanningPoints = calculateLegalPointsForStatus(
-    nearbyPlanningPermissionsItem,
-    LEGAL_CONSTRAINT_POINTS.LOW
-  );
-  if (isDataMissing(nearbyPlanningPermissionsItem?.status)) {
-    warningMessages.push("Nearby planning permission status missing, score may be less reliable.");
+  // --- Check Scorable Count ---
+  if (processedFactors.scorableCount < MIN_SCORABLE_ITEMS) {
+    // Add a more specific warning if calculation is stopped
+    const finalWarnings = [
+      ...processedFactors.warnings,
+      `Only ${processedFactors.scorableCount} factor(s) had usable data, need at least ${MIN_SCORABLE_ITEMS} to calculate score.`,
+    ];
+    return {
+      score: null,
+      contributingItems: contributingItems,
+      warningMessages: finalWarnings.filter((v, i, a) => a.indexOf(v) === i), // Deduplicate warnings
+      calculationStatus: CALCULATED_STATUS.UNCALCULATED_MISSING_DATA,
+    };
   }
 
   // --- Aggregate Score --- //
+  const totalConstraintPoints = processedFactors.points.reduce((sum, points) => sum + points, 0);
 
-  // Array of constraint points
-  const constraintPointsArray = [
-    tenurePoints,
-    leaseTermPoints,
-    listedPropertyPoints,
-    restrictiveCovenantPoints,
-    publicRightOfWayPoints,
-    privateRightOfWayPoints,
-    planningPermissionsPoints,
-    nearbyPlanningPoints,
-  ];
+  const MAX_POSSIBLE_PENALTY_POINTS = 30; // Example: needs calibration
+  const scoreValue = Math.max(0, 100 - (totalConstraintPoints / MAX_POSSIBLE_PENALTY_POINTS) * 100);
+  const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));
 
-  // Sum points using reduce
-  const totalConstraintPoints = constraintPointsArray.reduce((sum, points) => sum + points, 0);
-
-  // Clamp the score between 0 and 100
-  const finalScoreValue = Math.max(0, Math.min(100, totalConstraintPoints));
   const scoreLabel = getLegalConstraintsLabel(finalScoreValue);
 
+  const finalScore: DashboardScore = {
+    scoreValue: finalScoreValue,
+    maxScore: 100,
+    scoreLabel: scoreLabel,
+  };
+
   return {
-    score: { scoreValue: Math.round(finalScoreValue), maxScore: 100, scoreLabel },
+    score: finalScore,
     contributingItems,
-    warningMessages,
+    warningMessages: processedFactors.warnings.filter((v, i, a) => a.indexOf(v) === i),
+    calculationStatus: CALCULATED_STATUS.CALCULATED,
   };
 };

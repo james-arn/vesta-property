@@ -1,5 +1,6 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
+  CALCULATED_STATUS,
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
@@ -34,6 +35,7 @@ import {
 } from "@/constants/scoreConstants";
 import {
   CategoryScoreData,
+  DashboardScore,
   DataStatus,
   PreprocessedData,
   PropertyDataListItem,
@@ -48,7 +50,7 @@ import { findItemByKey, parseCurrency, parsePercentage } from "@/utils/parsingHe
 export const calculateInvestmentValueScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
-): CategoryScoreData | undefined => {
+): CategoryScoreData => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.INVESTMENT_VALUE] || [];
   const contributingItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
@@ -88,6 +90,23 @@ export const calculateInvestmentValueScore = (
       ? volatilityItem.value
       : null;
   const volatility = parsePercentage(volatilityValue);
+
+  // Check if we have *any* basis for calculation (even if some data is missing)
+  // This logic might need refinement based on which factors are deemed essential
+  const canCalculate =
+    premiumData !== null || // If we have any premium data
+    cagr !== null ||
+    volatility !== null ||
+    askingPrice !== null; // Or at least asking price/growth/volatility
+
+  if (!canCalculate) {
+    return {
+      score: null,
+      contributingItems,
+      warningMessages: ["Not enough data available to assess Investment Value."],
+      calculationStatus: CALCULATED_STATUS.UNCALCULATED_MISSING_DATA,
+    };
+  }
 
   // Growth Modifier (using CAGR from checklist item)
   if (cagr !== null) {
@@ -186,7 +205,8 @@ export const calculateInvestmentValueScore = (
 
   // --- Combine Modifiers ---
   const totalModifier = scoreModifiers.reduce((sum, mod) => sum + mod, 0);
-  const finalScore = Math.max(0, Math.min(MAX_SCORE, BASE_SCORE + totalModifier));
+  const rawScore = BASE_SCORE + totalModifier;
+  const finalScore = Math.max(0, Math.min(MAX_SCORE, rawScore));
 
   // --- Determine Label and Warnings ---
   const getScoreLabel = (score: number): string => {
@@ -209,13 +229,17 @@ export const calculateInvestmentValueScore = (
   }
   // Add more specific warnings based on missing premium data points if desired
 
+  const scoreLabel = getScoreLabel(finalScore);
+  const finalScoreObject: DashboardScore = {
+    scoreValue: Math.round(finalScore),
+    maxScore: MAX_SCORE,
+    scoreLabel: scoreLabel,
+  };
+
   return {
-    score: {
-      scoreValue: Math.round(finalScore),
-      maxScore: MAX_SCORE,
-      scoreLabel: getScoreLabel(finalScore),
-    },
+    score: finalScoreObject,
     contributingItems,
     warningMessages: warnings,
+    calculationStatus: CALCULATED_STATUS.CALCULATED,
   };
 };

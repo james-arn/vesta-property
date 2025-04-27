@@ -1,10 +1,17 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
+  CALCULATED_STATUS,
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
 import { ENVIRONMENT_RISK_FACTOR_WEIGHTS, MAX_SCORE } from "@/constants/scoreConstants";
-import { CategoryScoreData, PreprocessedData, PropertyDataListItem } from "@/types/property";
+import {
+  CategoryScoreData,
+  DashboardScore,
+  PreprocessedData,
+  PropertyDataListItem,
+  ScoreCalculationStatus,
+} from "@/types/property";
 import { findItemByKey } from "@/utils/parsingHelpers";
 import {
   calculateAirportNoiseRisk,
@@ -15,7 +22,6 @@ import {
   calculateMiningImpactRisk,
 } from "./helpers/environmentalProcessingHelpers";
 
-// Define risk score thresholds and labels (higher score = higher risk)
 const RISK_THRESHOLDS = [
   { threshold: 65, label: "High Risk" },
   { threshold: 50, label: "Medium-High Risk" },
@@ -38,7 +44,6 @@ export const calculateEnvironmentalRiskScore = (
     (contributingFactorKeys as string[]).includes(item.key)
   );
 
-  // Find specific items using helper
   const crimeItem = findItemByKey(items, CHECKLIST_KEYS.CRIME_SCORE);
   const floodDefencesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_DEFENCES);
   const floodSourcesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_SOURCES);
@@ -74,7 +79,6 @@ export const calculateEnvironmentalRiskScore = (
     .map(({ result }) => result.warning)
     .filter((warning): warning is string => !!warning);
 
-  // Calculate total weighted score and max possible weighted score
   const { totalWeightedScore, maxPossibleWeightedScore } = results.reduce(
     (acc, { key, result }) => {
       const weight = ENVIRONMENT_RISK_FACTOR_WEIGHTS[key] ?? 0;
@@ -89,17 +93,39 @@ export const calculateEnvironmentalRiskScore = (
     { totalWeightedScore: 0, maxPossibleWeightedScore: 0 }
   );
 
-  // Normalize the final score (0-100)
-  // The score represents the percentage of the maximum *possible* risk identified based on available data.
-  const normalizedScore =
-    maxPossibleWeightedScore > 0 ? (totalWeightedScore / maxPossibleWeightedScore) * 100 : 0; // If no data available, score is 0
+  const calculationStatus: ScoreCalculationStatus =
+    maxPossibleWeightedScore > 0
+      ? CALCULATED_STATUS.CALCULATED
+      : CALCULATED_STATUS.UNCALCULATED_MISSING_DATA;
 
-  const finalScoreValue = Math.max(0, Math.min(100, Math.round(normalizedScore))); // Cap score between 0-100
-  const scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
+  let finalScore: DashboardScore | null = null;
+  let scoreLabel = "Data Missing"; // Default label if uncalculated
+
+  if (calculationStatus === CALCULATED_STATUS.CALCULATED) {
+    const normalizedScore = (totalWeightedScore / maxPossibleWeightedScore) * 100;
+    const finalScoreValue = Math.max(0, Math.min(100, Math.round(normalizedScore)));
+    scoreLabel = getEnvironmentalRiskLabel(finalScoreValue);
+    finalScore = {
+      scoreValue: finalScoreValue,
+      maxScore: MAX_SCORE,
+      scoreLabel: scoreLabel,
+    };
+    if (finalScoreValue === 0 && allWarnings.length === 0) {
+      // Add warning if score is 0 but no specific factor warnings exist
+      allWarnings.push(
+        "Environmental Risk score is zero, potentially due to missing specific risk data."
+      );
+    }
+  } else {
+    allWarnings.push(
+      "Could not calculate Environmental Risk score due to missing data for all relevant factors."
+    );
+  }
 
   return {
-    score: { scoreValue: finalScoreValue, maxScore: MAX_SCORE, scoreLabel },
+    score: finalScore,
     contributingItems,
     warningMessages: allWarnings,
+    calculationStatus: calculationStatus,
   };
 };

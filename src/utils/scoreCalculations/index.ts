@@ -1,5 +1,8 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import {
+  CALCULATED_STATUS,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
 import {
   CategoryScoreData,
   DashboardScores,
@@ -31,11 +34,20 @@ export interface CalculatedDashboardResult {
  */
 const calculateOverallScore = (scores: DashboardScores): number | null => {
   const relevantScores = Object.entries(scores)
-    .filter(([key]) => key !== DashboardScoreCategory.LISTING_COMPLETENESS)
-    .map((entry: [string, CategoryScoreData]): number | null => entry[1].score?.scoreValue ?? null)
+    // Filter using constant
+    .filter(
+      ([key, data]) =>
+        key !== DashboardScoreCategory.LISTING_COMPLETENESS &&
+        data?.calculationStatus === CALCULATED_STATUS.CALCULATED && // Use constant
+        data.score !== null
+    )
+    // Map to the scoreValue, handling potential nulls within the score object
+    .map(([, data]): number | null => data.score!.scoreValue ?? null)
+    // Filter out null or NaN score values
     .filter((scoreValue): scoreValue is number => scoreValue !== null && !isNaN(scoreValue));
 
   if (relevantScores.length === 0) {
+    // Return null if no categories were successfully calculated
     return null;
   }
 

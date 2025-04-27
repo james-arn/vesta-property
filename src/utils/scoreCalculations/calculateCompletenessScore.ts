@@ -1,3 +1,4 @@
+import { CALCULATED_STATUS } from "@/constants/dashboardScoreCategoryConsts";
 import {
   CategoryScoreData,
   DashboardScore,
@@ -7,16 +8,14 @@ import {
 
 // Helper function for score label (can be moved to a helper file if preferred)
 const getListingCompletenessScoreLabel = (score: number): string => {
-  if (score >= 95) return "Complete";
-  if (score >= 80) return "Mostly Complete";
-  if (score >= 60) return "Missing Details";
-  if (score >= 40) return "Incomplete";
-  return "Very Incomplete";
+  if (score >= 95) return "Very Complete";
+  if (score >= 80) return "Good Completeness";
+  if (score >= 60) return "Average Completeness";
+  if (score >= 40) return "Below Average";
+  return "Poor Completeness";
 };
 
-export const calculateCompletenessScore = (
-  items: PropertyDataListItem[]
-): CategoryScoreData | undefined => {
+export const calculateCompletenessScore = (items: PropertyDataListItem[]): CategoryScoreData => {
   // 1. Filter for items expected in a standard listing
   const expectedItems = items.filter((item) => item.isExpectedInListing);
 
@@ -27,11 +26,12 @@ export const calculateCompletenessScore = (
   const applicableExpectedTotal = applicableExpectedItems.length;
 
   if (applicableExpectedTotal === 0) {
-    // If no items are expected OR all expected items are N/A
+    // If no items are expected OR all expected items are N/A, consider it complete
     return {
-      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" }, // Assume complete if nothing expected/applicable
+      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
       contributingItems: [],
       warningMessages: ["No applicable expected items found for completeness calculation."],
+      calculationStatus: CALCULATED_STATUS.CALCULATED,
     };
   }
 
@@ -41,15 +41,10 @@ export const calculateCompletenessScore = (
   );
   const missingExpectedCount = missingExpectedItems.length;
 
-  // 4. Calculate the score based on the proportion of *applicable expected items* that are present
-  // Score = (Present Items / Total Applicable Expected Items) * 100
+  // 4. Calculate the score
   const scoreValue =
     ((applicableExpectedTotal - missingExpectedCount) / applicableExpectedTotal) * 100;
-
-  // Ensure score is within 0-100 bounds and round it
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));
-
-  // Use the helper for the score label
   const scoreLabel = getListingCompletenessScoreLabel(finalScoreValue);
 
   const finalScore: DashboardScore = {
@@ -58,19 +53,15 @@ export const calculateCompletenessScore = (
     scoreLabel: scoreLabel,
   };
 
-  // Initialize warningMessages as an empty array
   const warningMessages: string[] = [];
   if (missingExpectedCount > 0) {
-    // Add a warning if some expected items are missing
-    warningMessages.push(
-      `${missingExpectedCount} expected item(s) are missing from the listing or require agent input.`
-    );
+    warningMessages.push(`${missingExpectedCount} expected item(s) missing (marked 'Ask Agent').`);
   }
 
   return {
     score: finalScore,
-    // Items contributing negatively are the expected ones that are missing
-    contributingItems: missingExpectedItems,
-    warningMessages,
+    contributingItems: applicableExpectedItems,
+    warningMessages: warningMessages,
+    calculationStatus: CALCULATED_STATUS.CALCULATED,
   };
 };

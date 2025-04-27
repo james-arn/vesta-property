@@ -1,5 +1,8 @@
 import { ChecklistKey } from "@/constants/checklistKeys";
-import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import {
+  CALCULATED_STATUS,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
@@ -162,10 +165,14 @@ export interface DashboardScore {
   scoreLabel: string; // A qualitative label (e.g., "Good", "High", "Band C")
 }
 
+// Define possible calculation statuses
+export type ScoreCalculationStatus = (typeof CALCULATED_STATUS)[keyof typeof CALCULATED_STATUS];
+
 export interface CategoryScoreData {
-  score: DashboardScore;
+  score: DashboardScore | null; // Allow null if score truly cannot be determined
   contributingItems: PropertyDataListItem[];
-  warningMessages: string[]; // Array of warnings for missing data affecting score reliability
+  warningMessages?: string[];
+  calculationStatus: ScoreCalculationStatus; // Uses the derived type
 }
 
 export type DashboardScores = {

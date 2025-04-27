@@ -8,7 +8,7 @@ import { ChecklistItem } from '@/components/ui/ChecklistItem';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import { CALCULATED_STATUS, DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { PremiumStreetDataResponse } from '@/types/premiumStreetData';
@@ -17,6 +17,8 @@ import { UseQueryResult } from '@tanstack/react-query';
 import React, { lazy, Suspense } from 'react';
 import { FaExclamationTriangle } from "react-icons/fa";
 import { ScoreVisualisation } from './ScoreVisualisation';
+
+
 
 // Lazy load components needed for expansion
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
@@ -103,7 +105,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         );
     }
 
-    const { score, contributingItems, warningMessages } = categoryScoreData;
+    const { score, contributingItems, warningMessages, calculationStatus } = categoryScoreData;
 
     const hasContributingItems = contributingItems?.length > 0;
 
@@ -115,13 +117,22 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         {IconComponent && <IconComponent className="h-5 w-5 text-slate-600" />}
                         <h3 className="font-semibold text-slate-800 text-left max-w-[90px]">{title}</h3>
                         <div className="flex flex-col items-start">
-                            <ScoreVisualisation score={score} invertColorScale={invertColorScale} showLabel={false} />
+                            {calculationStatus === CALCULATED_STATUS.CALCULATED && score ? (
+                                <ScoreVisualisation score={score} invertColorScale={invertColorScale} showLabel={false} />
+                            ) : (
+                                <div
+                                    className="h-2 w-full rounded-full my-1.5"
+                                    style={{ background: DISABLED_BAR_BACKGROUND }}
+                                ></div>
+                            )}
                             <div className="flex items-center mt-1">
-                                {score.scoreLabel && (
-                                    <span className="text-xs font-medium text-slate-600 text-left">
-                                        {score.scoreLabel}
-                                    </span>
-                                )}
+                                <span className="text-xs font-medium text-slate-600 text-left">
+                                    {
+                                        calculationStatus === CALCULATED_STATUS.CALCULATED && score?.scoreLabel
+                                            ? score.scoreLabel
+                                            : "Not Enough Data"
+                                    }
+                                </span>
                                 {warningMessages && warningMessages.length > 0 && (
                                     <TooltipProvider>
                                         <Tooltip delayDuration={0}>
@@ -178,8 +189,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                         </p>
                     )}
 
-                    {/* Conditionally render expandable sections within AccordionContent */}
-                    {/* Check if this category contains the crime score item AND if it's expanded */}
                     {contributingItems.some(item => item.key === CHECKLIST_KEYS.CRIME_SCORE) && crimeQuery.data && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
@@ -193,7 +202,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             </div>
                         </Suspense>
                     )}
-                    {/* Check if this category contains planning items AND if the property section is expanded */}
                     {contributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
@@ -208,7 +216,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             </div>
                         </Suspense>
                     )}
-                    {/* Check if this category contains planning items AND if the nearby section is expanded */}
                     {contributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>

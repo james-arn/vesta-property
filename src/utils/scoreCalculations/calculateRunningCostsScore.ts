@@ -1,5 +1,6 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
+  CALCULATED_STATUS,
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
@@ -7,14 +8,15 @@ import {
   GROUND_RENT_COST_SCORES,
   MAX_SCORE,
   RUNNING_COSTS_WEIGHTS,
-  SERVICE_CHARGE_COST_SCORES,
   TENURE_COST_SCORES,
 } from "@/constants/scoreConstants";
 import {
   CategoryScoreData,
+  DashboardScore,
   DataStatus,
   PreprocessedData,
   PropertyDataListItem,
+  ScoreCalculationStatus,
 } from "@/types/property";
 import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
 import {
@@ -45,7 +47,7 @@ const mapCouncilTaxToScore = (band?: string | null): number => {
 export const calculateRunningCostsScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
-): CategoryScoreData | undefined => {
+): CategoryScoreData => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
   const contributingItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
@@ -57,18 +59,22 @@ export const calculateRunningCostsScore = (
   const groundRentItem = findItemByKey(items, CHECKLIST_KEYS.GROUND_RENT);
   const serviceChargeItem = findItemByKey(items, CHECKLIST_KEYS.SERVICE_CHARGE);
 
+  const warnings: string[] = [];
+
   if (
     preprocessedData.epcScoreForCalculation === null ||
     preprocessedData.epcScoreForCalculation === undefined
   ) {
     console.warn("EPC score for calculation is missing in preprocessedData.");
-    // Return score indicating uncertainty, including available items
     return {
-      score: { scoreValue: 50, maxScore: MAX_SCORE, scoreLabel: "Running Costs Uncertain" },
+      score: null,
       contributingItems,
-      warningMessages: ["EPC data missing, Running Costs score is an estimate."],
+      warningMessages: ["EPC data missing, cannot calculate Running Costs score."],
+      calculationStatus: CALCULATED_STATUS.UNCALCULATED_MISSING_DATA,
     };
   }
+
+  const calculationStatus: ScoreCalculationStatus = CALCULATED_STATUS.CALCULATED;
 
   // Calculate score components
   const epcEfficiencyScore = calculateEpcScoreValue(preprocessedData.epcScoreForCalculation);
@@ -133,62 +139,30 @@ export const calculateRunningCostsScore = (
   };
   const scoreLabel = getRunningCostScoreLabel(finalScoreValue);
 
-  const warnings: string[] = [];
-  if (epcItem?.status === DataStatus.ASK_AGENT) {
-    warnings.push("EPC rating was estimated.");
+  if (councilTaxItem?.status === DataStatus.ASK_AGENT) {
+    warnings.push("Council Tax band missing, score uses estimate.");
   }
-  if (councilTaxItem?.status !== DataStatus.FOUND_POSITIVE) {
-    warnings.push("Council Tax band unknown, cost estimated.");
-  }
-
-  if (!isTenureKnown) {
-    warnings.push(
-      "Tenure type unknown, running costs estimated. Leaseholds may have additional charges (Ground Rent, Service Charge)."
-    );
-  } else if (isLeasehold) {
-    const leaseMonths = preprocessedData.calculatedLeaseMonths;
-    let leaseWarning = "Leasehold property.";
-
-    if (groundRentCostScore === GROUND_RENT_COST_SCORES.UNKNOWN) {
-      leaseWarning += " Ground rent status unknown, cost estimated.";
-    } else if (groundRentCostScore === GROUND_RENT_COST_SCORES.HIGH) {
-      leaseWarning += ` High ground rent (${groundRentValue ?? "Value Unknown"}) detected.`;
-    } else if (groundRentCostScore === GROUND_RENT_COST_SCORES.MEDIUM) {
-      leaseWarning += ` Moderate ground rent (${groundRentValue ?? "Value Unknown"}) noted.`;
-    } else if (
-      groundRentCostScore === GROUND_RENT_COST_SCORES.PEPPERCORN &&
-      typeof groundRentValue === "string" &&
-      groundRentValue.toLowerCase() !== "peppercorn"
-    ) {
-      leaseWarning += ` Ground rent is negligible/peppercorn.`;
+  if (isLeasehold) {
+    if (groundRentItem?.status === DataStatus.ASK_AGENT) {
+      warnings.push("Ground rent information missing, score uses estimate.");
     }
-
-    if (serviceChargeCostScore === SERVICE_CHARGE_COST_SCORES.UNKNOWN) {
-      leaseWarning += " Service charge status unknown, cost estimated.";
-    } else if (serviceChargeCostScore === SERVICE_CHARGE_COST_SCORES.HIGH) {
-      leaseWarning += ` High service charge (${serviceChargeValue ?? "Value Unknown"}) detected.`;
-    } else if (serviceChargeCostScore === SERVICE_CHARGE_COST_SCORES.MEDIUM) {
-      leaseWarning += ` Moderate service charge (${serviceChargeValue ?? "Value Unknown"}) noted.`;
+    if (serviceChargeItem?.status === DataStatus.ASK_AGENT) {
+      warnings.push("Service charge information missing, score uses estimate.");
     }
-
-    const leaseTermWarning =
-      leaseMonths !== null && leaseMonths < 80 * 12
-        ? ` Lease term (${Math.round(leaseMonths / 12)} years) is short, potentially impacting mortgageability.`
-        : "";
-    warnings.push(leaseWarning + (leaseTermWarning ? ` ${leaseTermWarning}` : ""));
-  } else {
-    warnings.push(
-      "Freehold/Other Tenure: Lower fixed charges but full responsibility for maintenance/insurance."
-    );
+  } else if (!isTenureKnown) {
+    warnings.push("Tenure unknown, assuming Freehold for cost calculations.");
   }
+
+  const finalScore: DashboardScore = {
+    scoreValue: finalScoreValue,
+    maxScore: MAX_SCORE,
+    scoreLabel: scoreLabel,
+  };
 
   return {
-    score: {
-      scoreValue: finalScoreValue,
-      maxScore: MAX_SCORE,
-      scoreLabel: scoreLabel,
-    },
+    score: finalScore,
     contributingItems,
     warningMessages: warnings,
+    calculationStatus: calculationStatus,
   };
 };

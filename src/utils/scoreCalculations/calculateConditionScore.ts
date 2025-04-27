@@ -1,5 +1,6 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import {
+  CALCULATED_STATUS,
   CATEGORY_ITEM_MAP,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
@@ -54,7 +55,6 @@ export const calculateConditionScore = (
   const roofValue = constructionMaterials?.roof;
   const wallValue = constructionMaterials?.walls;
 
-  // Add this line to find the building safety terms
   const buildingSafetyValue = findItemValue<string[]>(
     relevantItems,
     CHECKLIST_KEYS.BUILDING_SAFETY
@@ -66,10 +66,17 @@ export const calculateConditionScore = (
 
   const epcScoreFromPreprocessed = preprocessedData.epcScoreForCalculation;
 
-  // Check if calculable
   const canCalculate = relevantItems.length > 0 || epcRating || epcScoreFromPreprocessed !== null;
+
   if (!canCalculate) {
-    return undefined;
+    return {
+      score: null,
+      contributingItems: items.filter((item) =>
+        (contributingFactorKeys as string[]).includes(item.key)
+      ),
+      warningMessages: ["Not enough data to determine property condition."],
+      calculationStatus: CALCULATED_STATUS.UNCALCULATED_MISSING_DATA,
+    };
   }
 
   // Calculate Score Components
@@ -201,5 +208,6 @@ export const calculateConditionScore = (
     score: finalScore,
     contributingItems: relevantItems,
     warningMessages: warnings,
+    calculationStatus: CALCULATED_STATUS.CALCULATED,
   };
 };

@@ -1,10 +1,13 @@
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
+import { CALCULATED_STATUS } from "@/constants/dashboardScoreCategoryConsts";
 import { FOUND_STATIONS_SCORE, MAX_SCORE, NO_STATIONS_SCORE } from "@/constants/scoreConstants";
 import {
   CategoryScoreData,
+  DashboardScore,
   DataStatus,
   PreprocessedData,
   PropertyDataListItem,
+  ScoreCalculationStatus,
 } from "@/types/property";
 import { findItemByKey } from "@/utils/parsingHelpers";
 
@@ -49,13 +52,11 @@ const calculateCombinedConnectivityScore = (
   const stationWeight = 0.5;
   const broadbandWeight = 0.2;
   const schoolsWeight = 0.3;
-  // const mobileCoverageWeight = 0.0; // Add when data available
 
   const weightedScore =
     stationScoreValue * stationWeight +
     broadbandScoreValue * broadbandWeight +
     schoolsScoreValue * schoolsWeight;
-  // + (mobileScore * mobileCoverageWeight);
 
   // Ensure score is within 0-100
   const combinedScoreValue = Math.max(0, Math.min(MAX_SCORE, Math.round(weightedScore)));
@@ -123,18 +124,17 @@ const calculateCombinedConnectivityScore = (
 const calculateConnectivityScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
-): CategoryScoreData | undefined => {
+): CategoryScoreData => {
   const nearestStationsItem = findItemByKey(items, CHECKLIST_KEYS.NEAREST_STATIONS);
   const broadbandItem = findItemByKey(items, CHECKLIST_KEYS.BROADBAND);
   const schoolsItem = findItemByKey(items, CHECKLIST_KEYS.NEARBY_SCHOOLS);
 
+  const calculationStatus: ScoreCalculationStatus = CALCULATED_STATUS.CALCULATED;
+
   const stationScoreValue = calculateStationScoreValue(nearestStationsItem);
   const broadbandScoreValue = preprocessedData.broadbandScoreValue ?? 50;
   const rawSchoolsScoreValue = preprocessedData.nearbySchoolsScoreValue;
-  // TOO: fill with premium data.
-
-  // Ensure schoolsScoreValue is valid for calculation, default if necessary
-  const effectiveSchoolsScore = rawSchoolsScoreValue ?? 50; // Use the default if null
+  const effectiveSchoolsScore = rawSchoolsScoreValue ?? 50;
 
   const { combinedScoreValue, scoreLabel, warningMessages } = calculateCombinedConnectivityScore(
     stationScoreValue,
@@ -150,10 +150,17 @@ const calculateConnectivityScore = (
     Boolean
   ) as PropertyDataListItem[];
 
+  const finalScore: DashboardScore = {
+    scoreValue: combinedScoreValue,
+    maxScore: MAX_SCORE,
+    scoreLabel: scoreLabel,
+  };
+
   return {
-    score: { scoreValue: combinedScoreValue, maxScore: MAX_SCORE, scoreLabel },
+    score: finalScore,
     contributingItems,
     warningMessages: warningMessages ?? [],
+    calculationStatus: calculationStatus,
   };
 };
 
