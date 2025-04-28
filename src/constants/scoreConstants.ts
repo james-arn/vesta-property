@@ -38,8 +38,8 @@ export const REDUCED_PRICE_PENALTY = -3; // Penalty if price reduction detected
 
 // Running Costs Weights
 export const RUNNING_COSTS_WEIGHTS = {
-  COUNCIL_TAX: 0.4,
-  EPC: 0.4,
+  COUNCIL_TAX: 0.35,
+  EPC: 0.45,
   SERVICE_CHARGE: 0.15,
   GROUND_RENT: 0.05,
   TENURE: 0.05,

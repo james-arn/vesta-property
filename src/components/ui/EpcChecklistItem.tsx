@@ -1,9 +1,8 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { ConfidenceLevels } from "@/types/property";
+import { Confidence, ConfidenceLevels } from "@/types/property";
 import React from 'react';
-import { FaExclamationTriangle, FaThumbsUp, FaUserEdit } from "react-icons/fa"; // Assuming these might be needed for confidence icons or future expansion
+import { FaExclamationTriangle, FaThumbsUp, FaUserEdit } from "react-icons/fa";
 
 const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
 
@@ -16,31 +15,31 @@ const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceL
 };
 
 interface EpcChecklistItemProps {
-    epcData: EpcProcessorResult | null | undefined;
+    value: string | null | undefined;
+    confidence: Confidence | null | undefined;
     onEpcChange?: (newValue: string) => void;
-    fallbackValue: React.ReactNode; // The original value passed to ChecklistItem
     isImageSourceWithUrl: boolean;
 }
 
 export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
-    epcData,
+    value,
+    confidence,
     onEpcChange,
-    fallbackValue,
     isImageSourceWithUrl
 }) => {
 
     const renderConfidenceIcon = () => {
-        if (!epcData || !epcData.confidence || epcData.confidence === ConfidenceLevels.NONE) {
+        if (!confidence || confidence === ConfidenceLevels.NONE) {
             return null;
         }
-        const ConfidenceIcon = confidenceIcons[epcData.confidence];
-        let iconColor = 'text-gray-400'; // Default
-        if (epcData.confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
-        if (epcData.confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
-        if (epcData.confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
+        const ConfidenceIcon = confidenceIcons[confidence];
+        let iconColor = 'text-gray-400';
+        if (confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
+        if (confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
+        if (confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 
-        const tooltipText = `Confidence: ${epcData.confidence}${(epcData.confidence !== ConfidenceLevels.HIGH &&
-            epcData.confidence !== ConfidenceLevels.USER_PROVIDED &&
+        const tooltipText = `Confidence: ${confidence}${(confidence !== ConfidenceLevels.HIGH &&
+            confidence !== ConfidenceLevels.USER_PROVIDED &&
             isImageSourceWithUrl)
             ? '. Please double check against the EPC image and correct if necessary'
             : ''
@@ -50,7 +49,6 @@ export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
             <TooltipProvider>
                 <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
-                        {/* Added span for Tooltip trigger */}
                         <span className={`ml-2 w-3 h-3 ${iconColor} inline-block`}>
                             <ConfidenceIcon className="w-full h-full" />
                         </span>
@@ -64,15 +62,14 @@ export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
     };
 
 
-    const canEditEpc = onEpcChange && epcData &&
-        epcData.confidence !== ConfidenceLevels.HIGH &&
-        epcData.confidence !== ConfidenceLevels.USER_PROVIDED;
+    const canEditEpc = onEpcChange &&
+        confidence &&
+        confidence !== ConfidenceLevels.HIGH
+    const potentialValue = value;
+    const isValidEpcString = typeof potentialValue === 'string' && EPC_RATINGS.includes(potentialValue.toUpperCase());
+    const epcValueToDisplay = isValidEpcString ? potentialValue.toUpperCase() : "";
 
-    const potentialValue = epcData?.value ?? fallbackValue;
-    const isValidEpcString = typeof potentialValue === 'string' && EPC_RATINGS.includes(potentialValue);
-    const epcValueToDisplay = isValidEpcString ? potentialValue : "";
-
-    if (canEditEpc && !epcData.isLoading) {
+    if (canEditEpc) {
         return (
             <div className="flex items-center">
                 <Select onValueChange={onEpcChange} value={epcValueToDisplay}>
@@ -92,11 +89,10 @@ export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
         );
     }
 
-    // Otherwise, render non-editable EPC display
     return (
         <span
             className={`flex items-center`}
-            style={{ display: 'inline-flex' }} // Ensure icon stays inline
+            style={{ display: 'inline-flex' }}
         >
             {epcValueToDisplay}
             {renderConfidenceIcon()}

@@ -86,7 +86,7 @@ export const usePreprocessedPropertyData = ({
         return {
           finalEpcValue: initialEpcValue,
           finalEpcConfidence: ConfidenceLevels.USER_PROVIDED,
-          finalEpcSource: initialEpcSource ?? EpcDataSourceType.NONE,
+          finalEpcSource: EpcDataSourceType.USER_PROVIDED,
           epcScoreForCalculation: score,
         };
       }

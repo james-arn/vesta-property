@@ -174,9 +174,9 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         if (isEpcItem) {
             return (
                 <EpcChecklistItem
-                    epcData={epcData}
+                    value={value as string | null | undefined}
+                    confidence={item.confidence}
                     onEpcChange={onEpcChange}
-                    fallbackValue={value}
                     isImageSourceWithUrl={isImageSourceWithUrl}
                 />
             );
