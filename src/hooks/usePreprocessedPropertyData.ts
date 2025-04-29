@@ -2,7 +2,11 @@ import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
 import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
 import { calculateListingHistoryDetails } from "@/sidepanel/propertychecklist/helpers";
 import { EpcBandResult } from "@/types/epc";
-import { ProcessedPremiumDataStatus, ProcessedPremiumStreetData } from "@/types/premiumStreetData";
+import {
+  GetPremiumStreetDataResponse,
+  ProcessedPremiumDataStatus,
+  ProcessedPremiumStreetData,
+} from "@/types/premiumStreetData";
 import {
   Confidence,
   ConfidenceLevels,
@@ -15,16 +19,19 @@ import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
 import { getStatusFromString } from "@/utils/statusHelpers";
+import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import { processRestrictiveCovenants } from "./helpers/preProcessedDataHelpers";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
 import { useProcessedEpcData } from "./useProcessedEpcData";
 
-type UsePreprocessedPropertyDataArgs = Pick<
-  UseChecklistAndDashboardDataArgs,
-  "propertyData" | "premiumStreetDataQuery" | "epcDebugCanvasRef" | "isEpcDebugModeOn"
->;
+type UsePreprocessedPropertyDataArgs = {
+  propertyData: UseChecklistAndDashboardDataArgs["propertyData"];
+  premiumStreetDataQuery: UseQueryResult<GetPremiumStreetDataResponse | null, Error> | undefined;
+  epcDebugCanvasRef: UseChecklistAndDashboardDataArgs["epcDebugCanvasRef"];
+  isEpcDebugModeOn: UseChecklistAndDashboardDataArgs["isEpcDebugModeOn"];
+};
 
 export const usePreprocessedPropertyData = ({
   propertyData,
@@ -48,6 +55,9 @@ export const usePreprocessedPropertyData = ({
 
   // --- Premium Data Processing ---
   const processedPremiumDataResult = useMemo((): ProcessedPremiumStreetData => {
+    const queryData = premiumStreetDataQuery?.data;
+    const premiumData = queryData?.premiumData;
+
     const premiumQueryStatus: ProcessedPremiumDataStatus =
       premiumStreetDataQuery?.status === "pending"
         ? "pending"
@@ -57,7 +67,7 @@ export const usePreprocessedPropertyData = ({
             ? "success"
             : "idle";
 
-    return processPremiumStreetData(premiumStreetDataQuery?.data, premiumQueryStatus, askingPrice);
+    return processPremiumStreetData(premiumData ?? undefined, premiumQueryStatus, askingPrice);
   }, [premiumStreetDataQuery?.data, premiumStreetDataQuery?.status, askingPrice]);
 
   const calculatedLeaseMonths = useMemo(
@@ -217,17 +227,14 @@ export const usePreprocessedPropertyData = ({
   const miningImpactStatus = propertyData?.miningImpactStatus;
 
   const preprocessedData: PreprocessedData = useMemo(() => {
-    // Start with the data from the initial scrape (which is now RightOfWayDetails | null)
     const initialPublicRoW = propertyData?.publicRightOfWayObligation ?? null;
-
-    // Check if premium data provides more detail
     const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
 
     const finalPublicRoW = premiumPublicRoW ?? initialPublicRoW ?? null;
 
     const listedProperty =
-      premiumStreetDataQuery?.status === "success"
-        ? (processedPremiumDataResult?.listedBuildingsOnPlot ?? propertyData?.listedProperty ?? []) // empty array if no listed buildings on plot
+      premiumStreetDataQuery?.status === "success" && premiumStreetDataQuery?.data?.premiumData
+        ? (processedPremiumDataResult?.listedBuildingsOnPlot ?? propertyData?.listedProperty ?? [])
         : (propertyData?.listedProperty ?? null);
 
     const restrictiveCovenants = processRestrictiveCovenants(
@@ -251,7 +258,7 @@ export const usePreprocessedPropertyData = ({
       broadbandDisplayValue,
       broadbandStatus,
       miningImpactStatus: miningImpactStatus ?? null,
-      conservationAreaDetails: processedPremiumDataResult?.conservationAreaDetails ?? null,
+      conservationAreaDetails: processedPremiumDataResult.conservationAreaDetails,
       privateRightOfWayObligation: propertyData?.privateRightOfWayObligation ?? null,
       publicRightOfWayObligation: finalPublicRoW,
       listingHistoryStatus,
@@ -275,7 +282,7 @@ export const usePreprocessedPropertyData = ({
     broadbandDisplayValue,
     broadbandStatus,
     miningImpactStatus,
-    processedPremiumDataResult?.conservationAreaDetails,
+    processedPremiumDataResult.conservationAreaDetails,
     listingHistoryStatus,
     listingHistoryDisplayValue,
     listingDaysOnMarket,

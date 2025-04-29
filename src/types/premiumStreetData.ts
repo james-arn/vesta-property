@@ -1,4 +1,4 @@
-import { RightOfWayDetails } from "./property";
+import { EpcData, Address as PropertyAddress, RightOfWayDetails } from "./property";
 
 export interface AddressMatchData {
   id: string;
@@ -573,6 +573,38 @@ export interface PremiumStreetDataResponse {
   restrictive_covenants?: RestrictiveCovenant[] | null;
   coastal_erosion?: CoastalErosion | null;
   right_of_way?: RightOfWay | null;
+}
+
+/**
+ * Represents the user-modifiable state snapshotted alongside the premium data.
+ * This context is saved to the database and restored to ensure consistency
+ * when reloading premium data from the backend cache.
+ */
+export interface SnapshotContextData {
+  confirmedAddress: PropertyAddress /** The exact address details confirmed by the user and used for the premium fetch. */;
+  epc: EpcData;
+}
+
+/**
+ * The payload sent from the frontend when requesting premium data.
+ */
+export interface PremiumFetchContext {
+  /** The primary identifier for the property (e.g., Rightmove ID). */
+  propertyId: string;
+
+  /** The current user-modifiable context data to be saved if a new snapshot is created. */
+  currentContext: SnapshotContextData;
+}
+
+/**
+ * The expected response structure from the POST /getPremiumStreetData endpoint.
+ */
+export interface GetPremiumStreetDataResponse {
+  /** The raw data returned from the external premium API. */
+  premiumData: PremiumStreetDataResponse;
+
+  /** The snapshot of user context, ONLY returned if data was served from the backend cache. */
+  snapshotData?: SnapshotContextData;
 }
 
 export type ProcessedPremiumDataStatus = "loading" | "success" | "error" | "idle" | "pending";

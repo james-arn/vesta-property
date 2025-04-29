@@ -179,56 +179,85 @@ The core data flow operates as follows:
     - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information and user confirmations (like address). React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
       User inputs handled in the UI, such as manual EPC value entry or address confirmation (via the structured address modal), directly update this base property data cache using `queryClient.setQueryData`. This ensures the primary data object immediately reflects user overrides before being passed to processing hooks.
     - **Supplementary Data:** Other hooks fetch additional data, managed internally by React Query for caching:
-      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated, cached based on the confirmed address/postcode.
+      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated via the flow described below. Results are cached via React Query using the key `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]`.
       - `useCrimeScore`: Fetches crime scores based on coordinates, results are cached.
       - `useReverseGeocode`: Fetches address details based on listing coordinates. **Note:** This result is _not_ used to update the main property data cache automatically (as coordinates can be imprecise). Instead, it's passed as an informational hint to the address confirmation modal.
       - _(Note: EPC processing is also handled separately, potentially caching results based on the EPC document URL)._
 
-4.  **4. Premium Feature Activation Flow (`usePremiumFlow`):** Triggering a premium data search initiates the following sequence managed by the `usePremiumFlow` hook:
-    _ **Authentication Check:** It first checks if the user is authenticated (`isAuthenticated`).
-    _ **Upsell:** If not authenticated, the `UpsellModal` is displayed.
-    _ **Address Confirmation Check:** If authenticated, it checks `propertyData.address.isAddressConfirmedByUser` (read from the main React Query cache).
-    _ **Address Modal:** If the address is _not_ confirmed, the `BuildingConfirmationDialog` is shown. This modal allows the user to verify/correct the structured address (Building, Street, Town, Postcode), pre-filled by parsing the scraped `propertyData.address.displayAddress`. Upon confirmation, the handler updates the main `propertyData` cache (`[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]`) using `queryClient.setQueryData`, storing the `confirmedBuilding`, `confirmedStreet`, etc., and setting `isAddressConfirmedByUser` to `true`. The reverse-geocoded address is shown only as a text hint here.
+4.  **Premium Feature Activation & Persistence Flow:** This flow ensures premium data is fetched, paid for, persisted, and restored correctly.
 
-    - **Premium Confirmation:** If the address _is_ confirmed (either initially or after the previous step), the `PremiumConfirmationModal` is displayed, asking the user to confirm spending a credit/token.
-    - **Activation:** Upon final confirmation in the premium modal, the `onConfirmAndActivate` callback is triggered. This typically sets a local state variable (`premiumSearchActivated` in `App.tsx`), which in turn satisfies the `enabled` condition within the `usePremiumStreetData` hook, causing it to fetch the premium data.
+    - **Trigger:** The user clicks an "Unlock Premium Data" (or similar) button, likely managed within the `usePremiumFlow` hook or `App.tsx`.
+    - **Pre-checks:** The flow checks authentication (`isAuthenticated`). If not authenticated, an `UpsellModal` is shown. If authenticated, it proceeds. It then checks if the address needs confirmation (`propertyData.address.isAddressConfirmedByUser`) and shows the `BuildingConfirmationDialog` if needed, updating the `PROPERTY_DATA` cache on confirmation.
+    - **Confirmation:** If authenticated and address is confirmed, the `PremiumConfirmationModal` is shown.
+    - **Frontend Request (on User Confirmation):**
+      - The frontend gathers the current user-modified context data (confirmed address, user-provided EPC, etc. from the `PROPERTY_DATA` cache) along with the primary `propertyId`.
+      - This information is packaged into a `PremiumFetchContext` object.
+      - A `POST` request (likely triggered by a React Query `useMutation` hook) is sent to the `/getPremiumStreetData` backend endpoint with the `PremiumFetchContext` in the request body.
+    - **Backend Lambda (`/getPremiumStreetData`):**
+      - Receives the request, extracting `userId` (from authorizer), `propertyId`, and `currentContext` (containing `SnapshotContextData`).
+      - **Cache Check:** Queries the `UserPropertySnapshots` DynamoDB table using `userId` (PK) and `propertyId` (SK).
+      - **Cache Hit:** If a record exists:
+        - Retrieves the stored `snapshotData` (the user context at the time of the original fetch) and `premiumData` (the result from the external API).
+        - Returns `{ premiumData: ..., snapshotData: ... }` to the frontend. No external API call or token charge occurs.
+      - **Cache Miss:** If no record exists:
+        - Verifies the user has enough tokens/credits. Fails if insufficient.
+        - Calls the **external premium data API** using the `confirmedAddress` from the request's `currentContext`. Fails if the API call is unsuccessful.
+        - Decrements the user's token count. Fails if the update is unsuccessful.
+        - Saves a new item to `UserPropertySnapshots` containing:
+          - `userId`
+          - `propertyId`
+          - `snapshotData`: Populated directly from the `currentContext` received in the request.
+          - `premiumData`: The raw JSON response from the external API call.
+          - `fetchedAt`: Timestamp.
+        - Returns only the newly fetched data: `{ premiumData: ... }` to the frontend.
+    - **Frontend State Update (React Query Mutation `onSuccess`):**
+      - The mutation handling the `POST` request receives the response from the backend (`GetPremiumStreetDataResponse`).
+      - It **always** updates the React Query cache for `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]` with the received `response.premiumData`.
+      - **If `response.snapshotData` exists** (meaning it was a cache hit on the backend):
+        - It updates the React Query cache for `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]` with `response.snapshotData`. This restores the user's previous modifications (address, EPC) to ensure consistency with the loaded premium data.
+      - If `response.snapshotData` does _not_ exist (cache miss), the `PROPERTY_DATA` cache is _not_ overwritten, as it already contains the latest user edits that were just sent to the backend.
 
 5.  **Data Aggregation and Processing (`useChecklistAndDashboardData`):**
 
-    - This crucial custom hook (`src/hooks/useChecklistAndDashboardData.ts`) receives the query results for `propertyData`, `premiumStreetDataQuery`, and `crimeScoreQuery` as inputs.
-    - **Data Combination:** It intelligently combines these data sources. Premium data, if available and fetched, takes precedence over basic scraped data for relevant fields.
-    - **Checklist Generation:** It calls `generatePropertyChecklist` (`src/sidepanel/propertychecklist/propertyChecklist.ts`) to transform the combined data into the `PropertyDataListItem[]` array required for the checklist UI. This involves formatting values into display strings and setting data statuses.
-    - **Calculation Data Preparation:** It prepares a `calculationData` object with specifically formatted (often numeric) values needed for scoring calculations (e.g., lease months, numerical EPC score).
-    - **Score Calculation:** It invokes `calculateDashboardScores` (`src/utils/scoreCalculations.ts`), passing the necessary data to compute category and overall scores.
-    - **Return Value:** The hook returns the `propertyChecklistData` (for the UI) and the calculated `categoryScores`, `overallScore`, etc.
+    - This crucial custom hook (`src/hooks/useChecklistAndDashboardData.ts`) receives the query results for `propertyData` (from `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]`) and `premiumStreetDataQuery` (from `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]`), and potentially `crimeScoreQuery` as inputs.
+    - **Data Combination:** It intelligently combines these data sources. Premium data (`premiumStreetDataQuery.data`), if available, takes precedence over basic scraped data (`propertyData`) for relevant fields.
+    - **Checklist Generation:** It calls `generatePropertyChecklist` (`src/sidepanel/propertychecklist/propertyChecklist.ts`) to transform the combined data into the `PropertyDataListItem[]` array required for the checklist UI.
+    - **Calculation Data Preparation:** It prepares a `calculationData` object with specifically formatted values needed for scoring calculations.
+    - **Score Calculation:** It invokes `calculateDashboardScores` (`src/utils/scoreCalculations.ts`).
+    - **Return Value:** The hook returns the `propertyChecklistData`, `categoryScores`, `overallScore`, etc.
 
 6.  **Rendering (`App.tsx`):**
     - `App.tsx` takes the processed data from `useChecklistAndDashboardData`.
-    - It passes `propertyChecklistData` to the create the UI in `ChecklistView` component.
-    - It passes the calculated dashboard scores and `propertyChecklistData` to create the UI the `DashboardView` component.
+    - It passes `propertyChecklistData` to the `ChecklistView` component.
+    - It passes the calculated dashboard scores and `propertyChecklistData` to the `DashboardView` component.
 
 **Benefits of this React Query Approach:**
 
-- **Automatic Caching:** Reduces redundant scraping and API calls, improving performance and user experience, especially when switching between recently viewed properties.
+- **Automatic Caching:** Reduces redundant scraping and API calls, improving performance and user experience.
 - **Server State Management:** Simplifies handling of asynchronous data fetching, loading states, and errors.
-- **Data Freshness:** React Query handles background updates and cache invalidation automatically based on configured stale/cache times.
-- **Separation of Concerns:** Data fetching/caching logic resides within hooks, while the `useChecklistAndDashboardData` hook cleanly separates data combination/processing from the main `App` component. UI display logic (`generatePropertyChecklist`) remains distinct from calculation logic (`calculateDashboardScores`).
+- **Data Freshness:** React Query handles background updates and cache invalidation.
+- **Persistence:** The described premium flow ensures unlocked data and associated user context persist across sessions via backend storage.
+- **Separation of Concerns:** Data fetching/caching logic resides within hooks, `useChecklistAndDashboardData` handles combination/processing, and `App` handles rendering.
 - **Maintainability:** Clearer data flow makes the application easier to understand and modify.
 
-**Premium Search Persistence (Next Steps):**
+**Supporting Premium Data Persistence:**
 
-Currently, the activation of a premium search (`premiumSearchActivated` state and the resulting fetched data in the `usePremiumStreetData` cache) is session-based. To ensure users retain access to premium data they've unlocked across sessions or devices:
-
-1.  **Backend Recording:** When a user successfully confirms and activates a premium search (step 4, Activation), an API call must be made to the backend server.
-2.  **Database Storage:** The backend needs to record in a database (e.g., DynamoDB) that this specific authenticated user (`userId`) has activated the premium search for the specific property (identified by `propertyId` or perhaps the confirmed address/postcode).
-3.  **Status Check on Load:** A new React Query hook (e.g., `useHasPerformedPremiumSearch(propertyId)`) should be implemented in `App.tsx`. This hook will call a backend endpoint upon component load (when `userId` and `propertyId` are known) to check if a record exists in the database for this user/property combination.
-4.  **Enabling Premium Data Fetch:** The `enabled` logic within the `usePremiumStreetData` hook needs to be modified. It should enable the query if _either_ the search has just been activated in the current session (`premiumSearchActivated` is true) _or_ the `useHasPerformedPremiumSearch` hook returns `true` (indicating a persistent record exists). This ensures that previously fetched premium data is accessible from the cache or re-fetched if necessary upon subsequent loads for authenticated users.
+- **DynamoDB Table: `UserPropertySnapshots`**
+  - **Primary Key:** `userId` (Partition Key), `propertyId` (Sort Key)
+  - **Attributes:**
+    - `snapshotData` (Map): Stores the `SnapshotContextData` (user-confirmed address, EPC state, etc.).
+    - `premiumData` (Map): Stores the raw JSON response from the external premium API.
+    - `fetchedAt` (String/Number): Timestamp.
+- **Key Types:**
+  - `PremiumFetchContext`: Contains `propertyId` and `currentContext` (`SnapshotContextData`). Sent from frontend to backend.
+  - `SnapshotContextData`: Contains user-modifiable fields like `confirmedAddress`, `epc`. Used within `PremiumFetchContext` and stored in DB.
+  - `GetPremiumStreetDataResponse`: Contains `premiumData` (always) and `snapshotData` (optional, on cache hit). Returned from backend to frontend.
 
 ## Publishing the extension to chrome web store
 
 When publishing your extension to the Chrome Web Store, you only need to upload the production build – not your entire project. Typically, this means you should:
 
-1. Run your production build (using `npm run build:prod`) to generate the `dist` folder.
-2. Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
-3. Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
-4. Upload that zip file during the extension submission process.
+1.  Run your production build (using `npm run build:prod`) to generate the `dist` folder.
+2.  Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
+3.  Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
+4.  Upload that zip file during the extension submission process.

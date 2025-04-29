@@ -9,7 +9,9 @@ import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
-import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import {
+    GetPremiumStreetDataResponse
+} from "@/types/premiumStreetData";
 import { CategoryScoreData, DashboardScores, PropertyDataListItem } from '@/types/property';
 import { UseQueryResult } from '@tanstack/react-query';
 import {
@@ -52,7 +54,10 @@ interface DashboardViewProps {
 
     // Expansion state and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
-    premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error>;
+    premiumStreetDataQuery: UseQueryResult<
+        GetPremiumStreetDataResponse | null,
+        Error
+    >;
     crimeChartExpanded: boolean;
     crimeContentRef: React.RefObject<HTMLDivElement | null>;
     crimeContentHeight: number;
@@ -135,6 +140,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </>
     );
 
+    const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
+    const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
+
     return (
         <TooltipProvider delayDuration={300}>
             <div className="dashboard-view space-y-2">
@@ -203,13 +211,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     })}
                 </div>
 
-                {premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                {planningApplications && (
                     <Suspense fallback={<LoadingSpinner />}>
                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                             <div ref={planningPermissionContentRef}>
                                 <LazyPlanningPermissionCard
-                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                    planningPermissionData={planningApplications}
+                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
                                     isLoading={premiumStreetDataQuery.isLoading}
                                     displayMode="property"
                                 />
@@ -217,13 +225,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
                     </Suspense>
                 )}
-                {premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                {nearbyPlanningApplications && (
                     <Suspense fallback={<LoadingSpinner />}>
                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                             <div ref={nearbyPlanningPermissionContentRef}>
                                 <LazyPlanningPermissionCard
-                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                    planningPermissionData={planningApplications}
+                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
                                     isLoading={premiumStreetDataQuery.isLoading}
                                     displayMode="nearby"
                                 />

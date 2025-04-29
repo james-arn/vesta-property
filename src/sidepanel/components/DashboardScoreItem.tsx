@@ -11,7 +11,9 @@ import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { CALCULATED_STATUS, DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { PremiumStreetDataResponse } from '@/types/premiumStreetData';
+import {
+    GetPremiumStreetDataResponse
+} from '@/types/premiumStreetData';
 import { CategoryScoreData, PropertyDataListItem } from '@/types/property';
 import { UseQueryResult } from '@tanstack/react-query';
 import React, { lazy, Suspense } from 'react';
@@ -49,7 +51,10 @@ interface DashboardScoreItemProps {
 
     // Expansion state, queries, and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
-    premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error>;
+    premiumStreetDataQuery: UseQueryResult<
+        GetPremiumStreetDataResponse | null,
+        Error
+    >;
     crimeChartExpanded: boolean;
     crimeContentRef: React.RefObject<HTMLDivElement | null>;
     crimeContentHeight: number;
@@ -105,6 +110,9 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     const { score, contributingItems, warningMessages, calculationStatus } = categoryScoreData;
 
     const hasContributingItems = contributingItems?.length > 0;
+
+    const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
+    const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
 
     return (
         <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
@@ -199,13 +207,13 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             </div>
                         </Suspense>
                     )}
-                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.planning_applications && (
+                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && planningApplications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                                 <div ref={planningPermissionContentRef}>
                                     <LazyPlanningPermissionCard
-                                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                        planningPermissionData={planningApplications}
+                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
                                         isLoading={premiumStreetDataQuery.isLoading}
                                         displayMode="property"
                                     />
@@ -213,13 +221,13 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             </div>
                         </Suspense>
                     )}
-                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications && (
+                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && nearbyPlanningApplications && (
                         <Suspense fallback={<LoadingSpinner />}>
                             <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                                 <div ref={nearbyPlanningPermissionContentRef}>
                                     <LazyPlanningPermissionCard
-                                        planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                        nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                        planningPermissionData={planningApplications}
+                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
                                         isLoading={premiumStreetDataQuery.isLoading}
                                         displayMode="nearby"
                                     />

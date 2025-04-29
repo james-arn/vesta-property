@@ -1,6 +1,7 @@
+import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { generatePropertyChecklist } from "@/sidepanel/propertychecklist/propertyChecklist";
-import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import { GetPremiumStreetDataResponse } from "@/types/premiumStreetData";
 import {
   CategoryScoreData,
   DashboardScores,
@@ -12,16 +13,16 @@ import {
   calculateDashboardScores,
   CalculatedDashboardResult as CalculationResultType,
 } from "@/utils/scoreCalculations";
-import { UseQueryResult } from "@tanstack/react-query";
+import { useQuery, useQueryClient, UseQueryResult } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { usePreprocessedPropertyData } from "./usePreprocessedPropertyData";
 
 export interface UseChecklistAndDashboardDataArgs {
   propertyData: ExtractedPropertyScrapingData | null;
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined;
-  premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error> | undefined;
   epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   isEpcDebugModeOn: boolean;
+  isAuthenticated: boolean;
 }
 
 export interface UseChecklistAndDashboardDataResult {
@@ -30,18 +31,40 @@ export interface UseChecklistAndDashboardDataResult {
   categoryScores: DashboardScores;
   overallScore: number | null;
   dataCoverageScoreData: CategoryScoreData | undefined;
+  premiumDataQuery: UseQueryResult<GetPremiumStreetDataResponse | null, Error>;
 }
 
 export const useChecklistAndDashboardData = ({
   propertyData,
   crimeScoreQuery,
-  premiumStreetDataQuery,
   epcDebugCanvasRef,
   isEpcDebugModeOn,
+  isAuthenticated,
 }: UseChecklistAndDashboardDataArgs): UseChecklistAndDashboardDataResult => {
+  const queryClient = useQueryClient();
+  const propertyId = propertyData?.propertyId;
+
+  const premiumDataQuery = useQuery<GetPremiumStreetDataResponse | null, Error>({
+    queryKey: [REACT_QUERY_KEYS.PREMIUM_STREET_DATA, propertyId],
+    queryFn: async () => {
+      return (
+        queryClient.getQueryData<GetPremiumStreetDataResponse | null>([
+          REACT_QUERY_KEYS.PREMIUM_STREET_DATA,
+          propertyId,
+        ]) ?? null
+      );
+    },
+    enabled: !!propertyId && isAuthenticated,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
   const preprocessedData = usePreprocessedPropertyData({
     propertyData,
-    premiumStreetDataQuery,
+    premiumStreetDataQuery: premiumDataQuery,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
   });
@@ -79,5 +102,6 @@ export const useChecklistAndDashboardData = ({
     categoryScores,
     overallScore,
     dataCoverageScoreData,
+    premiumDataQuery,
   };
 };

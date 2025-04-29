@@ -1,11 +1,10 @@
-import DevTools from '@/components/DevTools';
 import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { ActionEvents } from '@/constants/actionEvents';
 import VIEWS from '@/constants/views';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
-import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
+import { usePersistentPremiumData } from '@/hooks/usePersistentPremiumData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,7 +24,10 @@ import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardDa
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import { usePremiumFlow } from '@/hooks/usePremiumFlow';
 import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
-import { ChecklistViewProps } from "@/sidepanel/components/ChecklistView";
+import {
+  PremiumFetchContext,
+  SnapshotContextData
+} from '@/types/premiumStreetData';
 import {
   generateAgentMessage,
   getValueClickHandler
@@ -33,7 +35,7 @@ import {
 import SettingsBar from "./settingsbar/SettingsBar";
 
 const LazyChecklistView = lazy(() =>
-  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView as React.FC<ChecklistViewProps> }))
+  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
 );
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
@@ -91,20 +93,30 @@ const App: React.FC = () => {
   const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
-  const [premiumSearchActivated, setPremiumSearchActivated] = useState(false);
 
-  // --- Hooks depending on propertyId or propertyData ---
-  const premiumStreetDataQuery = usePremiumStreetData({
-    isAddressConfirmedByUser: propertyData?.address?.isAddressConfirmedByUser ?? false,
-    premiumSearchActivated: premiumSearchActivated,
-    addressData: propertyData?.address
-  });
+  const { activatePremiumSearch, isActivating, activationError } =
+    usePersistentPremiumData();
 
   const handleConfirmAndActivate = useCallback(() => {
-    setPremiumSearchActivated(true);
-  }, []);
+    if (!currentPropertyId || !propertyData?.address || !propertyData?.epc) {
+      console.error("Missing data needed to activate premium search.");
+      return;
+    }
 
-  // --- Premium Flow Hook ---
+    const snapshotContext: SnapshotContextData = {
+      confirmedAddress: propertyData.address,
+      epc: propertyData.epc,
+    };
+
+    const fetchContext: PremiumFetchContext = {
+      propertyId: currentPropertyId,
+      currentContext: snapshotContext,
+    };
+
+    activatePremiumSearch(fetchContext);
+
+  }, [currentPropertyId, propertyData, activatePremiumSearch]);
+
   const {
     triggerPremiumFlow,
     showUpsellModal,
@@ -115,7 +127,7 @@ const App: React.FC = () => {
     notifyAddressConfirmed,
   } = usePremiumFlow({
     isAuthenticated,
-    isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false, // Use query data
+    isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false,
     openAddressConfirmationModal: useCallback(() => setShowBuildingValidationModal(true), []),
     onConfirmAndActivate: handleConfirmAndActivate,
   });
@@ -143,13 +155,14 @@ const App: React.FC = () => {
     preprocessedData,
     categoryScores,
     overallScore,
-    dataCoverageScoreData
+    dataCoverageScoreData,
+    premiumDataQuery,
   } = useChecklistAndDashboardData({
     propertyData: propertyData ?? null,
     crimeScoreQuery: crimeQuery,
-    premiumStreetDataQuery,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
+    isAuthenticated,
   });
 
   const {
@@ -193,13 +206,13 @@ const App: React.FC = () => {
     if (planningPermissionContentRef.current) {
       setPlanningPermissionContentHeight(planningPermissionContentRef.current.scrollHeight);
     }
-  }, [planningPermissionCardExpanded, premiumStreetDataQuery.data]);
+  }, [planningPermissionCardExpanded, preprocessedData]);
 
   useEffect(function updateNearbyPlanningPermissionContentHeight() {
     if (nearbyPlanningPermissionContentRef.current) {
       setNearbyPlanningPermissionContentHeight(nearbyPlanningPermissionContentRef.current.scrollHeight);
     }
-  }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
+  }, [nearbyPlanningPermissionCardExpanded, preprocessedData]);
 
   const handleBuildingNameOrNumberConfirmation = (
     confirmedAddress: Pick<
@@ -279,73 +292,63 @@ const App: React.FC = () => {
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
 
-  // --- Loading Checks ---
-  if (nonPropertyPageWarningMessage) {
-    return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
-  }
-  if (isCheckingAuth || (!!currentPropertyId && isLoadingQueryPropertyData)) {
+  const handleValueClick = useCallback((item: PropertyDataListItem) => {
+    console.warn("handleValueClick needs implementation/restoration");
+    // Example: Potentially call generateAgentMessage and open modal
+    // const message = generateAgentMessage(item);
+    // setAgentMessage(message);
+    // setIsAgentMessageModalOpen(true);
+  }, []);
+
+  if (isCheckingAuth || isLoadingQueryPropertyData || (!propertyData && !nonPropertyPageWarningMessage)) {
     return <SideBarLoading />;
   }
-  if (queryPropertyDataError) {
-    return <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />;
-  }
 
-  const isPremiumDataFetched = premiumStreetDataQuery.isFetched;
-
-  if (!propertyData?.propertyId) {
+  if (nonPropertyPageWarningMessage || !propertyData) {
     return (
-      <Alert
-        type="info"
-        message="Waiting for property data or navigate to a Rightmove property page."
-      />
+      <Alert type="warning" message={nonPropertyPageWarningMessage || "Property data could not be loaded."} />
     );
   }
 
-  if (isPropertyDataLoading) {
-    <Alert
-      type="info"
-      message="Background script loading."
-    />
+  if (queryPropertyDataError) {
+    return (
+      <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
+    );
   }
 
-  // --- Main Render Logic --- 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="flex h-screen flex-col bg-background text-foreground">
       <SettingsBar
-        toggleFilter={toggleFilter}
-        filters={filters}
-        openGroups={openGroups}
-        setOpenGroups={setOpenGroups}
-        propertyChecklistData={propertyChecklistData.map((item: PropertyDataListItem) => ({ group: item.checklistGroup }))}
-        agentDetails={propertyData.agent}
         currentView={currentView}
         setCurrentView={setCurrentView}
+        openGroups={openGroups}
+        setOpenGroups={setOpenGroups}
+        propertyChecklistData={propertyChecklistData.map(item => ({ group: item.checklistGroup }))}
+        filters={filters}
+        toggleFilter={toggleFilter}
+        agentDetails={propertyData.agent}
         onGenerateMessageClick={handleGenerateMessageClick}
         onPremiumSearchClick={triggerPremiumFlow}
       />
 
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-grow p-4 overflow-y-auto">
-        {currentView === VIEWS.DASHBOARD && categoryScores
-          ? (
-            <DashboardView
-              checklistsData={propertyChecklistData}
-              categoryScores={categoryScores}
-              overallScore={overallScore}
-              dataCoverageScoreData={dataCoverageScoreData}
-              isLoading={isLoadingQueryPropertyData}
-              isPremiumDataFetched={isPremiumDataFetched}
-              processedEpcResult={preprocessedData.processedEpcResult}
-              epcDebugCanvasRef={epcDebugCanvasRef}
-              isEpcDebugModeOn={isEpcDebugModeOn}
-              handleEpcValueChange={handleEpcValueChange}
+      <main className="flex-1 overflow-y-auto p-4">
+        {currentView === VIEWS.CHECKLIST && (
+          <Suspense fallback={<SideBarLoading />}>
+            <LazyChecklistView
+              filteredChecklistData={filteredChecklistData}
+              openGroups={openGroups}
+              toggleGroup={toggleGroup}
               getValueClickHandler={getValueClickHandler}
               openNewTab={openNewTab}
               toggleCrimeChart={toggleCrimeChart}
               togglePlanningPermissionCard={togglePlanningPermissionCard}
               toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+              isPremiumDataFetched={!preprocessedData.isPreprocessedDataLoading && !preprocessedData.preprocessedDataError}
+              processedEpcResult={preprocessedData.processedEpcResult}
+              handleEpcValueChange={handleEpcValueChange}
+              isEpcDebugModeOn={isEpcDebugModeOn}
+              epcDebugCanvasRef={epcDebugCanvasRef}
               crimeQuery={crimeQuery}
-              premiumStreetDataQuery={premiumStreetDataQuery}
               crimeChartExpanded={crimeChartExpanded}
               crimeContentRef={crimeContentRef}
               crimeContentHeight={crimeContentHeight}
@@ -356,42 +359,44 @@ const App: React.FC = () => {
               nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
               nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
               onTriggerPremiumFlow={triggerPremiumFlow}
+              premiumStreetDataQuery={premiumDataQuery}
             />
-          ) : (
-            <Suspense fallback={<SideBarLoading />}>
-              <LazyChecklistView
-                filteredChecklistData={filteredChecklistData}
-                getValueClickHandler={getValueClickHandler}
-                handleEpcValueChange={handleEpcValueChange}
-                openNewTab={openNewTab}
-                toggleCrimeChart={toggleCrimeChart}
-                togglePlanningPermissionCard={togglePlanningPermissionCard}
-                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                isPremiumDataFetched={isPremiumDataFetched}
-                processedEpcResult={preprocessedData.processedEpcResult ?? undefined}
-                epcDebugCanvasRef={epcDebugCanvasRef}
-                isEpcDebugModeOn={isEpcDebugModeOn}
-                onTriggerPremiumFlow={triggerPremiumFlow}
-                crimeQuery={crimeQuery}
-                premiumStreetDataQuery={premiumStreetDataQuery}
-                crimeChartExpanded={crimeChartExpanded}
-                crimeContentRef={crimeContentRef}
-                crimeContentHeight={crimeContentHeight}
-                planningPermissionCardExpanded={planningPermissionCardExpanded}
-                planningPermissionContentRef={planningPermissionContentRef}
-                planningPermissionContentHeight={planningPermissionContentHeight}
-                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                openGroups={openGroups}
-                toggleGroup={toggleGroup}
-              />
-            </Suspense>
-          )
-        }
-      </div>
+          </Suspense>
+        )}
 
-      {/* Modals */}
+        {currentView === VIEWS.DASHBOARD && (
+          <DashboardView
+            checklistsData={propertyChecklistData}
+            categoryScores={categoryScores}
+            overallScore={overallScore}
+            getValueClickHandler={getValueClickHandler}
+            dataCoverageScoreData={dataCoverageScoreData}
+            crimeQuery={crimeQuery}
+            crimeChartExpanded={crimeChartExpanded}
+            toggleCrimeChart={toggleCrimeChart}
+            crimeContentRef={crimeContentRef}
+            crimeContentHeight={crimeContentHeight}
+            planningPermissionCardExpanded={planningPermissionCardExpanded}
+            togglePlanningPermissionCard={togglePlanningPermissionCard}
+            planningPermissionContentRef={planningPermissionContentRef}
+            planningPermissionContentHeight={planningPermissionContentHeight}
+            nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+            toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+            nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+            nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+            onTriggerPremiumFlow={triggerPremiumFlow}
+            isPremiumDataFetched={!preprocessedData.isPreprocessedDataLoading && !preprocessedData.preprocessedDataError}
+            processedEpcResult={preprocessedData.processedEpcResult}
+            epcDebugCanvasRef={epcDebugCanvasRef}
+            isEpcDebugModeOn={isEpcDebugModeOn}
+            handleEpcValueChange={handleEpcValueChange}
+            isLoading={isLoadingQueryPropertyData || premiumDataQuery.isLoading}
+            premiumStreetDataQuery={premiumDataQuery}
+            openNewTab={openNewTab}
+          />
+        )}
+      </main>
+
       {showBuildingValidationModal && (
         <Suspense fallback={null}>
           <LazyBuildingConfirmationDialog
@@ -403,19 +408,9 @@ const App: React.FC = () => {
           />
         </Suspense>
       )}
-      <Suspense fallback={null}>
-        <LazyAgentMessageModal
-          isOpen={isAgentMessageModalOpen}
-          onClose={() => setIsAgentMessageModalOpen(false)}
-          message={agentMessage}
-        />
-      </Suspense>
       {showUpsellModal && (
         <Suspense fallback={null}>
-          <LazyUpsellModal
-            open={showUpsellModal}
-            onOpenChange={setShowUpsellModal}
-          />
+          <LazyUpsellModal open={showUpsellModal} onOpenChange={setShowUpsellModal} />
         </Suspense>
       )}
       {showPremiumConfirmationModal && isAuthenticated && (
@@ -423,14 +418,24 @@ const App: React.FC = () => {
           <LazyPremiumConfirmationModal
             open={showPremiumConfirmationModal}
             onOpenChange={setShowPremiumConfirmationModal}
-            isAddressConfirmed={propertyData?.address?.isAddressConfirmedByUser ?? false}
             onConfirmPremiumSearch={premiumConfirmationHandler}
+            isAddressConfirmed={propertyData?.address?.isAddressConfirmedByUser ?? false}
           />
         </Suspense>
       )}
-      <DevTools />
+      {isAgentMessageModalOpen && (
+        <Suspense fallback={null}>
+          <LazyAgentMessageModal
+            isOpen={isAgentMessageModalOpen}
+            onClose={() => setIsAgentMessageModalOpen(false)}
+            message={agentMessage}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
 
 export default App;
+
+

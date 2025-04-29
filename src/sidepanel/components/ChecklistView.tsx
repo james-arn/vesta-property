@@ -7,7 +7,9 @@ import { UseQueryResult } from "@tanstack/react-query";
 import React, { lazy, RefObject, Suspense } from "react";
 
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
-import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import {
+    GetPremiumStreetDataResponse
+} from "@/types/premiumStreetData";
 
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
@@ -27,7 +29,10 @@ export interface ChecklistViewProps {
     isEpcDebugModeOn: boolean;
     epcDebugCanvasRef: RefObject<HTMLCanvasElement | null>;
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
-    premiumStreetDataQuery: UseQueryResult<PremiumStreetDataResponse, Error>;
+    premiumStreetDataQuery: UseQueryResult<
+        GetPremiumStreetDataResponse | null,
+        Error
+    >;
     crimeChartExpanded: boolean;
     crimeContentRef: RefObject<HTMLDivElement | null>;
     crimeContentHeight: number;
@@ -69,6 +74,10 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
 }) => {
     // Keep track of the last rendered group within this component instance
     let lastGroup = "";
+
+    // Safely access nested data
+    const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
+    const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
 
     return (
         <>
@@ -125,13 +134,13 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && premiumStreetDataQuery.data?.data?.attributes?.planning_applications?.length && (
+                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningApplications?.length && (
                                     <Suspense fallback={<LoadingSpinner />}>
                                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
                                             <div ref={planningPermissionContentRef}>
                                                 <LazyPlanningPermissionCard
-                                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                                    planningPermissionData={planningApplications}
+                                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
                                                     isLoading={premiumStreetDataQuery.isLoading}
                                                     displayMode="property"
                                                 />
@@ -139,13 +148,13 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && premiumStreetDataQuery.data?.data?.attributes?.nearby_planning_applications?.length && (
+                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningApplications?.length && (
                                     <Suspense fallback={<LoadingSpinner />}>
                                         <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
                                             <div ref={nearbyPlanningPermissionContentRef}>
                                                 <LazyPlanningPermissionCard
-                                                    planningPermissionData={premiumStreetDataQuery.data.data.attributes.planning_applications}
-                                                    nearbyPlanningPermissionData={premiumStreetDataQuery.data.data.attributes.nearby_planning_applications}
+                                                    planningPermissionData={planningApplications}
+                                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
                                                     isLoading={premiumStreetDataQuery.isLoading}
                                                     displayMode="nearby"
                                                 />
