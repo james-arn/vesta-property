@@ -11,6 +11,7 @@ import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Address,
   ConfidenceLevels,
   EpcData,
   EpcDataSourceType,
@@ -96,11 +97,9 @@ const App: React.FC = () => {
   const premiumStreetDataQuery = usePremiumStreetData({
     isAddressConfirmedByUser: propertyData?.address?.isAddressConfirmedByUser ?? false,
     premiumSearchActivated: premiumSearchActivated,
-    address: propertyData?.address?.displayAddress ?? '',
-    postcode: propertyData?.address?.postcode ?? ''
+    addressData: propertyData?.address
   });
 
-  // --- Handler to activate premium search ---
   const handleConfirmAndActivate = useCallback(() => {
     setPremiumSearchActivated(true);
   }, []);
@@ -128,19 +127,12 @@ const App: React.FC = () => {
 
   const handleReverseGeocodeSuccess = useCallback(
     (data: ReverseGeocodeResponse) => {
-      if (currentPropertyId) {
-        queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
-          [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
-          (oldData) => oldData ? { ...oldData, address: { ...oldData.address, displayAddress: data.address, isAddressConfirmedByUser: false } } : undefined
-        );
-      } else {
-        console.warn("Cannot update RQ cache for reverse geocode: currentPropertyId missing.")
-      }
+      console.log("Reverse geocode success (not updating cache):", data);
     },
-    [queryClient, currentPropertyId]
+    []
   );
 
-  useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
+  const reverseGeocodeQuery = useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
 
   const crimeQuery = useCrimeScore(latStr, lngStr);
 
@@ -209,18 +201,54 @@ const App: React.FC = () => {
     }
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
-  const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
-    if (currentPropertyId) {
+  const handleBuildingNameOrNumberConfirmation = (
+    confirmedAddress: Pick<
+      Address,
+      "confirmedBuilding" | "confirmedStreet" | "confirmedTown" | "confirmedPostcode"
+    >
+  ) => {
+    if (currentPropertyId && propertyData) {
+      const buildingAndStreet = [
+        confirmedAddress.confirmedBuilding,
+        confirmedAddress.confirmedStreet,
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      const newDisplayAddress = [
+        buildingAndStreet,
+        confirmedAddress.confirmedTown,
+        confirmedAddress.confirmedPostcode,
+      ]
+        .filter(Boolean)
+        .join(", ");
+
       queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
         [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
-        (oldData) => oldData ? { ...oldData, address: { ...oldData.address, displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true } } : undefined
+        (oldData) => {
+          if (!oldData) return undefined;
+          return {
+            ...oldData,
+            address: {
+              ...oldData.address,
+              displayAddress: newDisplayAddress,
+              isAddressConfirmedByUser: true,
+              confirmedBuilding: confirmedAddress.confirmedBuilding,
+              confirmedStreet: confirmedAddress.confirmedStreet,
+              confirmedTown: confirmedAddress.confirmedTown,
+              confirmedPostcode: confirmedAddress.confirmedPostcode,
+            },
+          };
+        }
       );
     } else {
-      console.warn("Cannot update RQ cache for building confirmation: currentPropertyId missing.")
+      console.warn(
+        "Cannot update RQ cache for building confirmation: currentPropertyId or propertyData missing."
+      );
     }
     setShowBuildingValidationModal(false);
     notifyAddressConfirmed();
-  }
+  };
 
   const handleEpcValueChange = useCallback((newValue: string) => {
     if (currentPropertyId && propertyData) {
@@ -369,8 +397,9 @@ const App: React.FC = () => {
           <LazyBuildingConfirmationDialog
             open={showBuildingValidationModal}
             onOpenChange={setShowBuildingValidationModal}
-            suggestedBuildingNameOrNumber={propertyData.address.displayAddress ?? ""}
+            addressData={propertyData?.address ?? null}
             handleConfirm={handleBuildingNameOrNumberConfirmation}
+            reverseGeocodedAddress={reverseGeocodeQuery.data?.address ?? null}
           />
         </Suspense>
       )}

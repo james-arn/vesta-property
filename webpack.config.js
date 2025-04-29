@@ -7,6 +7,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const packageJson = require("./package.json");
+const webpack = require("webpack");
 
 const nodeModulesPath = path.resolve(__dirname, "node_modules");
 

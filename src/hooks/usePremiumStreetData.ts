@@ -1,13 +1,13 @@
 import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { useApiAuth } from "@/hooks/useApiAuth";
 import { PremiumStreetDataResponse } from "@/types/premiumStreetData";
+import { Address } from "@/types/property";
 import { useQuery } from "@tanstack/react-query";
 
 interface UsePremiumStreetDataOptions {
   isAddressConfirmedByUser: boolean;
   premiumSearchActivated: boolean;
-  address?: string;
-  postcode?: string;
+  addressData: Address | null | undefined;
   enabled?: boolean; // Allow overriding enabled logic if needed externally
 }
 
@@ -15,15 +15,25 @@ interface UsePremiumStreetDataOptions {
 export function usePremiumStreetData({
   isAddressConfirmedByUser,
   premiumSearchActivated,
-  address,
-  postcode,
-  enabled = !!address && !!postcode && isAddressConfirmedByUser && premiumSearchActivated,
+  addressData,
+  enabled = !!addressData?.confirmedStreet &&
+    !!addressData?.confirmedPostcode &&
+    !!addressData?.confirmedTown &&
+    isAddressConfirmedByUser &&
+    premiumSearchActivated,
 }: UsePremiumStreetDataOptions) {
   // Use the options object
   const { fetchWithAuth } = useApiAuth();
 
+  // Extract confirmed details, providing defaults
+  const confirmedBuilding = addressData?.confirmedBuilding ?? "";
+  const confirmedStreet = addressData?.confirmedStreet ?? "";
+  const confirmedPostcode = addressData?.confirmedPostcode ?? "";
+  // Combine building and street for API
+  const apiAddressLine = [confirmedBuilding, confirmedStreet].filter(Boolean).join(" ");
+
   const fetchPremiumStreetData = async (
-    addressVal: string,
+    addressLine1Val: string, // Renamed for clarity
     postcodeVal: string
   ): Promise<PremiumStreetDataResponse> => {
     // Use the mock response when the flag is set
@@ -63,23 +73,36 @@ export function usePremiumStreetData({
     // - When shouldUseMockOnBackend=false, we set x-use-real-api=true (use real API)
     const xUseRealApiHeader = (!shouldUseMockOnBackend).toString();
 
-    console.log("shouldUseMockOnBackend:", shouldUseMockOnBackend);
-    console.log("x-use-real-api header value:", xUseRealApiHeader);
-    console.log("endpoint:", endpoint);
+    console.log("Sending Premium API Request:", {
+      address: addressLine1Val,
+      postcode: postcodeVal,
+    });
+    console.log("x-use-real-api:", xUseRealApiHeader);
 
     return fetchWithAuth<PremiumStreetDataResponse>(endpoint, {
       method: "POST",
       headers: {
         "x-use-real-api": xUseRealApiHeader,
       },
-      body: JSON.stringify({ data: { address: addressVal, postcode: postcodeVal } }),
+      body: JSON.stringify({
+        data: {
+          address: addressLine1Val,
+          postcode: postcodeVal,
+        },
+      }),
     });
   };
 
+  // Update queryKey to use the key address parts
+  const queryKey = [
+    REACT_QUERY_KEYS.PREMIUM_STREET_DATA,
+    apiAddressLine, // Use combined line for query key stability
+    confirmedPostcode,
+  ];
+
   return useQuery({
-    queryKey: [REACT_QUERY_KEYS.PREMIUM_STREET_DATA, address, postcode],
-    queryFn: () => fetchPremiumStreetData(address ?? "", postcode ?? ""),
-    // Use the calculated/passed enabled flag
+    queryKey: queryKey,
+    queryFn: () => fetchPremiumStreetData(apiAddressLine, confirmedPostcode),
     enabled: enabled,
     staleTime: 24 * 60 * 60 * 1000, // cache for 1 day
     refetchOnWindowFocus: false,

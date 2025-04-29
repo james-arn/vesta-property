@@ -98,6 +98,16 @@ export interface RightOfWayDetails {
   exists?: boolean;
 }
 
+export interface Address {
+  displayAddress: string | null;
+  postcode: string | null;
+  isAddressConfirmedByUser: boolean;
+  confirmedBuilding?: string | null;
+  confirmedStreet?: string | null;
+  confirmedTown?: string | null;
+  confirmedPostcode?: string | null;
+}
+
 export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
@@ -119,11 +129,7 @@ export interface ExtractedPropertyScrapingData {
   isRental: boolean;
   listedProperty: ListedBuilding[] | null;
   listingHistory: string | null;
-  address: {
-    displayAddress: string | null;
-    postcode: string | null;
-    isAddressConfirmedByUser: boolean;
-  };
+  address: Address;
   miningImpact: PropertyItem;
   miningImpactStatus: boolean | null;
   parking: string | null;

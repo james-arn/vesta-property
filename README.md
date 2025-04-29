@@ -176,14 +176,24 @@ The core data flow operates as follows:
 
 3.  **React Query Data Hooks in `App.tsx`:**
 
-    - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information, user confirmations (like address), and potentially reverse geocoded details. React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
+    - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information and user confirmations (like address). React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
+      User inputs handled in the UI, such as manual EPC value entry or address confirmation (via the structured address modal), directly update this base property data cache using `queryClient.setQueryData`. This ensures the primary data object immediately reflects user overrides before being passed to processing hooks.
     - **Supplementary Data:** Other hooks fetch additional data, managed internally by React Query for caching:
-      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated, cached likely based on address/postcode.
+      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated, cached based on the confirmed address/postcode.
       - `useCrimeScore`: Fetches crime scores based on coordinates, results are cached.
-      - `useReverseGeocode`: Fetches address details from coordinates, results are cached.
+      - `useReverseGeocode`: Fetches address details based on listing coordinates. **Note:** This result is _not_ used to update the main property data cache automatically (as coordinates can be imprecise). Instead, it's passed as an informational hint to the address confirmation modal.
       - _(Note: EPC processing is also handled separately, potentially caching results based on the EPC document URL)._
 
-4.  **Data Aggregation and Processing (`useChecklistAndDashboardData`):**
+4.  **4. Premium Feature Activation Flow (`usePremiumFlow`):** Triggering a premium data search initiates the following sequence managed by the `usePremiumFlow` hook:
+    _ **Authentication Check:** It first checks if the user is authenticated (`isAuthenticated`).
+    _ **Upsell:** If not authenticated, the `UpsellModal` is displayed.
+    _ **Address Confirmation Check:** If authenticated, it checks `propertyData.address.isAddressConfirmedByUser` (read from the main React Query cache).
+    _ **Address Modal:** If the address is _not_ confirmed, the `BuildingConfirmationDialog` is shown. This modal allows the user to verify/correct the structured address (Building, Street, Town, Postcode), pre-filled by parsing the scraped `propertyData.address.displayAddress`. Upon confirmation, the handler updates the main `propertyData` cache (`[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]`) using `queryClient.setQueryData`, storing the `confirmedBuilding`, `confirmedStreet`, etc., and setting `isAddressConfirmedByUser` to `true`. The reverse-geocoded address is shown only as a text hint here.
+
+    - **Premium Confirmation:** If the address _is_ confirmed (either initially or after the previous step), the `PremiumConfirmationModal` is displayed, asking the user to confirm spending a credit/token.
+    - **Activation:** Upon final confirmation in the premium modal, the `onConfirmAndActivate` callback is triggered. This typically sets a local state variable (`premiumSearchActivated` in `App.tsx`), which in turn satisfies the `enabled` condition within the `usePremiumStreetData` hook, causing it to fetch the premium data.
+
+5.  **Data Aggregation and Processing (`useChecklistAndDashboardData`):**
 
     - This crucial custom hook (`src/hooks/useChecklistAndDashboardData.ts`) receives the query results for `propertyData`, `premiumStreetDataQuery`, and `crimeScoreQuery` as inputs.
     - **Data Combination:** It intelligently combines these data sources. Premium data, if available and fetched, takes precedence over basic scraped data for relevant fields.
@@ -192,7 +202,7 @@ The core data flow operates as follows:
     - **Score Calculation:** It invokes `calculateDashboardScores` (`src/utils/scoreCalculations.ts`), passing the necessary data to compute category and overall scores.
     - **Return Value:** The hook returns the `propertyChecklistData` (for the UI) and the calculated `categoryScores`, `overallScore`, etc.
 
-5.  **Rendering (`App.tsx`):**
+6.  **Rendering (`App.tsx`):**
     - `App.tsx` takes the processed data from `useChecklistAndDashboardData`.
     - It passes `propertyChecklistData` to the create the UI in `ChecklistView` component.
     - It passes the calculated dashboard scores and `propertyChecklistData` to create the UI the `DashboardView` component.
@@ -204,6 +214,15 @@ The core data flow operates as follows:
 - **Data Freshness:** React Query handles background updates and cache invalidation automatically based on configured stale/cache times.
 - **Separation of Concerns:** Data fetching/caching logic resides within hooks, while the `useChecklistAndDashboardData` hook cleanly separates data combination/processing from the main `App` component. UI display logic (`generatePropertyChecklist`) remains distinct from calculation logic (`calculateDashboardScores`).
 - **Maintainability:** Clearer data flow makes the application easier to understand and modify.
+
+**Premium Search Persistence (Next Steps):**
+
+Currently, the activation of a premium search (`premiumSearchActivated` state and the resulting fetched data in the `usePremiumStreetData` cache) is session-based. To ensure users retain access to premium data they've unlocked across sessions or devices:
+
+1.  **Backend Recording:** When a user successfully confirms and activates a premium search (step 4, Activation), an API call must be made to the backend server.
+2.  **Database Storage:** The backend needs to record in a database (e.g., DynamoDB) that this specific authenticated user (`userId`) has activated the premium search for the specific property (identified by `propertyId` or perhaps the confirmed address/postcode).
+3.  **Status Check on Load:** A new React Query hook (e.g., `useHasPerformedPremiumSearch(propertyId)`) should be implemented in `App.tsx`. This hook will call a backend endpoint upon component load (when `userId` and `propertyId` are known) to check if a record exists in the database for this user/property combination.
+4.  **Enabling Premium Data Fetch:** The `enabled` logic within the `usePremiumStreetData` hook needs to be modified. It should enable the query if _either_ the search has just been activated in the current session (`premiumSearchActivated` is true) _or_ the `useHasPerformedPremiumSearch` hook returns `true` (indicating a persistent record exists). This ensures that previously fetched premium data is accessible from the cache or re-fetched if necessary upon subsequent loads for authenticated users.
 
 ## Publishing the extension to chrome web store
 

@@ -21,7 +21,6 @@ interface PremiumConfirmationModalProps {
 export const PremiumConfirmationModal: React.FC<PremiumConfirmationModalProps> = ({
     open,
     onOpenChange,
-    isAddressConfirmed,
     onConfirmPremiumSearch,
     // tokensRemaining,
 }) => {
