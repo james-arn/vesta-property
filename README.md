@@ -157,20 +157,53 @@ Chrome extensions (Manifest V3) consist of several key components:
 
 These components communicate using message passing, which enables complex interactivity between the UI, background, and content scripts.
 
-## Caching Strategy
+## Data Flow and Caching with React Query
 
-To optimize performance and avoid redundant data fetching or processing, the extension employs the following caching strategies:
+This extension leverages React Query (TanStack Query) for efficient data fetching, caching, and state management, replacing previous context-based approaches. This ensures optimal performance, minimizes redundant operations, and simplifies data handling across the application, particularly within `src/sidepanel/App.tsx`.
 
-- **Scraped Property Data:** TanStack Query (`useQuery`) caches the initial property data scraped from Rightmove pages. The cache key includes the property ID (`[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]`). This prevents re-scraping when switching between already visited property tabs.
-- **Processed EPC Data:** Complex EPC processing (PDF OCR and image analysis) is also managed by TanStack Query. The result of processing a specific EPC URL (image or PDF) is cached using a distinct key (`['processedEpc', epcUrl]`). This avoids re-running expensive analysis on the same EPC document, even across different property listings that might link to it.
-  - The query intelligently uses initial data from the scrape if confidence is high, or runs the processing function only if confidence is low, leveraging the cache for processed results.
-- **Other API Data:** Hooks like `useCrimeScore`, `usePremiumStreetData`, and `useReverseGeocode` likely utilize TanStack Query internally (or could be refactored to do so) to cache results from their respective API endpoints based on appropriate keys (like coordinates or address details).
+The core data flow operates as follows:
 
-This multi-layered caching approach ensures that:
+1.  **Property Identification:**
 
-1.  Basic property data is quickly available when switching tabs.
-2.  Expensive processing tasks are performed only when necessary and their results are reused.
-3.  API calls are minimized by caching their responses.
+    - The background script (`background.ts`) monitors navigation to supported property listing pages (e.g., Rightmove).
+    - Upon detecting a property page, it scrapes the initial data using the content script (`contentScript.ts`).
+    - The background script determines the unique `propertyId` for the current page.
+
+2.  **Data Propagation to UI:**
+
+    - The `useBackgroundMessageHandler` hook in `App.tsx` listens for messages from the background script.
+    - It receives the `currentPropertyId` and updates the React Query client when new property data is scraped and sent from the background. The background script directly populates the cache for the relevant `propertyId` using `queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], scrapedData)`.
+
+3.  **React Query Data Hooks in `App.tsx`:**
+
+    - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information, user confirmations (like address), and potentially reverse geocoded details. React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
+    - **Supplementary Data:** Other hooks fetch additional data, managed internally by React Query for caching:
+      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated, cached likely based on address/postcode.
+      - `useCrimeScore`: Fetches crime scores based on coordinates, results are cached.
+      - `useReverseGeocode`: Fetches address details from coordinates, results are cached.
+      - _(Note: EPC processing is also handled separately, potentially caching results based on the EPC document URL)._
+
+4.  **Data Aggregation and Processing (`useChecklistAndDashboardData`):**
+
+    - This crucial custom hook (`src/hooks/useChecklistAndDashboardData.ts`) receives the query results for `propertyData`, `premiumStreetDataQuery`, and `crimeScoreQuery` as inputs.
+    - **Data Combination:** It intelligently combines these data sources. Premium data, if available and fetched, takes precedence over basic scraped data for relevant fields.
+    - **Checklist Generation:** It calls `generatePropertyChecklist` (`src/sidepanel/propertychecklist/propertyChecklist.ts`) to transform the combined data into the `PropertyDataListItem[]` array required for the checklist UI. This involves formatting values into display strings and setting data statuses.
+    - **Calculation Data Preparation:** It prepares a `calculationData` object with specifically formatted (often numeric) values needed for scoring calculations (e.g., lease months, numerical EPC score).
+    - **Score Calculation:** It invokes `calculateDashboardScores` (`src/utils/scoreCalculations.ts`), passing the necessary data to compute category and overall scores.
+    - **Return Value:** The hook returns the `propertyChecklistData` (for the UI) and the calculated `categoryScores`, `overallScore`, etc.
+
+5.  **Rendering (`App.tsx`):**
+    - `App.tsx` takes the processed data from `useChecklistAndDashboardData`.
+    - It passes `propertyChecklistData` to the create the UI in `ChecklistView` component.
+    - It passes the calculated dashboard scores and `propertyChecklistData` to create the UI the `DashboardView` component.
+
+**Benefits of this React Query Approach:**
+
+- **Automatic Caching:** Reduces redundant scraping and API calls, improving performance and user experience, especially when switching between recently viewed properties.
+- **Server State Management:** Simplifies handling of asynchronous data fetching, loading states, and errors.
+- **Data Freshness:** React Query handles background updates and cache invalidation automatically based on configured stale/cache times.
+- **Separation of Concerns:** Data fetching/caching logic resides within hooks, while the `useChecklistAndDashboardData` hook cleanly separates data combination/processing from the main `App` component. UI display logic (`generatePropertyChecklist`) remains distinct from calculation logic (`calculateDashboardScores`).
+- **Maintainability:** Clearer data flow makes the application easier to understand and modify.
 
 ## Publishing the extension to chrome web store
 
@@ -180,34 +213,3 @@ When publishing your extension to the Chrome Web Store, you only need to upload 
 2. Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
 3. Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
 4. Upload that zip file during the extension submission process.
-
-## Frontend Data Flow
-
-A key aspect of this extension's architecture is the separation between preparing data for UI display and preparing data for internal calculations (like the dashboard scores). This ensures maintainability and clear responsibilities.
-
-The primary data flow is orchestrated within `src/sidepanel/App.tsx`:
-
-1.  **Raw Data Acquisition:**
-
-    - `App.tsx` manages the state for scraped property data (`propertyData` via `usePropertyData` context), premium API query results (`usePremiumStreetData`, `useCrimeScore`), and processed EPC data (`useProcessedEpcData`).
-    - Messages from the background script update the `propertyData` state.
-
-2.  **Data Processing Hook (`useChecklistAndDashboardData`):**
-
-    - To keep `App.tsx` clean, the custom hook `src/hooks/useChecklistAndDashboardData.ts` takes the raw data sources as input.
-    - **Checklist Generation:** Inside the hook, `src/sidepanel/propertychecklist/propertyChecklist.ts -> generatePropertyChecklist` is called. This function's primary role is to create the `PropertyDataListItem[]` array needed by the UI. It transforms raw data points into appropriate _display strings_ and determines the correct `DataStatus` based on the best available information (preferring premium data if available and valid, falling back to scraped data).
-    - **Calculation Data Preparation:** The hook also prepares a specific `calculationData` object containing values needed for scoring, formatted numerically or in a specific way required by the calculation logic (e.g., `calculatedLeaseMonths: number | null`, `epcScoreForCalculation: number`). This uses helpers like `calculateRemainingLeaseTerm` and `mapEpcToScore`.
-    - **Score Calculation:** The hook then calls `src/utils/scoreCalculations.ts -> calculateDashboardScores`, passing it both the `basePropertyChecklistData` (for looking up simpler values like council tax band) and the prepared `calculationData` (for complex/derived values like lease months and EPC score).
-    - **Return:** The hook returns the `basePropertyChecklistData` and the final calculated `dashboardScores`.
-
-3.  **Rendering in `App.tsx`:**
-    - `App.tsx` receives the `basePropertyChecklistData` and `dashboardScores` from the hook.
-    - It passes `basePropertyChecklistData` (or a filtered version) to `src/sidepanel/components/ChecklistView.tsx` for rendering the detailed checklist.
-    - It passes `dashboardScores` (and potentially `basePropertyChecklistData` if needed by child components) to `src/sidepanel/components/DashboardView.tsx` for rendering the dashboard summary.
-
-**Benefits of this Approach:**
-
-- **Separation of Concerns:** UI display logic (`generatePropertyChecklist`) is distinct from calculation logic (`calculateDashboardScores` and the preparation in the hook).
-- **Maintainability:** Changes to UI formatting are less likely to break calculations, and vice-versa.
-- **Clear Data Flow:** `App.tsx` uses the hook as a clear source for processed data needed by the different views.
-- **Correct Data Types:** Calculations use appropriate numeric/specific types prepared in `calculationData`, while the UI uses display strings from `PropertyDataListItem`.

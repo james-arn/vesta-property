@@ -6,6 +6,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
+const packageJson = require("./package.json");
 
 const nodeModulesPath = path.resolve(__dirname, "node_modules");
 
@@ -78,6 +79,9 @@ module.exports = {
     }),
     new Dotenv({
       path: `./.env.${process.env.NODE_ENV}`, // Loads .env.development or .env.production based on NODE_ENV
+    }),
+    new webpack.DefinePlugin({
+      "process.env.PACKAGE_VERSION": JSON.stringify(packageJson.version),
     }),
     sentryWebpackPlugin({
       authToken: process.env.SENTRY_AUTH_TOKEN,

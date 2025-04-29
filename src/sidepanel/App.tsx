@@ -3,14 +3,12 @@ import Alert from '@/components/ui/Alert';
 import SideBarLoading from "@/components/ui/SideBarLoading/SideBarLoading";
 import { ActionEvents } from '@/constants/actionEvents';
 import VIEWS from '@/constants/views';
-import { usePropertyData } from '@/context/propertyDataContext';
 import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePremiumStreetData } from '@/hooks/usePremiumStreetData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
 import { DashboardView } from '@/sidepanel/components/DashboardView';
-import { PropertyReducerActionTypes } from "@/sidepanel/propertyReducer";
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ConfidenceLevels,
@@ -50,12 +48,30 @@ const LazyPremiumConfirmationModal = lazy(() =>
 );
 
 const App: React.FC = () => {
-  // 1. We start by getting the scraped proerty data from the DOM (from contentscript.ts via background.ts)
-  const { propertyData, dispatch } = usePropertyData();
   const queryClient = useQueryClient();
-  const { isPropertyDataLoading, nonPropertyPageWarningMessage } =
-    useBackgroundMessageHandler(dispatch, queryClient);
+
+  const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler(
+    queryClient
+  );
   const { isAuthenticated, isCheckingAuth } = useSecureAuthentication();
+
+  const {
+    data: propertyData,
+    isLoading: isLoadingQueryPropertyData,
+    error: queryPropertyDataError,
+    isSuccess: isQueryPropertyDataSuccess,
+  } = useQuery<ExtractedPropertyScrapingData | undefined>({
+    queryKey: [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
+    queryFn: async ({ queryKey }) => {
+      const currentData = queryClient.getQueryData<ExtractedPropertyScrapingData>(queryKey);
+      return currentData ?? undefined;
+    },
+    enabled: !!currentPropertyId,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24 * 7,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
 
   const epcDebugCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isEpcDebugModeOn = process.env.IS_EPC_DEBUG_MODE === "true";
@@ -76,12 +92,12 @@ const App: React.FC = () => {
   const [agentMessage, setAgentMessage] = useState("");
   const [premiumSearchActivated, setPremiumSearchActivated] = useState(false);
 
-
+  // --- Hooks depending on propertyId or propertyData ---
   const premiumStreetDataQuery = usePremiumStreetData({
-    isAddressConfirmedByUser: propertyData.address.isAddressConfirmedByUser,
+    isAddressConfirmedByUser: propertyData?.address?.isAddressConfirmedByUser ?? false,
     premiumSearchActivated: premiumSearchActivated,
-    address: propertyData.address.displayAddress ?? '',
-    postcode: propertyData.address.postcode ?? ''
+    address: propertyData?.address?.displayAddress ?? '',
+    postcode: propertyData?.address?.postcode ?? ''
   });
 
   // --- Handler to activate premium search ---
@@ -100,39 +116,35 @@ const App: React.FC = () => {
     notifyAddressConfirmed,
   } = usePremiumFlow({
     isAuthenticated,
-    isAddressConfirmed: propertyData.address.isAddressConfirmedByUser,
+    isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false, // Use query data
     openAddressConfirmationModal: useCallback(() => setShowBuildingValidationModal(true), []),
     onConfirmAndActivate: handleConfirmAndActivate,
   });
 
-  // Destructure coords and immediately calculate memoized strings
-  const { lat, lng } = propertyData.locationCoordinates;
+  const lat = propertyData?.locationCoordinates?.lat;
+  const lng = propertyData?.locationCoordinates?.lng;
   const latStr = useMemo(() => lat?.toString() ?? '', [lat]);
   const lngStr = useMemo(() => lng?.toString() ?? '', [lng]);
 
-  // 2. Reverse geocode is used to get building name/number of the property based on agents co-ordinates
   const handleReverseGeocodeSuccess = useCallback(
     (data: ReverseGeocodeResponse) => {
-      dispatch({
-        type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
-        payload: {
-          displayAddress: data.address,
-          isAddressConfirmedByUser: false,
-        },
-      });
+      if (currentPropertyId) {
+        queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
+          [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
+          (oldData) => oldData ? { ...oldData, address: { ...oldData.address, displayAddress: data.address, isAddressConfirmedByUser: false } } : undefined
+        );
+      } else {
+        console.warn("Cannot update RQ cache for reverse geocode: currentPropertyId missing.")
+      }
     },
-    [dispatch]
+    [queryClient, currentPropertyId]
   );
 
   useReverseGeocode(latStr, lngStr, handleReverseGeocodeSuccess);
 
-  // 4. Once confirmed address state is updated, Premium (paid) street data uses confirmed address to get the enhanced data of the property
-  const crimeQuery = useCrimeScore(
-    latStr,
-    lngStr
-  );
+  const crimeQuery = useCrimeScore(latStr, lngStr);
 
-  useFeedbackAutoPrompt(propertyData.propertyId);
+  useFeedbackAutoPrompt(currentPropertyId ?? null);
 
   const {
     propertyChecklistData,
@@ -141,7 +153,7 @@ const App: React.FC = () => {
     overallScore,
     dataCoverageScoreData
   } = useChecklistAndDashboardData({
-    propertyData,
+    propertyData: propertyData ?? null,
     crimeScoreQuery: crimeQuery,
     premiumStreetDataQuery,
     epcDebugCanvasRef,
@@ -157,7 +169,6 @@ const App: React.FC = () => {
     setOpenGroups
   } = useChecklistDisplayLogic(propertyChecklistData);
 
-  // --- Redefine Handlers needed by views --- 
   const openNewTab = (url: string) => {
     chrome.tabs.create({ url });
   };
@@ -199,43 +210,40 @@ const App: React.FC = () => {
   }, [nearbyPlanningPermissionCardExpanded, premiumStreetDataQuery.data]);
 
   const handleBuildingNameOrNumberConfirmation = (buildingNameOrNumber: string) => {
-    dispatch({
-      type: PropertyReducerActionTypes.UPDATE_DISPLAY_ADDRESS,
-      payload: { displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true },
-    });
+    if (currentPropertyId) {
+      queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
+        [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
+        (oldData) => oldData ? { ...oldData, address: { ...oldData.address, displayAddress: buildingNameOrNumber, isAddressConfirmedByUser: true } } : undefined
+      );
+    } else {
+      console.warn("Cannot update RQ cache for building confirmation: currentPropertyId missing.")
+    }
     setShowBuildingValidationModal(false);
     notifyAddressConfirmed();
   }
 
   const handleEpcValueChange = useCallback((newValue: string) => {
-    const updatedEpcPayload = { value: newValue };
-    dispatch({ type: PropertyReducerActionTypes.UPDATE_EPC_VALUE, payload: updatedEpcPayload });
-
-    if (propertyData.propertyId) {
-      const updatedEpcData: EpcData = {
+    if (currentPropertyId && propertyData) {
+      const currentEpcData = (propertyData.epc as EpcData) || {};
+      const updatedEpcDataForCache: EpcData = {
+        ...currentEpcData,
         value: newValue,
         confidence: ConfidenceLevels.USER_PROVIDED,
         source: EpcDataSourceType.USER_PROVIDED,
-        url: null,
-        displayUrl: null,
-        automatedProcessingResult: null,
         error: null,
-      }
+      };
+      const updatedPropertyDataForCache: ExtractedPropertyScrapingData = {
+        ...propertyData,
+        epc: updatedEpcDataForCache,
+      };
       queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
-        [REACT_QUERY_KEYS.PROPERTY_DATA, propertyData.propertyId],
-        (oldData) => {
-          if (!oldData) {
-            console.warn("Tried to update EPC cache, but no existing data found for propertyId:", propertyData.propertyId);
-            return undefined;
-          }
-          return {
-            ...oldData,
-            epc: updatedEpcData,
-          };
-        }
+        [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
+        updatedPropertyDataForCache
       );
+    } else {
+      console.warn("Cannot update RQ cache for EPC: currentPropertyId or propertyData missing.");
     }
-  }, [dispatch, queryClient, propertyData.propertyId]);
+  }, [queryClient, currentPropertyId, propertyData]);
 
   const handleGenerateMessageClick = useCallback(() => {
     const message = generateAgentMessage(propertyChecklistData);
@@ -243,26 +251,36 @@ const App: React.FC = () => {
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
 
+  // --- Loading Checks ---
   if (nonPropertyPageWarningMessage) {
     return <Alert type="warning" message={nonPropertyPageWarningMessage} />;
   }
-  if (isPropertyDataLoading || isCheckingAuth) {
+  if (isCheckingAuth || (!!currentPropertyId && isLoadingQueryPropertyData)) {
     return <SideBarLoading />;
+  }
+  if (queryPropertyDataError) {
+    return <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />;
   }
 
   const isPremiumDataFetched = premiumStreetDataQuery.isFetched;
 
-  if (!propertyData.propertyId) {
-    // If no property ID, show the info alert
+  if (!propertyData?.propertyId) {
     return (
       <Alert
         type="info"
-        message="Navigate to a property page on rightmove.co.uk to get started."
+        message="Waiting for property data or navigate to a Rightmove property page."
       />
     );
   }
 
-  // --- Main Render Logic ---
+  if (isPropertyDataLoading) {
+    <Alert
+      type="info"
+      message="Background script loading."
+    />
+  }
+
+  // --- Main Render Logic --- 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <SettingsBar
@@ -287,7 +305,7 @@ const App: React.FC = () => {
               categoryScores={categoryScores}
               overallScore={overallScore}
               dataCoverageScoreData={dataCoverageScoreData}
-              isLoading={isPropertyDataLoading}
+              isLoading={isLoadingQueryPropertyData}
               isPremiumDataFetched={isPremiumDataFetched}
               processedEpcResult={preprocessedData.processedEpcResult}
               epcDebugCanvasRef={epcDebugCanvasRef}
@@ -316,11 +334,11 @@ const App: React.FC = () => {
               <LazyChecklistView
                 filteredChecklistData={filteredChecklistData}
                 getValueClickHandler={getValueClickHandler}
+                handleEpcValueChange={handleEpcValueChange}
                 openNewTab={openNewTab}
                 toggleCrimeChart={toggleCrimeChart}
                 togglePlanningPermissionCard={togglePlanningPermissionCard}
                 toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                handleEpcValueChange={handleEpcValueChange}
                 isPremiumDataFetched={isPremiumDataFetched}
                 processedEpcResult={preprocessedData.processedEpcResult ?? undefined}
                 epcDebugCanvasRef={epcDebugCanvasRef}
@@ -376,7 +394,7 @@ const App: React.FC = () => {
           <LazyPremiumConfirmationModal
             open={showPremiumConfirmationModal}
             onOpenChange={setShowPremiumConfirmationModal}
-            isAddressConfirmed={propertyData.address.isAddressConfirmedByUser}
+            isAddressConfirmed={propertyData?.address?.isAddressConfirmedByUser ?? false}
             onConfirmPremiumSearch={premiumConfirmationHandler}
           />
         </Suspense>
