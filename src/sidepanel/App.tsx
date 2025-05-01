@@ -94,7 +94,7 @@ const App: React.FC = () => {
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
 
-  const { activatePremiumSearch, isActivating, activationError } =
+  const { activatePremiumSearch, isActivatingPremiumSearch, activatePremiumSearchError } =
     usePersistentPremiumData();
 
   const handleConfirmAndActivate = useCallback(() => {
@@ -300,7 +300,7 @@ const App: React.FC = () => {
     // setIsAgentMessageModalOpen(true);
   }, []);
 
-  if (isCheckingAuth || isLoadingQueryPropertyData || (!propertyData && !nonPropertyPageWarningMessage)) {
+  if (isCheckingAuth || isLoadingQueryPropertyData || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
   }
 
@@ -313,6 +313,12 @@ const App: React.FC = () => {
   if (queryPropertyDataError) {
     return (
       <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
+    );
+  }
+
+  if (activatePremiumSearchError) {
+    return (
+      <Alert type="error" message={`Error activating premium search.`} />
     );
   }
 

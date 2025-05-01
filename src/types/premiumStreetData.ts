@@ -602,9 +602,21 @@ export interface PremiumFetchContext {
 export interface GetPremiumStreetDataResponse {
   /** The raw data returned from the external premium API. */
   premiumData: PremiumStreetDataResponse;
-
   /** The snapshot of user context, ONLY returned if data was served from the backend cache. */
   snapshotData?: SnapshotContextData;
+  /** The user's remaining token count, returned with every successful response. */
+  tokensRemaining: number;
+  dataSource: "cache" | "api"; // Indicate the source of the premiumData
+}
+
+/**
+ * Represents the potential shapes of error responses from the API.
+ */
+export interface ApiErrorResponse {
+  message?: string; // For 400 errors
+  error?: string; // For 401, 403, 404, 500, 503 errors
+  tokensRemaining?: number; // For 403 and 503 errors
+  tokensRestored?: boolean; // For 503 errors
 }
 
 export type ProcessedPremiumDataStatus = "loading" | "success" | "error" | "idle" | "pending";
