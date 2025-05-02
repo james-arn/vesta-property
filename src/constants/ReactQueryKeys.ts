@@ -5,6 +5,7 @@ const REACT_QUERY_KEYS = {
   REVERSE_GEOCODE: "reverseGeocode" as const,
   PROCESSED_EPC: "processedEpc" as const,
   OFFLINE_CACHE: "vestaOfflineCache" as const,
+  USER_PROFILE: "userProfile" as const,
 } as const;
 
 export type ReactQueryKeys = (typeof REACT_QUERY_KEYS)[keyof typeof REACT_QUERY_KEYS];

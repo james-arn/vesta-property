@@ -14,8 +14,7 @@ import {
   ConfidenceLevels,
   EpcData,
   EpcDataSourceType,
-  ExtractedPropertyScrapingData,
-  PropertyDataListItem
+  ExtractedPropertyScrapingData
 } from "../types/property";
 
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
@@ -28,10 +27,7 @@ import {
   PremiumFetchContext,
   SnapshotContextData
 } from '@/types/premiumStreetData';
-import {
-  generateAgentMessage,
-  getValueClickHandler
-} from "./helpers";
+import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
 
 const LazyChecklistView = lazy(() =>
@@ -53,16 +49,13 @@ const LazyPremiumConfirmationModal = lazy(() =>
 const App: React.FC = () => {
   const queryClient = useQueryClient();
 
-  const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler(
-    queryClient
-  );
+  const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler();
   const { isAuthenticated, isCheckingAuth } = useSecureAuthentication();
 
   const {
     data: propertyData,
     isLoading: isLoadingQueryPropertyData,
     error: queryPropertyDataError,
-    isSuccess: isQueryPropertyDataSuccess,
   } = useQuery<ExtractedPropertyScrapingData | undefined>({
     queryKey: [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
     queryFn: async ({ queryKey }) => {
@@ -292,15 +285,7 @@ const App: React.FC = () => {
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
 
-  const handleValueClick = useCallback((item: PropertyDataListItem) => {
-    console.warn("handleValueClick needs implementation/restoration");
-    // Example: Potentially call generateAgentMessage and open modal
-    // const message = generateAgentMessage(item);
-    // setAgentMessage(message);
-    // setIsAgentMessageModalOpen(true);
-  }, []);
-
-  if (isCheckingAuth || isLoadingQueryPropertyData || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
+  if (isCheckingAuth || isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
   }
 

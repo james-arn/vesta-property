@@ -1,7 +1,8 @@
 // hooks/useUserProfile.ts
 import { ENV_CONFIG } from "@/constants/environmentConfig";
-import { toast } from "@/hooks/use-toast";
-import { useCallback, useState } from "react";
+import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
+import { UserProfile } from "@/types/userProfile";
+import { useQuery } from "@tanstack/react-query";
 import { useApiAuth } from "./useApiAuth";
 
 export type UserProfileResponse = {
@@ -16,28 +17,31 @@ export type UserProfileResponse = {
   } | null;
 };
 
-const useUserProfile = () => {
-  const { fetchWithAuth, isLoading, error } = useApiAuth();
-  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+export function useUserProfile() {
+  const { fetchWithAuth } = useApiAuth();
 
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      const data = await fetchWithAuth<UserProfileResponse>(
-        `${ENV_CONFIG.VESTA_USER_ENDPOINT}/profile`
-      );
-      setProfile(data);
-      return data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch user profile";
-      toast({
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return null;
-    }
-  }, [fetchWithAuth, ENV_CONFIG.VESTA_USER_ENDPOINT]);
+  const fetchUserProfile = async (): Promise<UserProfile> => {
+    // fetchWithAuth already handles errors and returns parsed JSON or throws
+    return await fetchWithAuth<UserProfile>(`${ENV_CONFIG.VESTA_USER_ENDPOINT}/profile`, {
+      method: "GET",
+    });
+  };
 
-  return { profile, isLoading, error, fetchUserProfile };
-};
+  const { data, isLoading, error, isError } = useQuery<UserProfile, Error>({
+    queryKey: [REACT_QUERY_KEYS.USER_PROFILE],
+    queryFn: fetchUserProfile,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
+  return {
+    userProfile: data,
+    isLoadingUserProfile: isLoading,
+    userProfileError: isError ? error : null,
+  };
+}
 
 export default useUserProfile;

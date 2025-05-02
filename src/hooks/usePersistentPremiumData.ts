@@ -95,8 +95,11 @@ export function usePersistentPremiumData(): UseActivatePremiumSearchReturn {
 
       queryClient.setQueryData([REACT_QUERY_KEYS.PREMIUM_STREET_DATA, activatedPropertyId], data);
 
+      // --- Invalidate so new token count is fetched in profile ---
+      queryClient.invalidateQueries({ queryKey: [REACT_QUERY_KEYS.USER_PROFILE] });
+
       const toastTitle = data.snapshotData
-        ? "Premium Search Reloaded"
+        ? "Premium Search Reloaded - No Tokens Used"
         : "Premium Search Successful";
       const toastDescription = `Tokens remaining: ${data.tokensRemaining}`;
 

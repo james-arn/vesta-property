@@ -13,11 +13,13 @@ import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { useToast } from "@/hooks/use-toast";
 import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import React from "react";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { GoCreditCard } from "react-icons/go";
 import { IoSettingsOutline } from "react-icons/io5";
 import { MdManageAccounts } from "react-icons/md";
+import { RiCoinLine } from "react-icons/ri";
 import { VscFeedback } from "react-icons/vsc";
 
 const SettingsIcon = () => (
@@ -33,6 +35,7 @@ const SettingsIcon = () => (
 const SettingsControls = () => {
     const { toast } = useToast();
     const { createPortalSession, isLoading: isPortalLoading } = useCreateStripePortalSession();
+    const { userProfile, isLoadingUserProfile } = useUserProfile();
 
     const {
         isAuthenticated,
@@ -60,13 +63,18 @@ const SettingsControls = () => {
         await createPortalSession(window.location.href);
     };
 
-    if (isAuthenticating || isCheckingAuth || isPortalLoading) {
+    const isLoading = isAuthenticating || isCheckingAuth || isPortalLoading || (isAuthenticated && isLoadingUserProfile);
+
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center">
                 <div className="animate-spin h-5 w-5 border-2 border-primary rounded-full border-t-transparent" />
             </div>
         );
     }
+
+    const tokensRemaining = userProfile?.subscription?.tokens?.remaining;
+    const tokenRefreshDate = userProfile?.subscription?.currentPeriodEnd;
 
     return (
         <>
@@ -90,6 +98,12 @@ const SettingsControls = () => {
                                     <FiLogOut className="mr-2" />
                                     <span>Sign out</span>
                                 </DropdownMenuItem>
+                                {typeof tokensRemaining === 'number' && (
+                                    <DropdownMenuItem disabled className="opacity-100">
+                                        <RiCoinLine className="mr-2" />
+                                        <span>Tokens: {tokensRemaining}, refreshing {tokenRefreshDate} </span>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                             </>
                         ) : (
