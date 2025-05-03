@@ -18,7 +18,7 @@ export const CLICKABLE_KEYS: ClickableItemKey[] = [
 ];
 
 // Update the type guard to accept ChecklistKey and use the constant array
-export const isClickableItemKey = (key: ChecklistKey): key is ClickableItemKey => {
+export const checkIfClickableItemKey = (key: ChecklistKey): key is ClickableItemKey => {
   // The includes method works fine here because CLICKABLE_KEYS is typed as ClickableItemKey[]
   // and key is ChecklistKey. TypeScript can compare them.
   return CLICKABLE_KEYS.includes(key as ClickableItemKey); // Cast needed as includes expects the subset type

@@ -4,7 +4,7 @@ import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { isClickableItemKey } from "@/types/clickableChecklist";
+import { checkIfClickableItemKey } from "@/types/clickableChecklist";
 import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
 import React, { useState } from 'react';
 import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUnlock, FaUserEdit } from "react-icons/fa";
@@ -58,12 +58,12 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
 
     const isEpcItem = key === CHECKLIST_KEYS.EPC;
 
-    const isLocked = isUnlockedWithPremium && !isPremiumDataFetched;
+    const isPremiumLocked = isUnlockedWithPremium && !isPremiumDataFetched;
     // Determine if the initial value is meaningless using the constant
     const valueIsMeaningless = !item.value ||
         (typeof item.value === 'string' && (Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value));
     // Show boost only if boostable, not locked, and the initial value is meaningless
-    const showBoost = isBoostedWithPremium && !isLocked && valueIsMeaningless;
+    const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless;
     const canUpgrade = !isPremiumDataFetched;
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
@@ -76,14 +76,14 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     // --- Determine Display Status and Icon ---
     const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
-    const isWarning = displayStatus === DataStatus.ASK_AGENT && !isLocked;
+    const isWarning = displayStatus === DataStatus.ASK_AGENT && !isPremiumLocked;
 
     const renderValue = () => {
-        const isClickable = isClickableItemKey(key)
+        const isClickableItemKey = checkIfClickableItemKey(key)
             && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED
             && displayStatus !== DataStatus.IS_LOADING;
 
-        if (isLocked) {
+        if (isPremiumLocked) {
             const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock with Premium`;
             return (
                 <div className="flex items-center text-gray-500">
@@ -183,7 +183,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // For crimeScore
-        if (key === CHECKLIST_KEYS.CRIME_SCORE && !isLocked) {
+        if (key === CHECKLIST_KEYS.CRIME_SCORE && !isPremiumLocked) {
             return (
                 <span
                     onClick={onValueClick}
@@ -195,28 +195,31 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         }
 
         // For planningPermissions and nearbyPlanningPermissions
-        if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && isClickable && !isLocked) {
+        if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && isClickableItemKey && !isPremiumLocked) {
             // Don't make it clickable if no applications found
-            const noApplicationsFound =
-                value === PREMIUM_DATA_STATES.NO_APPLICATIONS ||
-                value === PREMIUM_DATA_STATES.NO_NEARBY_APPLICATIONS;
 
-            if (noApplicationsFound) {
-                return <span>{value}</span>;
+            const isNonClickableState =
+                typeof value === "string" &&
+                (Object.values(CHECKLIST_NO_VALUE).includes(value as any) ||
+                    Object.values(PREMIUM_DATA_STATES).includes(value as any)); // Also explicitly handle "N/A"
+
+            if (isNonClickableState) {
+                return <span>{value}</span>; // Render as plain text
             }
 
+            // Otherwise, render as a clickable link
             return (
                 <span
                     onClick={onValueClick}
                     className="cursor-pointer text-blue-500 underline"
                 >
-                    {value || "Not found"}
+                    {value || CHECKLIST_NO_VALUE.NOT_FOUND} {/* Fallback for null/undefined */}
                 </span>
             );
         }
 
         // Log warning if this is a clickable key but we don't have specific rendering for it
-        if (isClickableItemKey(key) && !isLocked &&
+        if (checkIfClickableItemKey(key) && !isPremiumLocked &&
             // @ts-expect-error TS2367: Comparison is intentional to exclude handled clickable keys.
             key !== CHECKLIST_KEYS.EPC && key !== CHECKLIST_KEYS.FLOOR_PLAN &&
             key !== CHECKLIST_KEYS.CRIME_SCORE && key !== CHECKLIST_KEYS.PLANNING_PERMISSIONS &&
@@ -240,7 +243,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             <div className="min-w-0 text-gray-800 ml-4 flex items-center">{renderValue()}</div>
             <div className="flex items-center justify-end ml-4 space-x-1">
                 {/* Conditionally render Lock Icon */}
-                {isLocked && (
+                {isPremiumLocked && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
@@ -265,7 +268,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     </TooltipProvider>
                 )}
                 {/* Conditionally render Boost Icon (only if not locked) */}
-                {!isLocked && showBoost && (
+                {!isPremiumLocked && showBoost && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>

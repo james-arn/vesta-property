@@ -1,6 +1,6 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
-import { isClickableItemKey } from "@/types/clickableChecklist";
+import { checkIfClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';
 import { DataStatus, PropertyDataListItem } from "../types/property";
@@ -81,7 +81,7 @@ export const getValueClickHandler = (
   toggleNearbyPlanningPermissionCard?: () => void): (() => void) | undefined => {
 
   const { key, value } = item;
-  if (!isClickableItemKey(key)) return undefined;
+  if (!checkIfClickableItemKey(key)) return undefined;
 
   switch (key) {
     case "epc":
