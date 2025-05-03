@@ -1,25 +1,66 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { describeArc } from '../../sidepanel/helpers/scoreGaugeHelpers';
 
-// Define colors for segments
-const GAUGE_COLORS = {
-    POOR: 'hsl(0 84.2% 60.2%)',      // red-500
-    BELOW_AVERAGE: 'hsl(24.6 95% 53.1%)', // orange-500
-    AVERAGE: 'hsl(47.9 95.8% 53.1%)',    // yellow-500
-    GOOD: 'hsl(84.2 70.2% 46.1%)',     // lime-500
-    EXCELLENT: 'hsl(142.1 70.6% 45.3%)', // green-500
+const GAUGE_BACKGROUND_COLORS = {
     NULL: 'hsl(215.4 16.3% 56.9%)', // gray-500
     BACKGROUND: 'hsl(215 20.2% 92%)', // Approx hsl(var(--muted))
 };
 
-// Determine color based on score
+const GAUGE_HSL_STOPS = {
+    POOR: { h: 0, s: 84.2, l: 60.2 },
+    AVERAGE: { h: 47.9, s: 95.8, l: 53.1 },
+    EXCELLENT: { h: 142.1, s: 70.6, l: 45.3 },
+};
+
+/**
+ * Interpolates between two HSL color values based on a factor (0-1).
+ */
+const interpolateHsl = (
+    start: { h: number; s: number; l: number },
+    end: { h: number; s: number; l: number },
+    factor: number
+): { h: number; s: number; l: number } => {
+    // Handle hue interpolation carefully (shortest path around the color wheel)
+    let h1 = start.h;
+    let h2 = end.h;
+    const diff = h2 - h1;
+    if (Math.abs(diff) > 180) {
+        // Adjust end hue if the difference is more than half the circle
+        if (diff > 0) {
+            h1 += 360;
+        } else {
+            h2 += 360;
+        }
+    }
+    const h = (h1 + (h2 - h1) * factor) % 360;
+    const s = start.s + (end.s - start.s) * factor;
+    const l = start.l + (end.l - start.l) * factor;
+    return { h, s, l };
+};
+
+/**
+ * Gets the gauge color based on score, using HSL interpolation for a gradient effect.
+ */
 const getScoreColor = (score: number | null): string => {
-    if (score === null || isNaN(score)) return GAUGE_COLORS.NULL;
-    if (score < 20) return GAUGE_COLORS.POOR;
-    if (score < 40) return GAUGE_COLORS.BELOW_AVERAGE;
-    if (score < 60) return GAUGE_COLORS.AVERAGE;
-    if (score < 80) return GAUGE_COLORS.GOOD;
-    return GAUGE_COLORS.EXCELLENT;
+    if (score === null || isNaN(score)) {
+        return GAUGE_BACKGROUND_COLORS.NULL;
+    }
+
+    const normalizedScore = Math.max(0, Math.min(100, score)) / 100; // Clamp score to 0-100 and normalize
+
+    let colorHsl: { h: number; s: number; l: number };
+
+    if (normalizedScore < 0.5) {
+        // Interpolate between POOR (0.0) and AVERAGE (0.5)
+        const factor = normalizedScore * 2; // Scale factor from 0-1 for this segment
+        colorHsl = interpolateHsl(GAUGE_HSL_STOPS.POOR, GAUGE_HSL_STOPS.AVERAGE, factor);
+    } else {
+        // Interpolate between AVERAGE (0.5) and EXCELLENT (1.0)
+        const factor = (normalizedScore - 0.5) * 2; // Scale factor from 0-1 for this segment
+        colorHsl = interpolateHsl(GAUGE_HSL_STOPS.AVERAGE, GAUGE_HSL_STOPS.EXCELLENT, factor);
+    }
+
+    return `hsl(${colorHsl.h.toFixed(1)} ${colorHsl.s.toFixed(1)}% ${colorHsl.l.toFixed(1)}%)`;
 };
 
 interface ScoreGaugeProps {
@@ -97,7 +138,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
             <path
                 d={backgroundPathD}
                 fill="none"
-                stroke={GAUGE_COLORS.BACKGROUND}
+                stroke={GAUGE_BACKGROUND_COLORS.BACKGROUND}
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
             />
