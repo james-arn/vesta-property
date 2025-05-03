@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { formatUnixTimestampToDateString } from "@/utils/dates";
 import React from "react";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { GoCreditCard } from "react-icons/go";
@@ -60,7 +61,7 @@ const SettingsControls = () => {
 
     const handleManageSubscription = async () => {
         // The hook handles error display and tab opening internally
-        await createPortalSession(window.location.href);
+        await createPortalSession();
     };
 
     const isLoading = isAuthenticating || isCheckingAuth || isPortalLoading || (isAuthenticated && isLoadingUserProfile);
@@ -74,7 +75,7 @@ const SettingsControls = () => {
     }
 
     const tokensRemaining = userProfile?.subscription?.tokens?.remaining;
-    const tokenRefreshDate = userProfile?.subscription?.currentPeriodEnd;
+    const tokenRefreshTimestamp = userProfile?.subscription?.currentPeriodEnd ? parseInt(userProfile.subscription.currentPeriodEnd, 10) : null;
 
     return (
         <>
@@ -99,9 +100,12 @@ const SettingsControls = () => {
                                     <span>Sign out</span>
                                 </DropdownMenuItem>
                                 {typeof tokensRemaining === 'number' && (
-                                    <DropdownMenuItem disabled className="opacity-100">
-                                        <RiCoinLine className="mr-2" />
-                                        <span>Tokens: {tokensRemaining}, refreshing {tokenRefreshDate} </span>
+                                    <DropdownMenuItem disabled className="opacity-100 flex items-start">
+                                        <RiCoinLine className="mr-2 mt-1 flex-shrink-0" />
+                                        <div className="flex flex-col">
+                                            <span>Tokens: {tokensRemaining}</span>
+                                            <span>Refreshing: {formatUnixTimestampToDateString(tokenRefreshTimestamp)}</span>
+                                        </div>
                                     </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
