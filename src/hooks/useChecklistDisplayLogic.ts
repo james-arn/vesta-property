@@ -7,6 +7,10 @@ interface ChecklistFilters {
   // Add other potential filters here
 }
 
+interface UseChecklistDisplayLogicArgs {
+  basePropertyChecklistData: PropertyDataListItem[];
+}
+
 interface UseChecklistDisplayLogicResult {
   filters: ChecklistFilters;
   openGroups: Record<string, boolean>;
@@ -16,9 +20,9 @@ interface UseChecklistDisplayLogicResult {
   setOpenGroups: React.Dispatch<React.SetStateAction<Record<string, boolean>>>; // Expose setter if needed externally
 }
 
-export const useChecklistDisplayLogic = (
-  basePropertyChecklistData: PropertyDataListItem[]
-): UseChecklistDisplayLogicResult => {
+export const useChecklistDisplayLogic = ({
+  basePropertyChecklistData,
+}: UseChecklistDisplayLogicArgs): UseChecklistDisplayLogicResult => {
   const [filters, setFilters] = useState<ChecklistFilters>({
     showAskAgentOnly: false,
   });
@@ -44,10 +48,12 @@ export const useChecklistDisplayLogic = (
   }, []);
 
   const toggleGroup = useCallback((group: string) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [group]: !prev[group],
-    }));
+    setOpenGroups((prev) => {
+      return {
+        ...prev,
+        [group]: !prev[group],
+      };
+    });
   }, []);
 
   const applyFilters = useCallback(

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense, useState } from 'react';
 // Correct import path and type
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import {
@@ -29,11 +29,9 @@ type GetValueClickHandlerType = (
     item: PropertyDataListItem,
     openNewTab: (url: string) => void,
     toggleCrimeChart: () => void,
-    togglePlanningPermissionCard: () => void,
-    toggleNearbyPlanningPermissionCard?: () => void
+    togglePlanningPermissionCard: (expand?: boolean) => void,
+    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void
 ) => (() => void) | undefined;
-
-const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
 
 interface DashboardViewProps {
     checklistsData: PropertyDataListItem[] | null;
@@ -44,8 +42,8 @@ interface DashboardViewProps {
     getValueClickHandler: GetValueClickHandlerType;
     openNewTab: (url: string) => void;
     toggleCrimeChart: () => void;
-    togglePlanningPermissionCard: () => void;
-    toggleNearbyPlanningPermissionCard?: () => void;
+    togglePlanningPermissionCard: (expand?: boolean) => void;
+    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
     isPremiumDataFetched: boolean;
     processedEpcResult: EpcProcessorResult | null | undefined;
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -108,6 +106,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     isEpcDebugModeOn,
     handleEpcValueChange
 }) => {
+    const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+    const handleToggleExpand = (category: string) => {
+        const isClosing = expandedCategory === category;
+        const nextCategory = isClosing ? null : category;
+        setExpandedCategory(nextCategory);
+    };
+
     const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
     const hasCategoryScores = Object.keys(categoryScores).length > 0;
@@ -171,13 +177,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         }
                         const title = getCategoryDisplayName(category);
                         const IconComponent = categoryIcons[category];
-
-                        // All scores now follow high = good principle, no need to invert colours.
-                        const invertColorScale = false;
+                        const isExpanded = expandedCategory === category;
 
                         return (
                             <Suspense fallback={<LoadingSpinner />} key={category}>
                                 <DashboardScoreItem
+                                    category={category}
+                                    isExpanded={isExpanded}
+                                    onToggleExpand={handleToggleExpand}
                                     title={title}
                                     categoryScoreData={categoryScoreData}
                                     icon={IconComponent}
@@ -204,41 +211,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                     epcData={processedEpcResult ?? undefined}
                                     epcDebugCanvasRef={epcDebugCanvasRef}
                                     isEpcDebugModeOn={isEpcDebugModeOn}
-                                    invertColorScale={invertColorScale}
+                                    invertColorScale={false}
                                 />
                             </Suspense>
                         );
                     })}
                 </div>
-
-                {planningApplications && (
-                    <Suspense fallback={<LoadingSpinner />}>
-                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
-                            <div ref={planningPermissionContentRef}>
-                                <LazyPlanningPermissionCard
-                                    planningPermissionData={planningApplications}
-                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                    isLoading={premiumStreetDataQuery.isLoading}
-                                    displayMode="property"
-                                />
-                            </div>
-                        </div>
-                    </Suspense>
-                )}
-                {nearbyPlanningApplications && (
-                    <Suspense fallback={<LoadingSpinner />}>
-                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
-                            <div ref={nearbyPlanningPermissionContentRef}>
-                                <LazyPlanningPermissionCard
-                                    planningPermissionData={planningApplications}
-                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                    isLoading={premiumStreetDataQuery.isLoading}
-                                    displayMode="nearby"
-                                />
-                            </div>
-                        </div>
-                    </Suspense>
-                )}
 
                 {Object.keys(categoryScores).length === 0 && checklistsData && (
                     <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>

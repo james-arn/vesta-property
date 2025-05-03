@@ -186,7 +186,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         if (key === CHECKLIST_KEYS.CRIME_SCORE && !isPremiumLocked) {
             return (
                 <span
-                    onClick={onValueClick}
+                    onClick={() => onValueClick?.()}
                     className={`${displayStatus !== DataStatus.IS_LOADING ? "cursor-pointer text-blue-500 underline" : ""}`}
                 >
                     {value || CHECKLIST_NO_VALUE.NOT_FOUND}
@@ -194,26 +194,22 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // For planningPermissions and nearbyPlanningPermissions
+        // For planningPermissions and nearbyPlanningPermissions - render clickable text if applicable
         if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && isClickableItemKey && !isPremiumLocked) {
-            // Don't make it clickable if no applications found
-
             const isNonClickableState =
                 typeof value === "string" &&
                 (Object.values(CHECKLIST_NO_VALUE).includes(value as any) ||
-                    Object.values(PREMIUM_DATA_STATES).includes(value as any)); // Also explicitly handle "N/A"
+                    Object.values(PREMIUM_DATA_STATES).includes(value as any));
 
             if (isNonClickableState) {
-                return <span>{value}</span>; // Render as plain text
+                return <span>{value}</span>;
             }
-
-            // Otherwise, render as a clickable link
             return (
                 <span
-                    onClick={onValueClick}
+                    onClick={() => onValueClick?.()}
                     className="cursor-pointer text-blue-500 underline"
                 >
-                    {value || CHECKLIST_NO_VALUE.NOT_FOUND} {/* Fallback for null/undefined */}
+                    {value || CHECKLIST_NO_VALUE.NOT_FOUND}
                 </span>
             );
         }
@@ -230,18 +226,23 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
         return <span>{item.value || CHECKLIST_NO_VALUE.NOT_FOUND}</span>;
     };
 
+    // Return simple list item without internal expansion logic
     return (
         <li
             className={`grid grid-cols-[1rem_5rem_1fr_auto] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
-            <div className="flex items-center justify-start">
+            {/* Status Icon - Adjusted alignment slightly */}
+            <div className="flex items-center justify-start pt-0.5">
                 <IconComponent className={`w-4 h-4 ${color}`} />
             </div>
-            <div className="flex items-center ml-2">
+            {/* Label - Adjusted alignment slightly */}
+            <div className="flex items-center ml-2 pt-0.5">
                 <span>{label}</span>
             </div>
+            {/* Value */}
             <div className="min-w-0 text-gray-800 ml-4 flex items-center">{renderValue()}</div>
-            <div className="flex items-center justify-end ml-4 space-x-1">
+            {/* Icons (Lock, Boost, Info) - Adjusted alignment slightly */}
+            <div className="flex items-center justify-end ml-4 space-x-1 pt-0.5">
                 {/* Conditionally render Lock Icon */}
                 {isPremiumLocked && (
                     <TooltipProvider>
@@ -267,7 +268,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                {/* Conditionally render Boost Icon (only if not locked) */}
+                {/* Conditionally render Boost Icon */}
                 {!isPremiumLocked && showBoost && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
@@ -286,6 +287,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                         </Tooltip>
                     </TooltipProvider>
                 )}
+                {/* Info Icon */}
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>

@@ -71,12 +71,10 @@ const PlanningPermissionCard: React.FC<PlanningPermissionCardProps> = ({
     );
 
     const renderPlanningSection = (
-        title: string,
         applications: AnyPlanningApplication[] | null | undefined,
         isNearby: boolean
     ) => (
         <div className="mb-4">
-            <h3 className="text-xl font-bold mb-3">{title}</h3>
             {applications && applications.length > 0 ? (
                 <ul className="space-y-1">
                     {applications.map(application => renderPlanningApplication(application, isNearby))}
@@ -92,14 +90,12 @@ const PlanningPermissionCard: React.FC<PlanningPermissionCardProps> = ({
             <CardContent className="p-4">
                 {displayMode === 'property' &&
                     renderPlanningSection(
-                        "Property Planning Applications",
                         planningPermissionData,
                         false
                     )
                 }
                 {displayMode === 'nearby' &&
                     renderPlanningSection(
-                        "Nearby Planning Applications",
                         nearbyPlanningPermissionData,
                         true
                     )

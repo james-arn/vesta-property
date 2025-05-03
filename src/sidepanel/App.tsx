@@ -165,7 +165,9 @@ const App: React.FC = () => {
     toggleFilter,
     toggleGroup,
     setOpenGroups
-  } = useChecklistDisplayLogic(propertyChecklistData);
+  } = useChecklistDisplayLogic({
+    basePropertyChecklistData: propertyChecklistData,
+  });
 
   const openNewTab = (url: string) => {
     chrome.tabs.create({ url });
@@ -175,12 +177,12 @@ const App: React.FC = () => {
     setCrimeChartExpanded((prev) => !prev);
   };
 
-  const togglePlanningPermissionCard = () => {
-    setPlanningPermissionCardExpanded((prev) => !prev);
+  const togglePlanningPermissionCard = (expand?: boolean) => {
+    setPlanningPermissionCardExpanded((prev) => (expand === undefined ? !prev : expand));
   };
 
-  const toggleNearbyPlanningPermissionCard = () => {
-    setNearbyPlanningPermissionCardExpanded((prev) => !prev);
+  const toggleNearbyPlanningPermissionCard = (expand?: boolean) => {
+    setNearbyPlanningPermissionCardExpanded((prev) => (expand === undefined ? !prev : expand));
   };
 
   useEffect(function tellBackgroundSideBarOpened() {

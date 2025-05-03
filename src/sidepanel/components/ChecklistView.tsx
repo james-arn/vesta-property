@@ -83,21 +83,22 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
         <>
             {filteredChecklistData.map((item, index) => {
                 let groupHeader = null;
-                if (item.checklistGroup && item.checklistGroup !== lastGroup) {
+                const currentGroup = item.checklistGroup || "Other";
+
+                if (currentGroup !== lastGroup) {
                     groupHeader = (
                         <div
-                            key={`group-${item.checklistGroup}`}
-                            className="text-lg font-semibold mt-4 mb-2 p-2 bg-muted rounded cursor-pointer flex justify-between items-center"
-                            onClick={() => toggleGroup(item.checklistGroup as string)}
+                            className="flex justify-between items-center p-2 bg-gray-200 rounded cursor-pointer my-2 text-sm font-semibold"
+                            onClick={() => toggleGroup(currentGroup)}
                         >
-                            {item.checklistGroup}
-                            <span>{openGroups[item.checklistGroup as string] ? '▲' : '▼'}</span>
+                            {currentGroup}
+                            <span>{openGroups[currentGroup] ? "▲" : "▼"}</span>
                         </div>
                     );
-                    lastGroup = item.checklistGroup;
+                    lastGroup = currentGroup;
                 }
 
-                const isVisible = !item.checklistGroup || openGroups[item.checklistGroup];
+                const isVisible = openGroups[currentGroup] ?? true; // Default to visible if group state not tracked
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>
@@ -134,31 +135,29 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningApplications?.length && (
-                                    <Suspense fallback={<LoadingSpinner />}>
-                                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
-                                            <div ref={planningPermissionContentRef}>
-                                                <LazyPlanningPermissionCard
-                                                    planningPermissionData={planningApplications}
-                                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                                    isLoading={premiumStreetDataQuery.isLoading}
-                                                    displayMode="property"
-                                                />
-                                            </div>
+
+                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningApplications && planningApplications.length > 0 && planningPermissionCardExpanded && (
+                                    <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
+                                        <div ref={planningPermissionContentRef} className="pl-[calc(1rem+8px)] pt-2">
+                                            <LazyPlanningPermissionCard
+                                                planningPermissionData={planningApplications}
+                                                nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                                isLoading={premiumStreetDataQuery.isLoading}
+                                                displayMode="property"
+                                            />
                                         </div>
                                     </Suspense>
                                 )}
-                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningApplications?.length && (
-                                    <Suspense fallback={<LoadingSpinner />}>
-                                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
-                                            <div ref={nearbyPlanningPermissionContentRef}>
-                                                <LazyPlanningPermissionCard
-                                                    planningPermissionData={planningApplications}
-                                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                                    isLoading={premiumStreetDataQuery.isLoading}
-                                                    displayMode="nearby"
-                                                />
-                                            </div>
+
+                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningApplications && nearbyPlanningApplications.length > 0 && nearbyPlanningPermissionCardExpanded && (
+                                    <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
+                                        <div ref={nearbyPlanningPermissionContentRef} className="pl-[calc(1rem+8px)] pt-2">
+                                            <LazyPlanningPermissionCard
+                                                planningPermissionData={planningApplications}
+                                                nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                                isLoading={premiumStreetDataQuery.isLoading}
+                                                displayMode="nearby"
+                                            />
                                         </div>
                                     </Suspense>
                                 )}

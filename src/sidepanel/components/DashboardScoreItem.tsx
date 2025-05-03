@@ -33,7 +33,10 @@ type GetValueClickHandlerType = (
 
 interface DashboardScoreItemProps {
     title: string;
+    category: DashboardScoreCategory;
     categoryScoreData?: CategoryScoreData;
+    isExpanded: boolean;
+    onToggleExpand: (category: DashboardScoreCategory) => void;
     invertColorScale?: boolean;
     icon?: React.ElementType;
     isPremiumDataFetched: boolean;
@@ -44,8 +47,8 @@ interface DashboardScoreItemProps {
     getValueClickHandler: GetValueClickHandlerType;
     openNewTab: (url: string) => void;
     toggleCrimeChart: () => void;
-    togglePlanningPermissionCard: () => void;
-    toggleNearbyPlanningPermissionCard?: () => void;
+    togglePlanningPermissionCard: (expand?: boolean) => void;
+    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
     handleEpcValueChange: (newValue: string) => void;
     onOpenUpsellModal: () => void;
 
@@ -68,7 +71,10 @@ interface DashboardScoreItemProps {
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     title,
+    category,
     categoryScoreData,
+    isExpanded,
+    onToggleExpand,
     invertColorScale = false,
     icon: IconComponent,
     isPremiumDataFetched,
@@ -94,7 +100,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight
 }) => {
-
     if (!categoryScoreData) {
         return (
             <div className="mb-2 p-3 border rounded-lg bg-gray-50 shadow-sm">
@@ -114,10 +119,16 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
     const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
 
+    // Check if planning items are present in contributing items
+    const hasPropertyPlanningItem = contributingItems?.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS);
+    const hasNearbyPlanningItem = contributingItems?.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS);
+
     return (
-        <Accordion type="single" collapsible className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
-            <AccordionItem value={title} className="border-b-0">
-                <AccordionTrigger className="px-3 py-2 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 group">
+        <Accordion type="single" collapsible value={isExpanded ? category : ""} onValueChange={() => onToggleExpand(category)} className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
+            <AccordionItem value={category} className="border-b-0">
+                <AccordionTrigger
+                    className="px-3 py-2 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 group [&[data-state=open]>div>svg]:rotate-180"
+                >
                     <div className="grid grid-cols-[20px_90px_1fr] items-center w-full gap-x-3 mr-3">
                         {IconComponent && <IconComponent className="h-5 w-5 text-slate-600" />}
                         <h3 className="font-semibold text-slate-800 text-left max-w-[90px]">{title}</h3>
@@ -207,31 +218,31 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                             </div>
                         </Suspense>
                     )}
-                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS) && planningApplications && (
-                        <Suspense fallback={<LoadingSpinner />}>
-                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}>
-                                <div ref={planningPermissionContentRef}>
-                                    <LazyPlanningPermissionCard
-                                        planningPermissionData={planningApplications}
-                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                        isLoading={premiumStreetDataQuery.isLoading}
-                                        displayMode="property"
-                                    />
-                                </div>
+
+                    {/* Render Property Planning Expansion (if item exists and data available) */}
+                    {hasPropertyPlanningItem && planningApplications && planningApplications.length > 0 && planningPermissionCardExpanded && (
+                        <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
+                            <div ref={planningPermissionContentRef} className="pt-2">
+                                <LazyPlanningPermissionCard
+                                    planningPermissionData={planningApplications}
+                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                    isLoading={premiumStreetDataQuery.isLoading}
+                                    displayMode="property"
+                                />
                             </div>
                         </Suspense>
                     )}
-                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && nearbyPlanningApplications && (
-                        <Suspense fallback={<LoadingSpinner />}>
-                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}>
-                                <div ref={nearbyPlanningPermissionContentRef}>
-                                    <LazyPlanningPermissionCard
-                                        planningPermissionData={planningApplications}
-                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                        isLoading={premiumStreetDataQuery.isLoading}
-                                        displayMode="nearby"
-                                    />
-                                </div>
+
+                    {/* Render Nearby Planning Expansion (if item exists and data available) */}
+                    {hasNearbyPlanningItem && nearbyPlanningApplications && nearbyPlanningApplications.length > 0 && nearbyPlanningPermissionCardExpanded && (
+                        <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
+                            <div ref={nearbyPlanningPermissionContentRef} className="pt-2">
+                                <LazyPlanningPermissionCard
+                                    planningPermissionData={planningApplications}
+                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                    isLoading={premiumStreetDataQuery.isLoading}
+                                    displayMode="nearby"
+                                />
                             </div>
                         </Suspense>
                     )}
