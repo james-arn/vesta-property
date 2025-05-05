@@ -9,10 +9,18 @@ const TerserPlugin = require("terser-webpack-plugin");
 const packageJson = require("./package.json");
 const webpack = require("webpack");
 
+const { authConfigs } = require("./src/constants/environmentConfig.js");
+
+const env = process.env.NODE_ENV || "development";
+
+const {
+  transformManifestToUseHostPermissionsFromCurrentEnv,
+} = require("./src/utils/webpackHelpers.js");
+
 const nodeModulesPath = path.resolve(__dirname, "node_modules");
 
 module.exports = {
-  mode: process.env.NODE_ENV || "development",
+  mode: env,
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
     background: "./src/background.ts",
@@ -58,7 +66,21 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "src/manifest.json" },
+        {
+          from: "src/manifest.json",
+          to: "manifest.json",
+          // Transform the manifest.json to use the host permissions from the current environment
+          // This removes uneccassery requests for permissions from dev environment when installing
+          // extension in chrome web store
+          transform(content) {
+            return transformManifestToUseHostPermissionsFromCurrentEnv(
+              content,
+              authConfigs,
+              env,
+              packageJson
+            );
+          },
+        },
         { from: "src/assets/images", to: "images" },
         { from: "src/injectScript.js", to: "injectScript.js" },
         { from: "public/sandbox.html", to: "sandbox.html" },
