@@ -61,8 +61,8 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     // Determine if the initial value is meaningless using the constant
     const valueIsMeaningless = !item.value ||
         (typeof item.value === 'string' && (Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value));
-    // Show boost only if boostable, not locked, and the initial value is meaningless
-    const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless;
+    // Show boost only if boostable, not locked, the initial value is meaningless, and the premium data has been fetched
+    const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless && !isPremiumDataFetched;
     const canUpgrade = !isPremiumDataFetched;
 
     // Check if the URL ends with a known image extension
