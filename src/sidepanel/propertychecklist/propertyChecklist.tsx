@@ -1076,7 +1076,7 @@ export function generatePropertyChecklist(
       key: CHECKLIST_KEYS.CRIME_SCORE,
       status: getCrimeScoreStatus(isCrimeScoreLoading, crimeScoreData),
       value: getCrimeScoreValue(isCrimeScoreLoading, crimeScoreData, crimeScoreError),
-      askAgentMessage: "What is the local crime rate like?",
+      askAgentMessage: "", // Not expected from listing
       toolTipExplainer:
         "Provides an overview of reported crime statistics near the property, indicating general neighbourhood safety.",
       isUnlockedWithPremium: false,

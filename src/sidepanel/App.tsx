@@ -336,7 +336,7 @@ const App: React.FC = () => {
               toggleCrimeChart={toggleCrimeChart}
               togglePlanningPermissionCard={togglePlanningPermissionCard}
               toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-              isPremiumDataFetched={!preprocessedData.isPreprocessedDataLoading && !preprocessedData.preprocessedDataError}
+              isPremiumDataFetched={premiumDataQuery.isFetched}
               processedEpcResult={preprocessedData.processedEpcResult}
               handleEpcValueChange={handleEpcValueChange}
               isEpcDebugModeOn={isEpcDebugModeOn}
@@ -378,7 +378,7 @@ const App: React.FC = () => {
             nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
             nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
             onTriggerPremiumFlow={triggerPremiumFlow}
-            isPremiumDataFetched={!preprocessedData.isPreprocessedDataLoading && !preprocessedData.preprocessedDataError}
+            isPremiumDataFetched={premiumDataQuery.isFetched}
             processedEpcResult={preprocessedData.processedEpcResult}
             epcDebugCanvasRef={epcDebugCanvasRef}
             isEpcDebugModeOn={isEpcDebugModeOn}

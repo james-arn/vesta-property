@@ -1,7 +1,6 @@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { checkIfClickableItemKey } from "@/types/clickableChecklist";
@@ -65,7 +64,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     // Show boost only if boostable, not locked, and the initial value is meaningless
     const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless;
     const canUpgrade = !isPremiumDataFetched;
-    const upgradeUrl = ENV_CONFIG.AUTH_PRICING_URL;
 
     // Check if the URL ends with a known image extension
     const isImageSourceWithUrl =
