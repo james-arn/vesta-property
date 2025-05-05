@@ -18,8 +18,15 @@ import {
 } from "@/types/property";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { logErrorToSentry } from "@/utils/sentry";
+import { EPC_RATING_REGEX } from "../../constants/propertyScrapeConsts";
 import getPropertySalesInsights from "./propertySalesInsights";
 import { ListedPropertyDetailsResult } from "./propertyScrapeHelpers";
+
+const extractTextWithRegex = (text: string | undefined, regex: RegExp): string | undefined => {
+  if (!text) return undefined;
+  const match = text.match(regex);
+  return match?.[1];
+};
 
 export async function extractPropertyDataFromDOM(
   pageModel: RightmovePageModelType | null
@@ -27,7 +34,7 @@ export async function extractPropertyDataFromDOM(
   if (!pageModel)
     logErrorToSentry("No page model available, attempting data only from DOM", "fatal");
 
-  // Page model extraction
+  // --- Step 1: Extract initial data from pageModel ---
   const {
     heating: heatingFromUnstructuredText,
     windows: windowsFromUnstructuredText,
@@ -39,20 +46,95 @@ export async function extractPropertyDataFromDOM(
     miningImpactPropertyItem,
     miningImpactStatus,
     listedProperty: listedPropertyFromUnstructuredText,
-    epcRating: epcRatingFromText,
+    epcRating: epcRatingFromPageModelText,
     leaseTerm: leaseTermFromText,
     groundRent: groundRentFromText,
     serviceCharge: serviceChargeFromText,
   } = extractInfoFromPageModelKeyFeaturesAndDescription(pageModel);
 
-  // Attempt to extract EPC value directly from page model or DOM first
+  // --- Step 2a: Extract supplementary/fallback data directly from DOM  ---
+  const priceElement = Array.from(document.querySelectorAll("span")).find((el) =>
+    el?.textContent?.includes("£")
+  );
+  const locationElement = document.querySelector("h1");
+  // Restore original DOM element finding
+  const propertyTypeElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("PROPERTY TYPE")
+  )?.nextElementSibling;
+  const tenureElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("TENURE")
+  )?.nextElementSibling;
+  const bedroomsElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("BEDROOMS")
+  )?.nextElementSibling;
+  const bathroomsElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("BATHROOMS")
+  )?.nextElementSibling;
+  const parkingElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("PARKING")
+  )?.nextElementSibling;
+  const gardenElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("GARDEN")
+  )?.nextElementSibling;
+  const councilTaxElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("COUNCIL TAX")
+  )?.nextElementSibling;
+  const sizeElement = Array.from(document.querySelectorAll("dt")).find((dt) =>
+    dt.textContent?.includes("SIZE")
+  )?.nextElementSibling;
 
-  const initialEpcValue = epcRatingFromText;
-  const initialEpcConfidence: Confidence = initialEpcValue
-    ? ConfidenceLevels.HIGH
+  // --- Step 2b: Extract Key Features and Full Description using stable anchor ---
+  const primaryLayout = document.querySelector('article[data-testid="primary-layout"]');
+  let keyFeaturesFromDom: string[] = [];
+  let descriptionFromDom = "";
+  let epcRatingFromDom: string | undefined = undefined;
+
+  if (primaryLayout) {
+    // Find Key Features heading and its sibling UL
+    const keyFeaturesHeading = Array.from(primaryLayout.querySelectorAll("h2")).find(
+      (h2) => h2.textContent?.trim().toLowerCase() === "key features"
+    );
+    const keyFeaturesListElement = keyFeaturesHeading?.nextElementSibling;
+    if (keyFeaturesListElement instanceof HTMLUListElement) {
+      keyFeaturesFromDom = Array.from(keyFeaturesListElement.querySelectorAll("li")).map(
+        (li) => li.textContent?.trim() || ""
+      );
+    }
+
+    // Find Description heading and its sibling DIV
+    const descriptionHeading = Array.from(primaryLayout.querySelectorAll("h2")).find(
+      (h2) => h2.textContent?.trim().toLowerCase() === "description"
+    );
+    const descriptionElement = descriptionHeading?.nextElementSibling;
+    // Use innerHTML for description to preserve line breaks (<br> tags)
+    descriptionFromDom = descriptionElement?.innerHTML?.trim() || "";
+
+    // Extract EPC Rating specifically from the full DOM description text content
+    epcRatingFromDom = extractTextWithRegex(
+      descriptionElement?.textContent ?? undefined,
+      EPC_RATING_REGEX
+    )?.toUpperCase();
+  } else {
+    logErrorToSentry(
+      'Could not find primary layout article[data-testid="primary-layout"] for DOM scraping',
+      "warning"
+    );
+    // Fallback to pageModel text if primary layout fails
+    descriptionFromDom = pageModel?.propertyData?.text?.description || "";
+    keyFeaturesFromDom = pageModel?.propertyData?.keyFeatures || [];
+  }
+
+  // --- Step 3: Combine pageModel and DOM data, prioritising where appropriate ---
+
+  // Prioritize EPC from DOM description, fallback to pageModel text extraction
+  const finalEpcValue = epcRatingFromDom || epcRatingFromPageModelText;
+  const finalEpcConfidence: Confidence = finalEpcValue
+    ? epcRatingFromDom
+      ? ConfidenceLevels.HIGH // High confidence if found in specific DOM section
+      : ConfidenceLevels.MEDIUM // Medium if found in general pageModel text
     : ConfidenceLevels.NONE;
-  const initialSource: EpcDataSourceType = initialEpcValue
-    ? EpcDataSourceType.LISTING
+  const finalSource: EpcDataSourceType = finalEpcValue
+    ? EpcDataSourceType.LISTING // Assume listing source for now
     : EpcDataSourceType.NONE;
 
   const epcUrl =
@@ -61,15 +143,17 @@ export async function extractPropertyDataFromDOM(
       ? pageModel?.propertyData?.epcGraphs?.[0]?.url
       : null;
 
+  // Update epcData with potentially more accurate EPC from DOM
   const epcData: EpcData = {
     url: epcUrl,
-    automatedProcessingResult: null,
-    value: initialEpcValue,
-    confidence: initialEpcConfidence,
-    source: initialSource,
+    automatedProcessingResult: null, // This would be populated by image/PDF processing later
+    value: finalEpcValue,
+    confidence: finalEpcConfidence,
+    source: finalSource,
     error: null,
   };
 
+  // Other pageModel extractions remain largely the same
   const floorPlan =
     pageModel?.propertyData?.floorplans &&
     pageModel?.propertyData?.floorplans?.length > 0 &&
@@ -83,38 +167,18 @@ export async function extractPropertyDataFromDOM(
       ? `${pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber || pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber}`
       : null;
 
-  // DOM extraction
-  const priceElement = Array.from(document.querySelectorAll("span")).find((el) =>
-    el?.textContent?.includes("£")
-  );
-  const locationElement = document.querySelector("h1");
-  const propertyTypeElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("PROPERTY TYPE"))
-    ?.nextElementSibling?.textContent?.trim();
-  const tenureElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("TENURE"))
-    ?.nextElementSibling?.textContent?.trim();
-  const bedroomsElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("BEDROOMS"))
-    ?.nextElementSibling?.textContent?.trim();
-  const bathroomsElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("BATHROOMS"))
-    ?.nextElementSibling?.textContent?.trim();
-  const parkingElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("PARKING"))
-    ?.nextElementSibling?.textContent?.trim();
-  const gardenElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("GARDEN"))
-    ?.nextElementSibling?.textContent?.trim();
-  const councilTaxElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("COUNCIL TAX"))
-    ?.nextElementSibling?.textContent?.trim();
-  const sizeElement = Array.from(document.querySelectorAll("dt"))
-    .find((dt) => dt.textContent?.includes("SIZE"))
-    ?.nextElementSibling?.textContent?.trim();
-
   const salePrice =
     pageModel?.propertyData?.prices?.primaryPrice || priceElement?.textContent?.trim() || null;
+  const displayAddress =
+    pageModel?.propertyData?.address?.displayAddress ||
+    locationElement?.textContent?.trim() ||
+    null;
+  const address = {
+    displayAddress: displayAddress,
+    postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
+    isAddressConfirmedByUser: false,
+  };
+
   const {
     priceDiscrepancyValue,
     priceDiscrepancyStatus,
@@ -122,22 +186,10 @@ export async function extractPropertyDataFromDOM(
     compoundAnnualGrowthRate,
     volatility,
   } = await getPropertySalesInsights(salePrice);
-
   const isRental = isRentalProperty(pageModel);
-
-  const propertyType = pageModel?.propertyData?.propertySubType || propertyTypeElement || null;
-  const tenure = pageModel?.propertyData?.tenure?.tenureType || tenureElement || null;
   const listingHistory =
     pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
     CHECKLIST_NO_VALUE.NOT_MENTIONED;
-  const address = {
-    displayAddress:
-      pageModel?.propertyData?.address?.displayAddress ||
-      locationElement?.textContent?.trim() ||
-      null,
-    postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
-    isAddressConfirmedByUser: false,
-  };
   const locationCoordinates = {
     lat: pageModel?.propertyData?.location?.latitude ?? null,
     lng: pageModel?.propertyData?.location?.longitude ?? null,
@@ -147,8 +199,56 @@ export async function extractPropertyDataFromDOM(
   const nearbySchools = await getNearbySchools();
   const broadbandData = await getBroadbandData();
 
+  // --- Step 4: Construct the final data object using combined sources ---
   const propertyData: ExtractedPropertyScrapingData = {
+    // Identifiers and Metadata
     propertyId: pageModel?.propertyData?.id ?? null,
+    copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
+    agent: {
+      name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
+      contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
+      phoneNumber: phoneNumber,
+    },
+    address: address,
+    locationCoordinates: locationCoordinates,
+    isRental,
+
+    // Core Property Details (pageModel > Original DOM Elements > unstructured text)
+    propertyType:
+      pageModel?.propertyData?.propertySubType || propertyTypeElement?.textContent?.trim() || null,
+    tenure:
+      pageModel?.propertyData?.tenure?.tenureType || tenureElement?.textContent?.trim() || null,
+    bedrooms:
+      pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement?.textContent?.trim() || null,
+    bathrooms:
+      pageModel?.propertyData?.bathrooms?.toString() ||
+      bathroomsElement?.textContent?.trim() || // Use original DOM element
+      bathroomFromUnstructuredText ||
+      null,
+    size:
+      formatPropertySize(pageModel?.propertyData?.sizings) ||
+      sizeElement?.textContent?.trim() ||
+      null,
+    councilTax:
+      pageModel?.propertyData?.livingCosts?.councilTaxBand ||
+      councilTaxElement?.textContent?.trim() ||
+      null,
+
+    // Features (pageModel > Original DOM Elements > unstructured text)
+    parking:
+      pageModel?.propertyData?.features?.parking?.[0]?.displayText ||
+      parkingElement?.textContent?.trim() ||
+      null,
+    garden:
+      pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
+      gardenElement?.textContent?.trim() || // Use original DOM element
+      gardenFromUnstructuredText ||
+      CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    heating:
+      pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
+      heatingFromUnstructuredText ||
+      CHECKLIST_NO_VALUE.NOT_MENTIONED, // No specific DOM element for heating usually
+    windows: windows,
     accessibility:
       pageModel?.propertyData?.features?.accessibility
         ?.map((feature: any) => feature?.displayText)
@@ -156,56 +256,37 @@ export async function extractPropertyDataFromDOM(
         .join(", ") ||
       accessibilityFromUnstructuredText ||
       CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    agent: {
-      name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
-      contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
-      phoneNumber: phoneNumber,
-    },
-    bathrooms:
-      pageModel?.propertyData?.bathrooms?.toString() ||
-      bathroomsElement ||
-      bathroomFromUnstructuredText ||
-      null,
-    bedrooms: pageModel?.propertyData?.bedrooms?.toString() || bedroomsElement || null,
-    broadband: broadbandData,
-    buildingSafety: buildingSafetyResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    copyLinkUrl: pageModel?.metadata?.copyLinkUrl ?? null,
-    councilTax: pageModel?.propertyData?.livingCosts?.councilTaxBand || councilTaxElement || null,
+
     epc: epcData,
+    // Leasehold Info (from unstructured text extraction)
+    leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    serviceCharge: serviceChargeFromText,
+
+    // Risks and Obligations (primarily from pageModel)
     floodedInLastFiveYears:
       pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
     floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,
     floodSources: pageModel?.propertyData?.features?.risks?.floodSources ?? null,
-    floorPlan: floorPlan,
-    garden:
-      pageModel?.propertyData?.features?.garden?.[0]?.displayText ||
-      gardenFromUnstructuredText ||
-      CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    heating:
-      pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
-      heatingFromUnstructuredText ||
-      CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    isRental,
+    privateRightOfWayObligation:
+      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
+    publicRightOfWayObligation: mapBooleanToRightOfWayDetails(
+      pageModel?.propertyData?.features?.obligations?.rightsOfWay
+    ),
+    restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
     listedProperty: mapScrapedStatusToListedBuildings(listedPropertyFromUnstructuredText),
-    listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    address: address,
-    locationCoordinates: locationCoordinates,
+    buildingSafety: buildingSafetyResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     miningImpact: miningImpactPropertyItem || {
       value: CHECKLIST_NO_VALUE.NOT_MENTIONED,
       status: DataStatus.ASK_AGENT,
       reason: "Could not determine mining impact.",
     },
     miningImpactStatus: miningImpactStatus ?? null,
-    parking: pageModel?.propertyData?.features?.parking?.[0]?.displayText || parkingElement || null,
-    privateRightOfWayObligation:
-      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
-    propertyType: propertyType,
-    publicRightOfWayObligation: mapBooleanToRightOfWayDetails(
-      pageModel?.propertyData?.features?.obligations?.rightsOfWay
-    ),
-    restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
-    salePrice,
+
+    // Media and History
+    floorPlan: floorPlan,
+    listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     salesHistory: {
       priceDiscrepancy: {
         value: priceDiscrepancyValue,
@@ -215,14 +296,14 @@ export async function extractPropertyDataFromDOM(
       compoundAnnualGrowthRate,
       volatility,
     },
-    size: formatPropertySize(pageModel?.propertyData?.sizings) || sizeElement || null,
-    tenure: tenure,
-    windows: windows,
-    leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    serviceCharge: serviceChargeFromText,
+
+    // Connectivity and Local Area
+    broadband: broadbandData,
     nearestStations: nearestTrainStations,
     nearbySchools: nearbySchools,
+
+    // Keep original salePrice field for now, although 'price' is preferred
+    salePrice: salePrice,
   };
 
   return propertyData;

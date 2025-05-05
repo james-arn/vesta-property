@@ -90,7 +90,7 @@ export const usePreprocessedPropertyData = ({
 
   const { finalEpcValue, finalEpcConfidence, finalEpcSource, epcScoreForCalculation } =
     useMemo(() => {
-      // --- Prioritize User Override ---
+      // If user has made a specific EPC rating override, use that as prioirty.
       if (initialEpcConfidence === ConfidenceLevels.USER_PROVIDED && initialEpcValue) {
         const score = mapGradeToScore(initialEpcValue);
         return {
@@ -101,10 +101,23 @@ export const usePreprocessedPropertyData = ({
         };
       }
 
-      // --- If no user override, proceed with automated processing result ---
+      // --- Prioritize High Confidence from Initial Scrape ---
+      // If we already have high confidence from the listing scrape, trust it
+      // and don't let potential errors in automated processing override it.
+      if (initialEpcConfidence === ConfidenceLevels.HIGH && initialEpcValue) {
+        const score = mapGradeToScore(initialEpcValue);
+        return {
+          finalEpcValue: initialEpcValue,
+          finalEpcConfidence: ConfidenceLevels.HIGH,
+          finalEpcSource: EpcDataSourceType.LISTING,
+          epcScoreForCalculation: score,
+        };
+      }
+
+      // --- If no user override OR low confidence initial scrape, proceed with automated processing result ---
       const automatedResult = processedEpcResult;
 
-      // --- Handle Loading State ---
+      // --- Handle Loading State for Automated Processing ---
       if (isEpcProcessing || !automatedResult) {
         return {
           finalEpcValue: null,
