@@ -14,6 +14,10 @@ export const processRestrictiveCovenants = (
     // If premiumCovenants is null/undefined despite success, fall through to initial scrape
   }
 
+  if (premiumStatus === "pending") {
+    return null; // Pre-premium, return null to show not known
+  }
+
   // 2. Handle Failed/Pending Premium Query OR Successful Query with null/undefined covenants
   // Fallback to initial boolean scrape result
   if (initialRestrictions === true) {
