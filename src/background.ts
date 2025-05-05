@@ -8,14 +8,16 @@ import {
   ResponseType,
   ShowWarningMessage,
 } from "./types/messages";
-import { initSentry, logErrorToSentry } from "./utils/sentry";
+import { logErrorToSentry } from "./utils/sentry";
 
 console.log("[background.ts] Background script loaded");
 // Background.ts is the central hub
 // Listens for messages from the sidebar or content script.
 // Sends commands to the content script to scrape data.
 // Relays data between the content script and sidebar.
-initSentry();
+
+// Remove sentry for MVP, reduce permissions required by extension
+// initSentry();
 
 /**
  * Creates a system notification for important background events

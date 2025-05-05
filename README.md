@@ -261,3 +261,8 @@ When publishing your extension to the Chrome Web Store, you only need to upload 
 2.  Ensure that the `dist` folder contains all the necessary files (such as your `manifest.json`, built JavaScript files, HTML, icons, and any other assets required by your extension).
 3.  Zip up the contents of the `dist` folder (making sure that the `manifest.json` is at the root of the zip file).
 4.  Upload that zip file during the extension submission process.
+
+## Gotchyas
+
+1. Manifest is transformed to reduce host permissions for only the relevant enviornment in webpack.
+2. Sentry temporarily removed for MVP to reduce permissions.

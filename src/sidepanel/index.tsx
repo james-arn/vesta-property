@@ -7,10 +7,10 @@ import { createRoot } from "react-dom/client";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Alert from "../components/ui/Alert";
 import "../index.css";
-import { initSentry } from "../utils/sentry";
 import App from "./App";
 
-initSentry();
+// Remove sentry for MVP, reduce permissions required by extension
+// initSentry();
 const container = document.getElementById("root");
 const root = createRoot(container!);
 

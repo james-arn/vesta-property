@@ -106,32 +106,33 @@ module.exports = {
     new webpack.DefinePlugin({
       "process.env.PACKAGE_VERSION": JSON.stringify(packageJson.version),
     }),
-    sentryWebpackPlugin({
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      org: "vesta-ja",
-      project: "vesta",
-      telemetry: false,
-    }),
+    // Remove sentry for MVP, reduce permissions required by extension
+    // sentryWebpackPlugin({
+    //   authToken: process.env.SENTRY_AUTH_TOKEN,
+    //   org: "vesta-ja",
+    //   project: "vesta",
+    //   telemetry: false,
+    // }),
     // // stops remote code being loaded in sentry for lazy loading modules that are not used https://browser.sentry-cdn.com - otherwise, rejected from chrome store submission
-    new ReplaceInFileWebpackPlugin([
-      {
-        dir: path.resolve(__dirname, "dist"),
-        files: [
-          "sidepanel.js",
-          "sidepanel.js.map",
-          "background.js",
-          "background.js.map",
-          "contentScript.js",
-          "contentScript.js.map",
-        ],
-        rules: [
-          {
-            search: /https:\/\/browser\.sentry-cdn\.com/g,
-            replace: "",
-          },
-        ],
-      },
-    ]),
+    // new ReplaceInFileWebpackPlugin([
+    //   {
+    //     dir: path.resolve(__dirname, "dist"),
+    //     files: [
+    //       "sidepanel.js",
+    //       "sidepanel.js.map",
+    //       "background.js",
+    //       "background.js.map",
+    //       "contentScript.js",
+    //       "contentScript.js.map",
+    //     ],
+    //     rules: [
+    //       {
+    //         search: /https:\/\/browser\.sentry-cdn\.com/g,
+    //         replace: "",
+    //       },
+    //     ],
+    //   },
+    // ]),
   ],
   devtool: "source-map",
   optimization: {
