@@ -93,7 +93,7 @@ export const buildingSafetyTermsPositive = [
 export const buildingSafetyTermsNegative = [
   "mould",
   "damp",
-  "asbestos survey",
+  "asbestos",
   "radon testing",
   "building survey",
   "structural survey",

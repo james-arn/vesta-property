@@ -31,12 +31,9 @@ export function logErrorToSentry(
   error: unknown,
   level: "fatal" | "error" | "warning" | "info" | "debug" = "error"
 ) {
+  console.error(error);
   withScope((scope) => {
     scope.setLevel(level);
     scope.captureException(error);
   });
-
-  if (process.env.NODE_ENV === "development") {
-    console.error(error);
-  }
 }

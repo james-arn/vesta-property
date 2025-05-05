@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: 
+globs: 
+---
+Use es6+ syntax
+prefer immutable code over mutable code.
+don't add comments saying you've added or removed code whe implementing the code.
+don't use magic strings and magic numbers - they shouldn't be hardcoded but put into a const or object.

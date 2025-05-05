@@ -1,7 +1,9 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import { checkIfClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
 import React from 'react';
-import { DataStatus, PropertyDataList } from "../types/property";
+import { DataStatus, PropertyDataListItem } from "../types/property";
 
 export const getStatusIcon = (status: DataStatus): string | React.ReactNode => {
   switch (status) {
@@ -34,8 +36,8 @@ export const getStatusColor = (status: DataStatus): string => {
 };
 
 export const filterChecklistToAllAskAgentOnlyItems = (
-  checklist: PropertyDataList[]
-): PropertyDataList[] => {
+  checklist: PropertyDataListItem[]
+): PropertyDataListItem[] => {
   return checklist.filter((item) => item.status === DataStatus.ASK_AGENT);
 };
 
@@ -70,3 +72,44 @@ export function extractPropertyIdFromUrl(url: string): string | undefined {
   }
   return undefined;
 }
+
+export const getValueClickHandler = (
+  item: PropertyDataListItem,
+  openNewTab: (url: string) => void,
+  toggleCrimeChart: () => void,
+  togglePlanningPermissionCard: () => void,
+  toggleNearbyPlanningPermissionCard?: () => void): (() => void) | undefined => {
+
+  const { key, value } = item;
+  if (!checkIfClickableItemKey(key)) return undefined;
+
+  switch (key) {
+    case "epc":
+    case "floorPlan":
+      return () => openNewTab(String(value));
+    case "crimeScore":
+      return toggleCrimeChart;
+    case "planningPermissions":
+      return togglePlanningPermissionCard;
+    case "nearbyPlanningPermissions":
+      return toggleNearbyPlanningPermissionCard || (() => console.error("No handler provided for nearbyPlanningPermissions click"));
+    default:
+      console.error(`getValueClickHandler: Clickable key "${key}" is not handled in the switch statement.`);
+      return undefined;
+  }
+};
+
+export const generateAgentMessage = (checklist: PropertyDataListItem[]): string => {
+  const askAgentItems = checklist.filter(
+    (item) => item.status === DataStatus.ASK_AGENT && item.askAgentMessage
+  );
+  if (askAgentItems.length === 0) {
+    return "No missing items identified to ask the agent about.";
+  }
+  const questions = askAgentItems.map((item) => `- ${item.askAgentMessage}`).join("\n");
+  return `Regarding the property listing, could you please provide information on the following points?\n\n${questions}\n\nThank you.`;
+};
+
+export const getCategoryDisplayName = (category: DashboardScoreCategory): string => {
+  return DASHBOARD_CATEGORY_DISPLAY_NAMES[category] || category.replace(/_/g, " ");
+};

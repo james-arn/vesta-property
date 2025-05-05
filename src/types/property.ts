@@ -1,4 +1,18 @@
+import { ChecklistKey } from "@/constants/checklistKeys";
+import {
+  CALCULATED_STATUS,
+  DashboardScoreCategory,
+} from "@/constants/dashboardScoreCategoryConsts";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
+import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
+import {
+  ListedBuilding,
+  ProcessedPremiumStreetData,
+  RestrictiveCovenant,
+} from "./premiumStreetData";
+import { Station } from "./rightmovePageModel";
 
 export enum DataStatus {
   FOUND_POSITIVE = "FOUND_POSITIVE",
@@ -8,15 +22,22 @@ export enum DataStatus {
   IS_LOADING = "IS_LOADING",
 }
 
-export interface PropertyDataList {
+export interface PropertyDataListItem {
   label: string;
   status: DataStatus;
   value: React.ReactNode;
-  key: string;
-  group: string;
+  key: ChecklistKey;
+  checklistGroup: string;
   selected?: boolean;
   askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
+  epcBandData?: EpcBandResult;
+  confidence?: Confidence | null;
+  isUnlockedWithPremium: boolean;
+  isBoostedWithPremium: boolean;
+  isExpectedInListing: boolean;
+  restrictiveCovenants?: RestrictiveCovenant[] | null;
+  publicRightOfWay?: RightOfWayDetails | null;
 }
 
 export interface AgentDetails {
@@ -31,6 +52,62 @@ export interface PropertyItem {
   reason: string | null;
 }
 
+export const EpcDataSourceType = {
+  LISTING: "Listing",
+  PDF: "PDF",
+  IMAGE: "Image",
+  NONE: "None",
+  USER_PROVIDED: "UserProvided",
+} as const;
+
+export type EpcDataSourceType = (typeof EpcDataSourceType)[keyof typeof EpcDataSourceType];
+
+export interface EpcData {
+  url: string | null;
+  displayUrl?: string | null;
+  /**
+   * Stores the detailed results from the automated EPC detection process
+   * (e.g., from image analysis or PDF extraction). This is the raw output
+   * and might include extracted ratings, confidence from that process, etc.
+   * It is preserved even if the user manually overrides the `value`.
+   */
+  automatedProcessingResult: EpcBandResult | ExtractedEpcData | null;
+  value: string | null; // The final EPC rating (A-G), potentially user-provided
+  confidence: Confidence;
+  source: EpcDataSourceType;
+  error?: string | null;
+}
+
+export interface NearbySchool {
+  name: string;
+  type: string | null; // e.g., "State School", "Independent School"
+  ratingBody: string | null; // e.g., "Ofsted"
+  ratingLabel: string | null; // e.g., "Outstanding", "Requires improvement"
+  distance: number | null; // Numerical distance value
+  unit: string | null; // e.g., "miles"
+}
+
+export type RightOfWayRowType = string | null;
+
+export interface RightOfWayDetails {
+  distance: number | null;
+  date_updated: string | null; // Assuming date format string
+  parish: string | null;
+  route_no: string | null;
+  row_type: RightOfWayRowType;
+  exists?: boolean;
+}
+
+export interface Address {
+  displayAddress: string | null;
+  postcode: string | null;
+  isAddressConfirmedByUser: boolean;
+  confirmedBuilding?: string | null;
+  confirmedStreet?: string | null;
+  confirmedTown?: string | null;
+  confirmedPostcode?: string | null;
+}
+
 export interface ExtractedPropertyScrapingData {
   propertyId: string | null;
   accessibility: string | null;
@@ -42,7 +119,7 @@ export interface ExtractedPropertyScrapingData {
   coastalErosion: PropertyItem;
   copyLinkUrl: string | null;
   councilTax: string | null;
-  epc: string | null;
+  epc: EpcData;
   floodedInLastFiveYears: boolean | null;
   floodDefences: boolean | null;
   floodSources: string[] | null;
@@ -50,14 +127,15 @@ export interface ExtractedPropertyScrapingData {
   garden: string | null;
   heating: string | null;
   isRental: boolean;
-  listedProperty: PropertyItem;
+  listedProperty: ListedBuilding[] | null;
   listingHistory: string | null;
-  location: string | null;
+  address: Address;
   miningImpact: PropertyItem;
+  miningImpactStatus: boolean | null;
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
   propertyType: string | null;
-  publicRightOfWayObligation: boolean | null;
+  publicRightOfWayObligation: RightOfWayDetails | null;
   restrictions: boolean | null;
   salePrice: string | null;
   salesHistory: {
@@ -72,6 +150,11 @@ export interface ExtractedPropertyScrapingData {
     lat: number | null;
     lng: number | null;
   };
+  leaseTerm: string | null;
+  groundRent: string | null;
+  serviceCharge: number | null;
+  nearestStations: Station[];
+  nearbySchools: NearbySchool[];
 }
 
 export interface SaleHistoryEntry {
@@ -80,26 +163,66 @@ export interface SaleHistoryEntry {
   percentageChange: string;
 }
 
-export const PropertyGroups = {
-  GENERAL: "General",
-  SALES_HISTORY: "Sales History",
-  INTERIOR: "Interior",
-  EXTERIOR: "Exterior",
-  UTILITIES: "Utilities",
-  NEIGHBOURHOOD: "Neighbourhood",
-  LEGAL: "Legal",
-  RENTING: "Renting",
-  RISKS: "Risks",
-  MISC: "Miscellaneous",
-  RIGHTS_AND_RESTRICTIONS: "Rights and Restrictions",
+export const ConfidenceLevels = {
+  HIGH: "High",
+  MEDIUM: "Medium",
+  USER_PROVIDED: "UserProvided",
+  NONE: "None",
 } as const;
 
-export const PriceDiscrepancyReason = {
-  NO_PREVIOUS_SOLD_HISTORY: "noPreviousSoldHistory",
-  MISSING_OR_INVALID_PRICE_DATA: "missingOrInvalidPriceData",
-  PRICE_GAP_WITHIN_EXPECTED_RANGE: "priceGapWithinExpectedRange",
-  PRICE_GAP_EXCEEDS_EXPECTED_RANGE: "priceGapExceedsExpectedRange",
-  PRICE_DROP: "priceDrop",
-} as const;
+export type Confidence = (typeof ConfidenceLevels)[keyof typeof ConfidenceLevels];
 
-export const NOT_APPLICABLE = "N/A";
+export interface DashboardScore {
+  scoreValue: number; // The calculated score value
+  maxScore: number; // The maximum possible score for normalisation (e.g., 100)
+  scoreLabel: string; // A qualitative label (e.g., "Good", "High", "Band C")
+}
+
+// Define possible calculation statuses
+export type ScoreCalculationStatus = (typeof CALCULATED_STATUS)[keyof typeof CALCULATED_STATUS];
+
+export interface CategoryScoreData {
+  score: DashboardScore | null; // Allow null if score truly cannot be determined
+  contributingItems: PropertyDataListItem[];
+  warningMessages?: string[];
+  calculationStatus: ScoreCalculationStatus; // Uses the derived type
+}
+
+export type DashboardScores = {
+  [key in DashboardScoreCategory]?: CategoryScoreData;
+};
+
+export enum ScoreQuality {
+  GOOD = "GOOD",
+  AVERAGE = "AVERAGE",
+  POOR = "POOR",
+  UNKNOWN = "UNKNOWN",
+}
+
+export interface PreprocessedData {
+  isPreprocessedDataLoading: boolean;
+  preprocessedDataError: Error | null;
+  processedEpcResult: EpcProcessorResult | null;
+  processedPremiumData: ProcessedPremiumStreetData | null;
+  finalEpcValue: string | null;
+  finalEpcConfidence: Confidence | null;
+  finalEpcSource: EpcDataSourceType | null;
+  epcScoreForCalculation: number | null;
+  calculatedLeaseMonths: number | null;
+  nearbySchoolsScoreValue: number | null;
+  broadbandScoreValue: number | null;
+  broadbandDisplayValue: string | null;
+  broadbandStatus: DataStatus | null;
+  miningImpactStatus: boolean | null;
+  conservationAreaDetails: {
+    conservationAreaDataAvailable: boolean | null;
+    conservationArea: string | null;
+  } | null;
+  listingHistoryStatus: DataStatus | null;
+  listingHistoryDisplayValue: string | null;
+  listingDaysOnMarket: number | null;
+  publicRightOfWayObligation: RightOfWayDetails | null;
+  privateRightOfWayObligation: boolean | null;
+  listedProperty: ListedBuilding[] | null;
+  restrictiveCovenants: RestrictiveCovenant[] | null;
+}

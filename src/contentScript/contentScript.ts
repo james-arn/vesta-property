@@ -1,10 +1,10 @@
-import { initSentry } from "@/utils/sentry";
 import { injectExternalScriptToNotifyWhenRightmovePageModelAvailable } from "./dom/injectScriptHandler";
 import { setupContentScriptEventListeners } from "./events/contentScriptEventListeners";
 
 //contentScript.ts is injected into the web page and intera cts with the DOM to scrape data.
 
-initSentry();
+// Remove sentry for MVP, reduce permissions required by extension
+// initSentry();
 injectExternalScriptToNotifyWhenRightmovePageModelAvailable();
 setupContentScriptEventListeners();
 

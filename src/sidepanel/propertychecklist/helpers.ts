@@ -1,9 +1,23 @@
-import { DataStatus, PriceDiscrepancyReason } from "../../types/property";
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
+import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
+import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
+import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { ProcessedPremiumDataStatus, RestrictiveCovenant } from "@/types/premiumStreetData";
+import {
+  Confidence,
+  ConfidenceLevels,
+  DataStatus,
+  EpcData,
+  PropertyDataListItem,
+} from "@/types/property";
 import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
-import { agentMissingInfo } from "./propertyChecklist";
 
 export function getYesNoOrMissingStatus(value: string | null): DataStatus {
-  if (!value || (typeof value === "string" && value.toLowerCase() === agentMissingInfo)) {
+  if (
+    !value ||
+    (typeof value === "string" && Object.values(CHECKLIST_NO_VALUE).includes(value as any))
+  ) {
     return DataStatus.ASK_AGENT;
   }
   return typeof value === "string" && value.toLowerCase() !== "no"
@@ -13,7 +27,7 @@ export function getYesNoOrMissingStatus(value: string | null): DataStatus {
 
 export function getYesNoOrAskAgentStringFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Not mentioned";
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
   return value ? "Yes" : "No";
 }
@@ -31,60 +45,81 @@ export function getStatusFromBoolean(
   return noIsPositive ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT;
 }
 
-export function calculateListingHistoryDetails(listingHistory: string | null): {
+// Define the new return type
+export interface ListingHistoryDetails {
   status: DataStatus;
-  value: string | null;
-} {
-  console.log("calculateListingHistoryDetails called with:", listingHistory);
+  value: string | null; // The display string
+  daysOnMarket: number | null;
+}
 
+export function calculateListingHistoryDetails(
+  listingHistory: string | null
+): ListingHistoryDetails {
   if (!listingHistory) {
-    console.log("No listing history provided, returning ASK_AGENT status.");
-    return { status: DataStatus.ASK_AGENT, value: listingHistory };
+    return { status: DataStatus.ASK_AGENT, value: listingHistory, daysOnMarket: null };
   }
 
+  // Handle simple cases first
   if (listingHistory.toLowerCase() === "added today") {
-    console.log("Listing added today, returning FOUND_POSITIVE status.");
-    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
+    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory, daysOnMarket: 0 };
   } else if (listingHistory.toLowerCase() === "added yesterday") {
-    console.log("Listing added yesterday, returning FOUND_POSITIVE status.");
-    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory };
+    return { status: DataStatus.FOUND_POSITIVE, value: listingHistory, daysOnMarket: 1 };
   }
 
+  // Attempt to parse date
   const dateMatch = listingHistory.match(/Added on (\d{2})\/(\d{2})\/(\d{4})/);
-  console.log("Date match result:", dateMatch);
-
   if (!dateMatch) {
-    console.log("No valid date found in listing history, returning ASK_AGENT status.");
-    return { status: DataStatus.ASK_AGENT, value: listingHistory };
+    // Cannot parse date, return original string and null days
+    return { status: DataStatus.ASK_AGENT, value: listingHistory, daysOnMarket: null };
   }
-  // first comma is intentional, it stores 'Added on'
-  const [, day, month, year] = dateMatch;
 
-  const listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  const currentDate = new Date();
-  const timeDiff = currentDate.getTime() - listingDate.getTime();
-  const daysOnMarket = timeDiff / (1000 * 3600 * 24);
+  const [, day, month, year] = dateMatch;
+  let daysOnMarketCalc: number | null = null;
+  let listingDate: Date | null = null;
+
+  try {
+    listingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    if (!isNaN(listingDate.getTime())) {
+      const currentDate = new Date();
+      const timeDiff = currentDate.getTime() - listingDate.getTime();
+      // Use Math.floor for whole days, or Math.ceil if partial days count
+      daysOnMarketCalc = Math.floor(timeDiff / (1000 * 3600 * 24));
+    } else {
+      console.warn("Parsed invalid date from listing history:", listingHistory);
+    }
+  } catch (error) {
+    console.error("Error parsing date from listing history:", listingHistory, error);
+  }
 
   let status = DataStatus.FOUND_POSITIVE;
-  let value = listingHistory;
+  let displayValue = listingHistory;
+  const LONG_LISTING_THRESHOLD_DAYS = 90;
 
-  if (daysOnMarket > 90) {
-    // More than 3 months
-    const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarket);
-    value += `, on the market for ${timeOnMarket}. It's worth asking the agent why.`;
-    status = DataStatus.ASK_AGENT;
+  if (daysOnMarketCalc !== null && daysOnMarketCalc > LONG_LISTING_THRESHOLD_DAYS) {
+    const timeOnMarket = formatTimeInYearsMonthsWeeksDays(daysOnMarketCalc);
+    // Modify display value less aggressively, keep status positive unless explicitly reduced
+    displayValue += `, listed ${timeOnMarket} ago.`;
+    // Status could potentially change here if needed based on duration, but keep positive for now
+    // status = DataStatus.ASK_AGENT; // Or maybe FOUND_NEGATIVE? Decide based on UX.
     console.log(
-      `Property on market for more than 90 days (${timeOnMarket}), updating status to ASK_AGENT.`
+      `Property on market for more than ${LONG_LISTING_THRESHOLD_DAYS} days (${timeOnMarket}).`
     );
   }
 
-  console.log("Returning status and value:", { status, value });
-  return { status, value };
+  // Check for explicit price reduction mentions (simple check)
+  if (listingHistory.toLowerCase().includes("reduced")) {
+    status = DataStatus.FOUND_NEGATIVE; // Indicate reduction found
+    console.log("Price reduction mentioned in listing history.");
+    // Optionally add to displayValue if desired
+    // displayValue += " (Price Reduced)";
+  }
+
+  return { status, value: displayValue, daysOnMarket: daysOnMarketCalc };
 }
 
 export function getYesNoOrAskAgentFromBoolean(value: boolean | null): string {
   if (value === null) {
-    return "Not mentioned";
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
   }
   return value ? "Yes" : "No";
 }
@@ -146,3 +181,180 @@ export function getCAGRStatus(cagr: number | null): DataStatus {
   }
   return cagr < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 }
+
+export const determineEpcChecklistItemDetails = (
+  propertyEpcData: EpcData,
+  epcProcessingResult: EpcProcessorResult
+): PropertyDataListItem => {
+  const { isLoading, error, value: processedValue, confidence, source } = epcProcessingResult;
+  const userProvidedValue = propertyEpcData.value;
+  const userProvidedConfidence = propertyEpcData.confidence;
+
+  const baseEpcItem = {
+    label: "EPC Rating",
+    key: CHECKLIST_KEYS.EPC,
+    checklistGroup: PropertyGroups.UTILITIES,
+    dashboardGroup: DashboardScoreCategory.COST_EFFICIENCY,
+    isUnlockedWithPremium: false,
+    isBoostedWithPremium: true,
+    isExpectedInListing: true,
+  };
+
+  // --- Loading State ---
+  if (isLoading) {
+    return {
+      ...baseEpcItem,
+      value: "Loading...",
+      status: DataStatus.IS_LOADING,
+      askAgentMessage: "Processing EPC...",
+      toolTipExplainer: "Attempting to determine EPC rating.",
+    };
+  }
+
+  // --- Error State ---
+  if (error) {
+    return {
+      ...baseEpcItem,
+      value: `Error: ${error}`,
+      confidence: ConfidenceLevels.NONE,
+      status: DataStatus.ASK_AGENT,
+      askAgentMessage: `Error processing EPC (${error}). Ask Agent?`,
+      toolTipExplainer: `EPC processing failed: ${error}`,
+    };
+  }
+
+  const shouldUseUserValue =
+    (userProvidedConfidence === ConfidenceLevels.USER_PROVIDED && userProvidedValue) ||
+    (confidence !== ConfidenceLevels.HIGH && userProvidedValue);
+
+  const finalValue: string | null | undefined = shouldUseUserValue
+    ? userProvidedValue
+    : processedValue;
+
+  const finalConfidence: Confidence | null = shouldUseUserValue
+    ? ConfidenceLevels.USER_PROVIDED
+    : confidence;
+
+  if (finalValue) {
+    return {
+      ...baseEpcItem,
+      value: `${finalValue}`.trim(),
+      confidence: finalConfidence,
+      status: DataStatus.FOUND_POSITIVE,
+      askAgentMessage: "Please can you confirm the EPC rating?",
+      toolTipExplainer: `EPC Rating: ${finalValue}. Confidence: ${finalConfidence || "N/A"}. Source: ${source || "N/A"}.`,
+    };
+  }
+
+  return {
+    ...baseEpcItem,
+    value: CHECKLIST_NO_VALUE.NOT_FOUND,
+    confidence: null,
+    status: DataStatus.ASK_AGENT,
+    askAgentMessage: "Could not determine EPC. Ask Agent?",
+    toolTipExplainer: "Could not determine the EPC rating from available data.",
+  };
+};
+
+export const getPremiumStatus = (
+  premiumStatus: ProcessedPremiumDataStatus,
+  dataValue: unknown
+): DataStatus => {
+  switch (premiumStatus) {
+    case "loading":
+    case "pending":
+      return DataStatus.IS_LOADING;
+    case "error":
+      return DataStatus.ASK_AGENT; // Or potentially a specific error status
+    case "success":
+      return dataValue !== null && dataValue !== undefined
+        ? DataStatus.FOUND_POSITIVE
+        : DataStatus.ASK_AGENT;
+    case "idle":
+    default:
+      return DataStatus.ASK_AGENT;
+  }
+};
+
+// Helper to get status for restrictive covenants
+export const getRestrictiveCovenantsStatus = (
+  covenants: RestrictiveCovenant[] | null,
+  isLoading: boolean = false
+): DataStatus => {
+  if (isLoading) {
+    return DataStatus.IS_LOADING;
+  }
+  if (covenants === null) {
+    // Null means unknown, or known to exist but details unavailable initially
+    return DataStatus.ASK_AGENT; // Status is unknown
+  }
+  if (covenants.length === 0) {
+    // Empty array means definitively none found
+    return DataStatus.FOUND_POSITIVE; // Positive = good = no restrictions found
+  }
+  // Array with items means restrictions were found - requires investigation
+  return DataStatus.ASK_AGENT; // Use Ask Agent to signal investigation needed
+};
+
+export const getRestrictiveCovenantsValue = (
+  covenants: RestrictiveCovenant[] | null,
+  isLoading: boolean = false
+): string => {
+  if (isLoading) {
+    return "Loading...";
+  }
+
+  if (covenants === null) {
+    // Initial listing DOM scrape has not found any restrictive covenants
+    return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+  }
+  if (covenants.length === 0) {
+    return CHECKLIST_NO_VALUE.NONE_FOUND;
+  }
+  // This will be overridden by the custom rendering in ChecklistItem.tsx
+  return "Yes";
+};
+
+export const getRestrictiveCovenantMessages = (
+  status: DataStatus,
+  covenantsFound: boolean
+): { askAgentMessage: string; toolTipExplainer: string } => {
+  switch (status) {
+    case DataStatus.FOUND_POSITIVE: // None found
+      return {
+        askAgentMessage: "",
+        toolTipExplainer:
+          "No restrictive covenants were found in the available data. Your conveyancer will confirm this by checking the official Title Register.",
+      };
+    case DataStatus.ASK_AGENT: // Status is Ask Agent
+      if (covenantsFound) {
+        // Ask Agent because covenants *were* found
+        return {
+          askAgentMessage:
+            "Restrictive covenants are indicated. Please ensure my conveyancer receives the full details from the Title Register.",
+          toolTipExplainer:
+            "Legal obligations restricting property use/modification (e.g., limits on extensions). \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry for the definitive wording and implications.",
+        };
+      } else {
+        // Ask Agent because status was initially unknown
+        return {
+          askAgentMessage:
+            "Are there any restrictive covenants on this property? Please ensure the Title Register is checked.",
+          toolTipExplainer:
+            "Could not determine if restrictive covenants apply from available data. \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry.",
+        };
+      }
+    case DataStatus.IS_LOADING:
+      return {
+        askAgentMessage: "",
+        toolTipExplainer: "Checking for restrictive covenants...",
+      };
+    default:
+      // Default case (should ideally not be hit)
+      return {
+        askAgentMessage: "",
+        toolTipExplainer:
+          "Legal obligations restricting property use/modification (e.g., limits on extensions). \n\n**Crucial:** Your conveyancer must obtain and review the official Title Register from HM Land Registry for the definitive wording and implications.",
+      };
+  }
+};

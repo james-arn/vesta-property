@@ -21,3 +21,13 @@ export function formatTimeInYearsMonthsWeeksDays(daysOnMarket: number): string {
 
   return parts.join(", ");
 }
+
+export const formatUnixTimestampToDateString = (timestamp: number | undefined | null): string => {
+  if (!timestamp) {
+    return "N/A";
+  }
+  // Convert Unix timestamp (seconds) to milliseconds
+  const date = new Date(timestamp * 1000);
+  const options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
+  return new Intl.DateTimeFormat("en-GB", options).format(date);
+};

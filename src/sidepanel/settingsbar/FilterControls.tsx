@@ -8,14 +8,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { STEPS } from "@/constants/steps";
 import React from "react";
 import { VscFilter } from "react-icons/vsc";
 import AskAgentOnlyControl from "./AskAgentOnlyControl";
 import ExpandCollapseControl from "./ExpandCollapseControl";
 
 export interface FilterControlsProps {
-  currentStep: keyof typeof STEPS;
   filters: { showAskAgentOnly: boolean };
   toggleFilter: (filterName: keyof FilterControlsProps["filters"]) => void;
   openGroups: { [key: string]: boolean };
@@ -24,14 +22,13 @@ export interface FilterControlsProps {
 }
 
 export const FilterControls = ({
-  currentStep,
   filters,
   toggleFilter,
   openGroups,
   setOpenGroups,
   propertyChecklistData,
 }: FilterControlsProps) => {
-  const isDisabled = currentStep !== STEPS.INITIAL_REVIEW;
+  const isFilterDisabled = false;
 
   return (
     <DropdownMenu>
@@ -62,7 +59,7 @@ export const FilterControls = ({
           </DropdownMenuItem>
           <DropdownMenuItem>
             <AskAgentOnlyControl
-              isDisabled={isDisabled}
+              isDisabled={isFilterDisabled}
               toggleFilter={toggleFilter}
               filters={filters}
             />

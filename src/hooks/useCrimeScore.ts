@@ -3,8 +3,10 @@ import { DataStatus } from "@/types/property";
 import { logErrorToSentry } from "@/utils/sentry";
 import { useQuery } from "@tanstack/react-query";
 
+export type CrimeRating = "High" | "Moderate" | "Low";
+
 export type CrimeScoreResponse = {
-  crimeRating: "High" | "Moderate" | "Low";
+  crimeRating: CrimeRating;
   crimeScore: string;
   crimeSummary: Record<string, number>;
   monthsAggregated: string[];
@@ -41,7 +43,7 @@ export function getCrimeScoreValue(
 }
 
 const fetchCrimeScore = async (lat: string, lng: string): Promise<CrimeScoreResponse> => {
-  const endpoint = `${process.env.VESTA_AWS_ENDPOINT}/crime-report?lat=${lat}&lng=${lng}`;
+  const endpoint = `${process.env.VESTA_PROPERTY_DATA_PRODUCTION_ONLY_ENDPOINT}/crime-report?lat=${lat}&lng=${lng}`;
   try {
     const response = await fetch(endpoint);
     if (!response.ok) {
@@ -66,7 +68,8 @@ export function useCrimeScore(lat: string, lng: string) {
   return useQuery({
     queryKey: [REACT_QUERY_KEYS.CRIME_SCORE, lat, lng],
     queryFn: () => fetchCrimeScore(lat, lng),
-    staleTime: 24 * 60 * 60 * 1000, // Cache the data for 1 day
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     enabled: !!lat && !!lng,
     // Add status directly into the returned data.
     select: (data: CrimeScoreResponse): CrimeScoreData => {

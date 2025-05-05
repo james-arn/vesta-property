@@ -1,5 +1,4 @@
 import Feedback from "@/components/Feedback";
-import { STEPS } from "@/constants/steps";
 import { StorageKeys } from "@/constants/storage";
 import {
   FINAL_STEP_EMAIL_SENT_COUNT_THRESHOLD,
@@ -13,14 +12,11 @@ import { useToast } from "./use-toast";
  * @param propertyId
  * @param currentStep
  */
-export function useFeedbackAutoPrompt(
-  propertyId: string | null,
-  currentStep: (typeof STEPS)[keyof typeof STEPS]
-) {
+export function useFeedbackAutoPrompt(propertyId: string | null) {
   const { toast } = useToast();
 
-  // Create a unique dependency key from the propertyId and currentStep to stop duplicate useeffect renders.
-  const effectKey = useMemo(() => `${propertyId}-${currentStep}`, [propertyId, currentStep]);
+  // Create a unique dependency key from the propertyId to stop duplicate useeffect renders.
+  const effectKey = useMemo(() => `${propertyId}`, [propertyId]);
 
   useEffect(() => {
     console.log("useFeedbackAutoPrompt running");
@@ -35,16 +31,10 @@ export function useFeedbackAutoPrompt(
 
     let reviewCount =
       Number(localStorage.getItem(StorageKeys.FIRST_STEP_INITIAL_REVIEW_COUNT)) || 0;
-    let emailSentCount = Number(localStorage.getItem(StorageKeys.FINAL_STEP_EMAIL_SENT_COUNT)) || 0;
 
     // Increment counts based on the current step
-    if (currentStep === STEPS.INITIAL_REVIEW) {
-      reviewCount++;
-      localStorage.setItem(StorageKeys.FIRST_STEP_INITIAL_REVIEW_COUNT, reviewCount.toString());
-    } else if (currentStep === STEPS.EMAIL_SENT) {
-      emailSentCount++;
-      localStorage.setItem(StorageKeys.FINAL_STEP_EMAIL_SENT_COUNT, emailSentCount.toString());
-    }
+    reviewCount++;
+    localStorage.setItem(StorageKeys.FIRST_STEP_INITIAL_REVIEW_COUNT, reviewCount.toString());
 
     // Condition 1: User has seen checklist on many rightmove pages
     if (reviewCount >= INITIAL_REVIEW_COUNT_THRESHOLD) {
