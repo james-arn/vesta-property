@@ -206,7 +206,7 @@ export function usePersistentPremiumData(): UseActivatePremiumSearchReturn {
         default: // Includes 500 and any other status
           toast({
             variant: "destructive",
-            title: "Server Error",
+            title: "Error activating premium search",
             description: "An unexpected server error occurred. Please try again later.",
           });
       }

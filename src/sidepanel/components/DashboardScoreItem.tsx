@@ -127,7 +127,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
         <Accordion type="single" collapsible value={isExpanded ? category : ""} onValueChange={() => onToggleExpand(category)} className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
             <AccordionItem value={category} className="border-b-0">
                 <AccordionTrigger
-                    className="px-3 py-2 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 group [&[data-state=open]>div>svg]:rotate-180"
+                    className="px-3 py-2 hover:bg-slate-50 [&[data-state=open]]:bg-slate-50 group"
                 >
                     <div className="grid grid-cols-[20px_90px_1fr] items-center w-full gap-x-3 mr-3">
                         {IconComponent && <IconComponent className="h-5 w-5 text-slate-600" />}

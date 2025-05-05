@@ -87,7 +87,7 @@ const App: React.FC = () => {
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
 
-  const { activatePremiumSearch, isActivatingPremiumSearch, activatePremiumSearchError } =
+  const { activatePremiumSearch, isActivatingPremiumSearch } =
     usePersistentPremiumData();
 
   const handleConfirmAndActivate = useCallback(() => {
@@ -300,12 +300,6 @@ const App: React.FC = () => {
   if (queryPropertyDataError) {
     return (
       <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
-    );
-  }
-
-  if (activatePremiumSearchError) {
-    return (
-      <Alert type="error" message={`Error activating premium search.`} />
     );
   }
 
