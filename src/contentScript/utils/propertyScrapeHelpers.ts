@@ -486,7 +486,7 @@ export const getBroadbandData = async (): Promise<string> => {
     broadbandButton.click();
 
     // Wait for the main broadband widget to appear using its data-testid
-    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 1000);
+    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 1500);
 
     if (!broadbandWidget) {
       console.warn("Broadband widget did not appear after clicking button.");
@@ -539,7 +539,7 @@ export async function getNearbySchools(): Promise<NearbySchool[]> {
     // Wait for the first school row to ensure the section has loaded
     // Construct the specific selector for the first school element
     const firstSchoolSelector = '[data-test="school-0"]';
-    const firstSchoolRowToCheckListApepars = await waitForElement(firstSchoolSelector, 2000);
+    const firstSchoolRowToCheckListApepars = await waitForElement(firstSchoolSelector);
 
     if (!firstSchoolRowToCheckListApepars) {
       console.warn("Nearby schools section did not load after clicking button.");
@@ -614,7 +614,7 @@ export const getSaleHistory = async (): Promise<SaleHistoryEntry[]> => {
   try {
     clickPropertySaleHistoryButton(); // Assume this function exists and clicks the button
 
-    const firstHistoryRow = await waitForElement(SALE_HISTORY_ROW_SELECTOR, 2000);
+    const firstHistoryRow = await waitForElement(SALE_HISTORY_ROW_SELECTOR);
     if (!firstHistoryRow) {
       console.warn("Sale history table did not load after clicking button.");
       return [];
