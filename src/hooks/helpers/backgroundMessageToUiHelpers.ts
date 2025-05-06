@@ -57,15 +57,11 @@ export const checkAndTriggerPremiumSearchOnPropertyIdMatch = ({
 
   // Exit if basic conditions not met
   if (!propertyId || !isAuthenticated || !userProfile?.searchedPropertyIds?.length) {
-    console.log(
-      `[Helper] Exiting: Basic conditions not met (propertyId=${propertyId}, isAuthenticated=${isAuthenticated}, searchedIds=${userProfile?.searchedPropertyIds?.length})`
-    );
     return;
   }
 
   // Check the lock
   const isTriggerPending = autoTriggerPendingForIdRef.current === propertyId;
-  console.log(`[Helper] Is trigger already pending for ${propertyId}? ${isTriggerPending}`);
   if (isTriggerPending) {
     return; // Exit if already pending
   }
@@ -75,14 +71,7 @@ export const checkAndTriggerPremiumSearchOnPropertyIdMatch = ({
     GetPremiumStreetDataResponse | undefined
   >([REACT_QUERY_KEYS.PREMIUM_STREET_DATA, propertyId]);
 
-  console.log(
-    `[Helper] Conditions Check: hasBeenSearched=${hasBeenSearched}, isPremiumDataCachedLocally=${isPremiumDataCachedLocally}`
-  );
-
   if (hasBeenSearched && !isPremiumDataCachedLocally) {
-    console.log(
-      `[Helper] Conditions MET for ${propertyId}. Setting lock (ref) and calling activatePremiumSearch.`
-    );
     const minimalContext: PremiumFetchContext = {
       propertyId,
       currentContext: {
@@ -92,7 +81,5 @@ export const checkAndTriggerPremiumSearchOnPropertyIdMatch = ({
     };
     autoTriggerPendingForIdRef.current = propertyId;
     activatePremiumSearch(minimalContext);
-  } else {
-    console.log(`[Helper] Conditions NOT MET for ${propertyId}. No trigger.`);
   }
 };

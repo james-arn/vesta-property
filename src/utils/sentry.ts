@@ -5,7 +5,6 @@ import {
   globalHandlersIntegration,
   init,
   makeFetchTransport,
-  withScope,
 } from "@sentry/browser";
 
 export function initSentry() {
@@ -31,9 +30,10 @@ export function logErrorToSentry(
   error: unknown,
   level: "fatal" | "error" | "warning" | "info" | "debug" = "error"
 ) {
-  console.error(error);
-  withScope((scope) => {
-    scope.setLevel(level);
-    scope.captureException(error);
-  });
+  console.error(`${level}:`, error);
+  // TODO: reintroduce sentry at later date.
+  // withScope((scope) => {
+  //   scope.setLevel(level);
+  //   scope.captureException(error);
+  // });
 }

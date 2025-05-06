@@ -3,7 +3,6 @@ import { ActionEvents } from "./constants/actionEvents";
 import { ENV_CONFIG } from "./constants/environmentConfig";
 import { StorageKeys } from "./constants/storage";
 import {
-  MessageRequest,
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
   ResponseType,
   ShowWarningMessage,
@@ -11,12 +10,33 @@ import {
 import { logErrorToSentry } from "./utils/sentry";
 
 console.log("[background.ts] Background script loaded");
+
+// Set the panel behavior to open on action click (clicking the extension icon)
+// This should be at the top level to be registered when the service worker starts.
+if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+  chrome.runtime.onInstalled.addListener(() => {
+    chrome.sidePanel
+      .setPanelBehavior({ openPanelOnActionClick: true })
+      .catch((error) =>
+        logErrorToSentry(
+          `chrome.sidePanel.setPanelBehavior is not available. Side panel may not open on icon click. ${error}`,
+          "fatal"
+        )
+      );
+  });
+} else {
+  logErrorToSentry(
+    "chrome.sidePanel.setPanelBehavior is not available. Side panel may not open on icon click.",
+    "fatal"
+  );
+}
+
 // Background.ts is the central hub
 // Listens for messages from the sidebar or content script.
 // Sends commands to the content script to scrape data.
 // Relays data between the content script and sidebar.
 
-// Remove sentry for MVP, reduce permissions required by extension
+// Removed sentry for MVP, reduce permissions required by extension
 // initSentry();
 
 /**
@@ -80,19 +100,19 @@ function processTab(tab: chrome.tabs.Tab, sendResponse: (response: ResponseType)
     data: currentUrl,
   };
 
-  console.log("[background.ts] Sending message to tab:", tabId, message);
-  chrome.tabs.sendMessage(tabId, message, (response) => {
-    if (chrome.runtime.lastError) {
-      logErrorToSentry(chrome.runtime.lastError);
-      if (chrome.runtime.lastError?.message?.includes("Could not establish connection")) {
-        sendWarningMessage("Content script not loaded. Sending warning directly.");
-      }
-      sendResponse({ status: "Error sending message to tab" });
-    } else {
-      console.log("[background.ts] Message sent successfully:", response);
-      sendResponse({ status: "Message sent successfully" });
+  console.log("[background.ts] Dispatching initial ping to tab:", tabId, message);
+  // Fire-and-forget: Send the message and attach a catch handler to the promise
+  // to prevent Uncaught (in promise) errors if the receiving end doesn't exist.
+  chrome.tabs.sendMessage(tabId, message).catch((error) => {
+    // Log lightly or conditionally, as this error is expected sometimes
+    if (!(error instanceof Error && error.message.includes("Receiving end does not exist"))) {
+      // Log more serious errors if needed
+      console.warn(`[background.ts] Ping to tab ${tabId} failed unexpectedly: ${error.message}`);
     }
   });
+
+  // Since sendMessage is now fire-and-forget, call sendResponse for processTab's own callback immediately.
+  sendResponse({ status: "Initial ping to content script dispatched." });
 }
 
 // This event handles when the user switches to a different tab.
@@ -113,21 +133,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// When the side panel is opened, query for the active tab and process it.
-chrome.runtime.onMessage.addListener((request: MessageRequest, sender, sendResponse) => {
-  if (request.action === ActionEvents.SIDE_PANEL_OPENED) {
-    console.log("[background.ts] Side panel opened");
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length > 0) {
-        processTab(tabs[0], (response) => {
-          console.log("[background.ts] SIDE_PANEL_OPENED response:", response);
-        });
-      }
-    });
-    sendResponse({ status: "Handled side panel opened" });
-  }
-});
-
+// Main message listener (for messages FROM content scripts or potentially other extension parts)
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log(
     "[background.ts] Received message:",
@@ -227,10 +233,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Default case for unhandled actions
   console.warn(
-    `[background.ts] Unhandled/misdirected action: ${request.action} from sender ID ${sender.id}`
+    `[background.ts] Unhandled/misdirected raw message: Action: ${request?.action} from sender ID ${sender?.id} SenderURL: ${sender?.url}`
   );
-  // Optional: send a generic response for unhandled cases if needed
-  // sendResponse({ status: `Action ${request.action} not handled by background.` });
   return false; // Assume sync handling if not explicitly returned true
 });
 
@@ -306,9 +310,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
           ); // Log if no code/error
         }
       }
-    } else {
-      // Optional: Log URLs that are 'complete' but don't match the redirect URI
-      // console.log(`[Auth Listener] URL complete but not the redirect URI: ${tab.url}`);
     }
   }
 });
