@@ -4,5 +4,6 @@ export function injectExternalScriptToNotifyWhenRightmovePageModelAvailable() {
   const script = document.createElement("script");
   script.src = chrome.runtime.getURL("injectScript.js");
   document.documentElement.appendChild(script);
-  script.onload = () => script.remove();
+  // DO NOT REMOVE THE SCRIPT ONLOAD ANYMORE - let injectScript.js run its polling course
+  // script.onload = () => script.remove();
 }

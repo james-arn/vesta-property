@@ -44,20 +44,8 @@ export function useReverseGeocode(
   const stableKeyRef = useRef(currentKey);
 
   if (!_isEqual(stableKeyRef.current, currentKey)) {
-    console.log("hit");
     stableKeyRef.current = currentKey;
   }
-
-  console.log(
-    "stableKeyRef.current",
-    stableKeyRef.current,
-    "currentKey",
-    currentKey,
-    "lat",
-    lat,
-    "lng",
-    lng
-  );
 
   const query = useQuery({
     queryKey: stableKeyRef.current,

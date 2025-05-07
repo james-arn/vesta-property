@@ -3,35 +3,85 @@ import { multiplierCAGRThreshold } from "@/constants/thresholds";
 import { clickPropertySaleHistoryButton } from "@/contentScript/utils/propertyScrapeHelpers";
 import { DataStatus, SaleHistoryEntry } from "@/types/property";
 
-/**
- * Returns a promise that resolves once a table with a "Year sold" header is found in the DOM.
- */
-const getPropertySaleHistoryTableFromDOM = (): Promise<HTMLTableElement | null> =>
+const SALE_HISTORY_OUTCOME_TIMEOUT_MS = 2000;
+
+const getPropertySaleHistoryTableFromDOM = (timeout: number): Promise<HTMLTableElement | null> =>
   new Promise((resolve) => {
-    const checkForTable = () => {
-      const tables = Array.from(document.querySelectorAll("table"));
-      const matchingTable = tables.find((table) => {
-        const headerText = table.querySelector("thead th")?.textContent?.trim();
-        return headerText === "Year sold";
-      });
-      if (matchingTable) {
-        resolve(matchingTable as HTMLTableElement);
-      }
+    let observer: MutationObserver | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    const headerTextToFind = "Year sold";
+
+    const cleanup = () => {
+      if (observer) observer.disconnect();
+      if (timeoutId) clearTimeout(timeoutId);
+      observer = null;
+      timeoutId = null;
     };
 
-    // Check immediately in case the table is already in the DOM
-    checkForTable();
+    const check = () => {
+      const tables = Array.from(document.querySelectorAll("table"));
+      const matchingTable = tables.find(
+        (table) => table.querySelector("thead th")?.textContent?.trim() === headerTextToFind
+      );
+      if (matchingTable) {
+        cleanup();
+        resolve(matchingTable as HTMLTableElement);
+        return true;
+      }
+      return false;
+    };
 
-    const observer = new MutationObserver(() => checkForTable());
+    if (check()) return; // Check immediately
+
+    observer = new MutationObserver(() => check());
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Stop observing after a timeout (e.g., 5 seconds)
-    setTimeout(() => {
-      observer.disconnect();
-      console.error("Property sale history table not found within timeout.");
+    timeoutId = setTimeout(() => {
+      if (check()) return; // Final check before timeout
+      cleanup();
       resolve(null);
-    }, 5000);
+    }, timeout);
   });
+
+const waitForElementWithText = (
+  textToFind: string,
+  timeout: number
+): Promise<HTMLElement | null> => {
+  return new Promise((resolve) => {
+    let observer: MutationObserver | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const cleanup = () => {
+      if (observer) observer.disconnect();
+      if (timeoutId) clearTimeout(timeoutId);
+      observer = null;
+      timeoutId = null;
+    };
+
+    const check = () => {
+      const elements = document.querySelectorAll("div, span, p");
+      for (const element of elements) {
+        if (element.textContent?.includes(textToFind)) {
+          cleanup();
+          resolve(element as HTMLElement);
+          return true;
+        }
+      }
+      return false;
+    };
+
+    if (check()) return; // Check immediately
+
+    observer = new MutationObserver(() => check());
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+    timeoutId = setTimeout(() => {
+      if (check()) return; // Final check
+      cleanup();
+      resolve(null);
+    }, timeout);
+  });
+};
 
 /**
  * Parses a sold price string by removing currency symbols, commas, etc.
@@ -47,12 +97,7 @@ const parseSoldPrice = (priceStr: string): number | null => {
  * Extracts the sale history from the dynamic sale history table.
  * Returns an array of SaleHistoryEntry objects.
  */
-const extractPropertySaleHistory = async (): Promise<SaleHistoryEntry[]> => {
-  const table = await getPropertySaleHistoryTableFromDOM();
-  if (!table) {
-    console.error("Property sale history table not found.");
-    return [];
-  }
+const extractPropertySaleHistoryFromTable = (table: HTMLTableElement): SaleHistoryEntry[] => {
   const rows = Array.from(table.querySelectorAll("tbody tr"));
   const saleHistory = rows
     .map((row) => {
@@ -62,8 +107,7 @@ const extractPropertySaleHistory = async (): Promise<SaleHistoryEntry[]> => {
       return yearSold && soldPrice ? { year: yearSold, soldPrice, percentageChange: change } : null;
     })
     .filter((entry): entry is SaleHistoryEntry => entry !== null);
-  // Sort from most recent to oldest (based on year)
-  return saleHistory.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+  return saleHistory.slice().sort((a, b) => parseInt(b.year) - parseInt(a.year));
 };
 
 /**
@@ -98,45 +142,79 @@ const calculateCompundAnnualGrowthRate = (saleHistory: SaleHistoryEntry[]): numb
  * Uses the extracted sale history and the current listing price.
  */
 const getPropertySalesInsights = async (currentListingPrice: string | null) => {
-  // Trigger dynamic loading via the sale history button
+  const saleHistoryButtonSelector = "button";
+  const saleHistoryButtonText = "Property sale history";
+  const noHistoryText = "No sale history found";
+
+  const buttons = document.querySelectorAll(saleHistoryButtonSelector);
+  const targetButton = Array.from(buttons).find((button) =>
+    button.textContent?.includes(saleHistoryButtonText)
+  );
+
+  const defaultResult = {
+    priceDiscrepancyValue: NOT_APPLICABLE,
+    priceDiscrepancyStatus: DataStatus.NOT_APPLICABLE,
+    priceDiscrepancyReason: PriceDiscrepancyReason.NO_PREVIOUS_SOLD_HISTORY,
+    compoundAnnualGrowthRate: null,
+    volatility: NOT_APPLICABLE,
+  };
+
+  if (!targetButton) {
+    console.log(
+      `[Content Script] Button containing text "${saleHistoryButtonText}" not found. Assuming no history available.`
+    );
+    return defaultResult;
+  }
+
+  console.log(
+    `[Content Script] Button containing text "${saleHistoryButtonText}" found. Clicking.`
+  );
   clickPropertySaleHistoryButton();
-  const saleHistory = await extractPropertySaleHistory();
+
+  console.log(
+    `[Content Script] Waiting for sale history outcome (max ${SALE_HISTORY_OUTCOME_TIMEOUT_MS}ms)...`
+  );
+
+  // Race the promises
+  const outcome = await Promise.race([
+    getPropertySaleHistoryTableFromDOM(SALE_HISTORY_OUTCOME_TIMEOUT_MS).then((table) => ({
+      type: "table",
+      payload: table,
+    })),
+    waitForElementWithText(noHistoryText, SALE_HISTORY_OUTCOME_TIMEOUT_MS).then((element) => ({
+      type: "noHistoryText",
+      payload: element,
+    })),
+    // new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), SALE_HISTORY_OUTCOME_TIMEOUT_MS)) // Alternative timeout
+  ]);
+
+  let saleHistory: SaleHistoryEntry[] = [];
+
+  if (outcome.type === "table" && outcome.payload) {
+    console.log("[Content Script] Sale history table found successfully.");
+    saleHistory = extractPropertySaleHistoryFromTable(outcome.payload as HTMLTableElement);
+  }
+
+  // --- Calculations section ---
 
   const currentYear = new Date().getFullYear().toString();
-  // Add current listing as the most recent sale if available
   const updatedHistory: SaleHistoryEntry[] = currentListingPrice
     ? [
-        {
-          year: currentYear,
-          soldPrice: currentListingPrice,
-          percentageChange: "0%",
-        },
+        { year: currentYear, soldPrice: currentListingPrice, percentageChange: "0%" },
         ...saleHistory,
       ]
     : saleHistory;
 
-  // Check if there is a previous sale record; if not, we assume this is a new build.
-  if (updatedHistory.length < 2) {
-    // No previous sale data available
-    const result = {
-      priceDiscrepancyValue: NOT_APPLICABLE,
-      priceDiscrepancyStatus: DataStatus.NOT_APPLICABLE,
-      priceDiscrepancyReason: PriceDiscrepancyReason.NO_PREVIOUS_SOLD_HISTORY,
-      compoundAnnualGrowthRate: null,
-      volatility: NOT_APPLICABLE,
-    };
-    console.log(result);
-
-    return result;
+  // If no actual historical records exist after checking
+  if (saleHistory.length === 0) {
+    return defaultResult;
   }
 
-  // --- Price Discrepancy Calculation ---
-  // looks at the most recent sale and the sale before that
+  // Proceed with calculations only if saleHistory has entries
   const latestPrice = parseSoldPrice(updatedHistory[0].soldPrice);
   const previousPrice = parseSoldPrice(updatedHistory[1].soldPrice);
 
   if (latestPrice === null || previousPrice === null) {
-    console.error("Invalid price data: latestPrice or previousPrice is null.");
     return {
       priceDiscrepancyValue: NOT_APPLICABLE,
       priceDiscrepancyStatus: DataStatus.ASK_AGENT,
@@ -146,14 +224,10 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
     };
   }
 
-  // Calculate the raw percentage change between most recent and previous sold prices.
   const priceJumpOrLossPercent = ((latestPrice - previousPrice) / previousPrice) * 100;
-
   const latestYear = parseInt(updatedHistory[0].year);
   const previousYear = parseInt(updatedHistory[1].year);
-  const timeGap = latestYear - previousYear;
-
-  // Prepare a discrepancy string that shows the change and the time gap.
+  const timeGap = Math.max(1, latestYear - previousYear);
   const priceDiscrepancyStr = `${priceJumpOrLossPercent.toFixed(2)}% over ${timeGap} year${timeGap > 1 ? "s" : ""}`;
 
   const { priceDiscrepancyStatus, priceDiscrepancyReason } = (() => {
@@ -163,19 +237,13 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
         priceDiscrepancyReason: PriceDiscrepancyReason.MISSING_OR_INVALID_PRICE_DATA,
       };
     }
-
-    // If it's a price drop, immediately flag it.
     if (latestPrice < previousPrice) {
       return {
         priceDiscrepancyStatus: DataStatus.ASK_AGENT,
         priceDiscrepancyReason: PriceDiscrepancyReason.PRICE_DROP,
       };
     }
-    // Calculate the local annual growth rate from the two latest prices.
     const currentAnnualGrowth = Math.pow(latestPrice / previousPrice, 1 / timeGap) - 1;
-
-    // Calculate historical CAGR using only past closed sales (exclude the current listing price).
-    // updatedHistory[0] is the current asking price and the rest is historical data:
     const historicalData = updatedHistory.slice(1);
     let historicalCAGR: number | null = null;
     if (historicalData.length >= 2) {
@@ -184,14 +252,14 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
         .sort((a, b) => parseInt(a.year) - parseInt(b.year));
       const startPriceHist = parseSoldPrice(sortedHistory[0].soldPrice);
       const endPriceHist = parseSoldPrice(sortedHistory[sortedHistory.length - 1].soldPrice);
-      const histYears =
-        parseInt(sortedHistory[sortedHistory.length - 1].year) - parseInt(sortedHistory[0].year);
+      const histYears = Math.max(
+        1,
+        parseInt(sortedHistory[sortedHistory.length - 1].year) - parseInt(sortedHistory[0].year)
+      );
       if (startPriceHist && endPriceHist && histYears > 0) {
         historicalCAGR = Math.pow(endPriceHist / startPriceHist, 1 / histYears) - 1;
       }
     }
-
-    // Use the historical CAGR if available to decide if the price increase is too steep.
     if (historicalCAGR !== null && currentAnnualGrowth > historicalCAGR * multiplierCAGRThreshold) {
       return {
         priceDiscrepancyStatus: DataStatus.ASK_AGENT,
@@ -204,34 +272,28 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
     };
   })();
 
-  // --- CAGR Calculation ---
-  const cagrVal = calculateCompundAnnualGrowthRate(updatedHistory);
+  const cagrVal = calculateCompundAnnualGrowthRate(saleHistory);
 
-  // --- Volatility Calculation ---
-  // If there is insufficient data (fewer than 3 data points), volatility is not meaningful.
   let volatilityStr: string;
-  if (updatedHistory.length < 3) {
+  if (saleHistory.length < 2) {
     volatilityStr = "N/A";
   } else {
-    const computedChanges = updatedHistory.slice(1).map((entry, i) => {
-      const prevPrice = parseSoldPrice(updatedHistory[i].soldPrice);
-      const currPrice = parseSoldPrice(entry.soldPrice);
-      return prevPrice && currPrice && prevPrice > 0
-        ? ((currPrice - prevPrice) / prevPrice) * 100
-        : 0;
-    });
-    const meanChange =
-      computedChanges.length > 0
-        ? computedChanges.reduce((acc, v) => acc + v, 0) / computedChanges.length
-        : 0;
-    const volatility =
-      computedChanges.length > 0
-        ? Math.sqrt(
-            computedChanges.reduce((acc, v) => acc + (v - meanChange) ** 2, 0) /
-              computedChanges.length
-          )
-        : 0;
-    volatilityStr = `${volatility.toFixed(2)}%`;
+    if (saleHistory.length < 3) {
+      volatilityStr = "N/A (requires 3+ past sales)";
+    } else {
+      const computedChanges = saleHistory.slice(0, -1).map((entry, i) => {
+        const currPrice = parseSoldPrice(entry.soldPrice);
+        const prevPrice = parseSoldPrice(saleHistory[i + 1].soldPrice);
+        return prevPrice && currPrice && prevPrice > 0
+          ? ((currPrice - prevPrice) / prevPrice) * 100
+          : 0;
+      });
+      const meanChange = computedChanges.reduce((acc, v) => acc + v, 0) / computedChanges.length;
+      const variance =
+        computedChanges.reduce((acc, v) => acc + (v - meanChange) ** 2, 0) / computedChanges.length;
+      const volatility = variance > 0 ? Math.sqrt(variance) : 0;
+      volatilityStr = `${volatility.toFixed(2)}%`;
+    }
   }
 
   const result = {
@@ -242,7 +304,7 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
     volatility: volatilityStr,
   };
 
-  console.log(result);
+  console.log("Calculated Sales Insights:", result);
   return result;
 };
 
