@@ -13,14 +13,26 @@ import React from 'react';
 interface UpsellModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onSignInClick?: () => void;
 }
 
-export const UpsellModal: React.FC<UpsellModalProps> = ({ open, onOpenChange }) => {
+export const UpsellModal: React.FC<UpsellModalProps> = ({
+    open,
+    onOpenChange,
+    onSignInClick
+}) => {
 
     const handleUpgradeClick = () => {
         // Open the pricing page in a new tab
         chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
         onOpenChange(false); // Close the modal
+    };
+
+    const handleSignInClick = () => {
+        if (onSignInClick) {
+            onSignInClick();
+        }
+        onOpenChange(false);
     };
 
     return (
@@ -29,20 +41,12 @@ export const UpsellModal: React.FC<UpsellModalProps> = ({ open, onOpenChange }) 
                 <DialogHeader>
                     <DialogTitle>Unlock Premium Insights</DialogTitle>
                     <DialogDescription>
-                        Upgrade your account to access enhanced property data, including:
-                        {/* TODO: Add specific premium feature list based on context */}
-                        <ul>
-                            <li>- Detailed Planning Permissions</li>
-                            <li>- Advanced Local Crime Data</li>
-                            <li>- Comprehensive Flood Risk Assessment</li>
-                            {/* Add more features as applicable */}
-                        </ul>
-                        Click 'Upgrade Now' to view plans and unlock these features.
+                        Upgrade to deep search on listings. Fill in any missing information and harness the power of AI predictions, such as estimated valuations and propensity to sell - proven to be highly accurate and reliable.
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Maybe Later</Button>
+                <DialogFooter className="flex flex-col gap-2">
                     <Button onClick={handleUpgradeClick}>Upgrade Now</Button>
+                    <Button variant="outline" onClick={handleSignInClick}>Sign In</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
