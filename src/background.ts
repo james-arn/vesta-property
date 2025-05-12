@@ -1,10 +1,16 @@
+import {
+  AddressLookupPayload,
+  lookupAddressFromHousePricesPage,
+} from "@/background/addressLookupHelper";
 import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers";
 import { ActionEvents } from "./constants/actionEvents";
 import { ENV_CONFIG } from "./constants/environmentConfig";
 import { RIGHTMOVE_PROPERTY_PAGE_REGEX } from "./constants/regex";
 import { StorageKeys } from "./constants/storage";
 import {
+  AddressLookupResultMessage,
   NavigatedUrlOrTabChangedOrExtensionOpenedMessage,
+  RequestAddressLookupMessage,
   ResponseType,
   ShowWarningMessage,
 } from "./types/messages";
@@ -104,7 +110,11 @@ function sendWarningMessage(logMessage: string, tabId?: number) {
 }
 
 function processTab(tab: chrome.tabs.Tab, sendResponse?: (response: ResponseType) => void) {
-  const { url: currentUrl, id: tabId } = tab;
+  const { url: currentUrl, id: tabId, status: tabStatus } = tab;
+
+  // console.log(
+  //   `[processTab START] Processing Tab ID: ${tabId}, Status: ${tabStatus}, URL: ${currentUrl}`
+  // );
 
   if (!currentUrl || typeof tabId !== "number") {
     logErrorToSentry("[processTab] Invalid tab data received.", "warning");
@@ -112,15 +122,19 @@ function processTab(tab: chrome.tabs.Tab, sendResponse?: (response: ResponseType
     return;
   }
 
-  // console.log(`[processTab] Processing tab ${tabId}, URL: ${currentUrl}`); // Kept for targeted debugging if needed
-
   if (currentUrl.startsWith("chrome://") || currentUrl.startsWith("about:")) {
-    // No action needed for internal pages, not a warning state for the user necessarily.
+    // console.log(`[processTab] Ignoring internal page: ${currentUrl} (Tab ID: ${tabId})`);
     sendResponse?.({ status: "Internal Chrome page. No action taken." });
     return;
   }
 
-  if (!RIGHTMOVE_PROPERTY_PAGE_REGEX.test(currentUrl)) {
+  const isPropertyPage = RIGHTMOVE_PROPERTY_PAGE_REGEX.test(currentUrl);
+  // console.log(`[processTab] Regex test result for ${currentUrl}: ${isPropertyPage}`);
+
+  if (!isPropertyPage) {
+    // console.log(
+    //   `[processTab] URL failed regex test. Sending warning for Tab ID: ${tabId}, URL: ${currentUrl}`
+    // );
     sendWarningMessage("Not a Rightmove property page", tabId);
     sendResponse?.({ status: "URL not a Rightmove property page" });
     return;
@@ -131,19 +145,31 @@ function processTab(tab: chrome.tabs.Tab, sendResponse?: (response: ResponseType
     data: currentUrl,
   };
 
-  // console.log("[processTab] Dispatching TAB_CHANGED_OR_EXTENSION_OPENED to tab:", tabId); // Keep for debugging if tab updates seem problematic
+  // console.log(
+  //   `[processTab] Attempting to send TAB_CHANGED_OR_EXTENSION_OPENED to Tab ID: ${tabId}, Status: ${tabStatus}`
+  // );
+
   chrome.tabs.sendMessage(tabId, messageToContentScript, (response) => {
     if (chrome.runtime.lastError) {
+      // console.warn(
+      //   `[processTab] sendMessage to Tab ID: ${tabId} failed. Error: ${chrome.runtime.lastError.message}`
+      // );
       if (!chrome.runtime.lastError.message?.includes("Could not establish connection")) {
         logErrorToSentry(
-          `[processTab] sendMessage to tab ${tabId} failed: ${chrome.runtime.lastError.message}`,
+          `[processTab] sendMessage to tab ${tabId} failed unexpectedly: ${chrome.runtime.lastError.message}`,
           "warning"
         );
       }
+    } else {
+      // console.log(
+      //   `[processTab] Successfully sent TAB_CHANGED_OR_EXTENSION_OPENED to Tab ID: ${tabId}. Response:`,
+      //   response
+      // );
     }
   });
 
-  sendResponse?.({ status: "TAB_CHANGED_OR_EXTENSION_OPENED dispatched." });
+  // console.log(`[processTab END] Finished processing Tab ID: ${tabId}`);
+  sendResponse?.({ status: "TAB_CHANGED_OR_EXTENSION_OPENED dispatch attempted." });
 }
 
 // AUTH REDIRECT LISTENER
@@ -531,6 +557,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: errorMsg });
       });
     return true; // Async fetch
+  }
+
+  // Handle Address Lookup Request
+  if (request.type === ActionEvents.REQUEST_ADDRESS_LOOKUP) {
+    // Cast request to the specific type to access payload correctly
+    const lookupRequest = request as RequestAddressLookupMessage;
+    const payload: AddressLookupPayload = lookupRequest.payload;
+
+    Promise.resolve(true).then(async () => {
+      const foundAddress = await lookupAddressFromHousePricesPage(payload);
+
+      if (sender.tab?.id) {
+        console.log(
+          `[Address Lookup] Sending result back to tab ${sender.tab.id}: ${foundAddress}`
+        );
+        // Send the specific result message type
+        chrome.tabs.sendMessage(sender.tab.id, {
+          type: ActionEvents.ADDRESS_LOOKUP_RESULT,
+          payload: { fullAddress: foundAddress },
+        } as AddressLookupResultMessage);
+      }
+    });
+
+    return true; // Indicate async response
   }
 
   // If a message is not handled by any of the specific handlers above:

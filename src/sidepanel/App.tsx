@@ -122,8 +122,11 @@ const App: React.FC = () => {
   } = usePremiumFlow({
     isAuthenticated,
     isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false,
+    addressConfidence: propertyData?.address?.addressConfidence,
     openAddressConfirmationModal: useCallback(() => setShowBuildingValidationModal(true), []),
     onConfirmAndActivate: handleConfirmAndActivate,
+    currentPropertyId: currentPropertyId,
+    propertyAddress: propertyData?.address,
   });
 
   const lat = propertyData?.locationCoordinates?.lat;

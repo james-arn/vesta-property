@@ -1,3 +1,5 @@
+import { AddressLookupPayload } from "@/background/addressLookupHelper";
+import { ActionEvents } from "@/constants/actionEvents";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
@@ -6,12 +8,12 @@ import {
   getNearbySchools,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
+import { RequestAddressLookupMessage } from "@/types/messages";
 import { ListedBuilding } from "@/types/premiumStreetData";
 import {
-  Confidence,
+  Address,
   ConfidenceLevels,
   DataStatus,
-  EpcData,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
   RightOfWayDetails,
@@ -29,10 +31,13 @@ const extractTextWithRegex = (text: string | undefined, regex: RegExp): string |
 };
 
 export async function extractPropertyDataFromDOM(
-  pageModel: RightmovePageModelType | null
-): Promise<ExtractedPropertyScrapingData> {
-  if (!pageModel)
-    logErrorToSentry("No page model available, attempting data only from DOM", "fatal");
+  pageModel: RightmovePageModelType | null,
+  cachedAddress?: Address | null
+): Promise<ExtractedPropertyScrapingData | null> {
+  if (!pageModel?.propertyData) {
+    logErrorToSentry("No page model or propertyData available", "fatal");
+    return null;
+  }
 
   // --- Step 1: Extract initial data from pageModel ---
   const {
@@ -124,82 +129,92 @@ export async function extractPropertyDataFromDOM(
     keyFeaturesFromDom = pageModel?.propertyData?.keyFeatures || [];
   }
 
-  // --- Step 3: Combine pageModel and DOM data, prioritising where appropriate ---
-
-  // Prioritize EPC from DOM description, fallback to pageModel text extraction
-  const finalEpcValue = epcRatingFromDom || epcRatingFromPageModelText;
-  const finalEpcConfidence: Confidence = finalEpcValue
-    ? epcRatingFromDom
-      ? ConfidenceLevels.HIGH // High confidence if found in specific DOM section
-      : ConfidenceLevels.MEDIUM // Medium if found in general pageModel text
-    : ConfidenceLevels.NONE;
-  const finalSource: EpcDataSourceType = finalEpcValue
-    ? EpcDataSourceType.LISTING // Assume listing source for now
-    : EpcDataSourceType.NONE;
-
-  const epcUrl =
-    (pageModel?.propertyData?.epcGraphs?.length ?? 0) > 0 &&
-    pageModel?.propertyData?.epcGraphs?.[0]?.url
-      ? pageModel?.propertyData?.epcGraphs?.[0]?.url
-      : null;
-
-  // Update epcData with potentially more accurate EPC from DOM
-  const epcData: EpcData = {
-    url: epcUrl,
-    automatedProcessingResult: null, // This would be populated by image/PDF processing later
-    value: finalEpcValue,
-    confidence: finalEpcConfidence,
-    source: finalSource,
-    error: null,
-  };
-
-  // Other pageModel extractions remain largely the same
-  const floorPlan =
-    pageModel?.propertyData?.floorplans &&
-    pageModel?.propertyData?.floorplans?.length > 0 &&
-    pageModel?.propertyData?.floorplans?.[0]?.url
-      ? pageModel?.propertyData?.floorplans?.[0]?.url
-      : CHECKLIST_NO_VALUE.NOT_MENTIONED;
-
-  const phoneNumber =
-    pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber ||
-    pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber
-      ? `${pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber || pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber}`
-      : null;
-
+  // --- Step 3: Get Sales Insights ---
   const salePrice =
     pageModel?.propertyData?.prices?.primaryPrice || priceElement?.textContent?.trim() || null;
-  const displayAddress =
-    pageModel?.propertyData?.address?.displayAddress ||
-    locationElement?.textContent?.trim() ||
-    null;
-  const address = {
-    displayAddress: displayAddress,
-    postcode: `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`,
-    isAddressConfirmedByUser: false,
-  };
+  const salesInsights = await getPropertySalesInsights(salePrice);
 
-  const {
-    priceDiscrepancyValue,
-    priceDiscrepancyStatus,
-    priceDiscrepancyReason,
-    compoundAnnualGrowthRate,
-    volatility,
-  } = await getPropertySalesInsights(salePrice);
-  const isRental = isRentalProperty(pageModel);
-  const listingHistory =
-    pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
-    CHECKLIST_NO_VALUE.NOT_MENTIONED;
-  const locationCoordinates = {
-    lat: pageModel?.propertyData?.location?.latitude ?? null,
-    lng: pageModel?.propertyData?.location?.longitude ?? null,
-  };
-  const windows = windowsFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED;
-  const nearestTrainStations = pageModel?.propertyData?.nearestStations ?? [];
-  const nearbySchools = await getNearbySchools();
-  const broadbandData = await getBroadbandData();
+  // *** Use the assumed return structure from salesInsights ***
+  const mostRecentSaleFromInsights = salesInsights?.mostRecentSale ?? null; // Use the field assumed to be returned
 
-  // --- Step 4: Construct the final data object using combined sources ---
+  // --- Step 4: Get Nearby Sold URL (Reliably) ---
+  const nearbySoldPropertiesPath =
+    pageModel?.propertyData?.propertyUrls?.nearbySoldPropertiesUrl ?? null;
+
+  // --- Step 5: Add Address Lookup Request Logic (Conditional on Cache) ---
+  const bedrooms = pageModel?.propertyData?.bedrooms ?? null;
+  let shouldRequestAddressLookup = true; // Assume we need to look up unless cached
+
+  if (cachedAddress && cachedAddress.addressConfidence === ConfidenceLevels.HIGH) {
+    console.log("[Extractor DOM] Skipping address lookup: High confidence address found in cache.");
+    shouldRequestAddressLookup = false;
+  }
+
+  // Only proceed if needed and conditions met
+  if (
+    shouldRequestAddressLookup &&
+    nearbySoldPropertiesPath &&
+    mostRecentSaleFromInsights &&
+    (mostRecentSaleFromInsights.year || mostRecentSaleFromInsights.soldPrice)
+  ) {
+    const lookupPayload: AddressLookupPayload = {
+      targetSaleYear: mostRecentSaleFromInsights.year,
+      targetSalePrice: mostRecentSaleFromInsights.soldPrice,
+      targetBedrooms: typeof bedrooms === "number" ? bedrooms : null,
+      nearbySoldPropertiesPath: nearbySoldPropertiesPath,
+    };
+
+    const message: RequestAddressLookupMessage = {
+      type: ActionEvents.REQUEST_ADDRESS_LOOKUP,
+      payload: lookupPayload,
+    };
+
+    try {
+      chrome.runtime.sendMessage(message).catch((error) => {
+        logErrorToSentry(
+          `[Extractor DOM] Error sending REQUEST_ADDRESS_LOOKUP (async): ${error instanceof Error ? error.message : String(error)}`,
+          "warning"
+        );
+      });
+      // REMOVED diagnostic log
+      // console.log("[Extractor DOM] REQUEST_ADDRESS_LOOKUP message initiated.");
+    } catch (syncError) {
+      logErrorToSentry(
+        `[Extractor DOM] Error sending REQUEST_ADDRESS_LOOKUP (sync): ${syncError instanceof Error ? syncError.message : String(syncError)}`,
+        "error"
+      );
+    }
+  } else if (shouldRequestAddressLookup) {
+    // Log why lookup was skipped if it wasn't due to cache
+    console.log(
+      "[Extractor DOM] Skipping address lookup: Conditions not met (or already skipped by cache check).",
+      {
+        nearbySoldPropertiesPath,
+        hasSaleHistory: !!mostRecentSaleFromInsights,
+        saleYear: mostRecentSaleFromInsights?.year,
+        salePrice: mostRecentSaleFromInsights?.soldPrice,
+      }
+    );
+  }
+
+  // --- Step 6: Construct final object (use salesInsights results AND cachedAddress if applicable) ---
+  // Prioritize cached high-confidence address if it exists
+  const finalAddressObject =
+    cachedAddress && cachedAddress.addressConfidence === ConfidenceLevels.HIGH
+      ? cachedAddress
+      : {
+          displayAddress:
+            pageModel?.propertyData?.address?.displayAddress ||
+            locationElement?.textContent?.trim() ||
+            "Address not found",
+          postcode:
+            `${pageModel?.propertyData?.address?.outcode ?? ""} ${pageModel?.propertyData?.address?.incode ?? ""}`.trim() ||
+            null,
+          isAddressConfirmedByUser: false,
+          // Ensure addressConfidence is set based on source, default to LOW or NONE if not high-confidence cached
+          addressConfidence: ConfidenceLevels.NONE, // Default if not high-confidence cached, Use ConfidenceLevels.NONE
+        };
+
   const propertyData: ExtractedPropertyScrapingData = {
     // Identifiers and Metadata
     propertyId: pageModel?.propertyData?.id ?? null,
@@ -207,11 +222,18 @@ export async function extractPropertyDataFromDOM(
     agent: {
       name: pageModel?.propertyData?.customer?.branchDisplayName ?? "",
       contactUrl: pageModel?.metadata?.emailAgentUrl ?? "",
-      phoneNumber: phoneNumber,
+      phoneNumber:
+        pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber ||
+        pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber
+          ? `${pageModel?.propertyData?.contactInfo?.telephoneNumbers?.localNumber || pageModel?.propertyData?.contactInfo?.telephoneNumbers?.internationalNumber}`
+          : null,
     },
-    address: address,
-    locationCoordinates: locationCoordinates,
-    isRental,
+    address: finalAddressObject,
+    locationCoordinates: {
+      lat: pageModel?.propertyData?.location?.latitude ?? null,
+      lng: pageModel?.propertyData?.location?.longitude ?? null,
+    },
+    isRental: isRentalProperty(pageModel),
 
     // Core Property Details (pageModel > Original DOM Elements > unstructured text)
     propertyType:
@@ -248,7 +270,7 @@ export async function extractPropertyDataFromDOM(
       pageModel?.propertyData?.features?.heating?.[0]?.displayText ||
       heatingFromUnstructuredText ||
       CHECKLIST_NO_VALUE.NOT_MENTIONED, // No specific DOM element for heating usually
-    windows: windows,
+    windows: windowsFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     accessibility:
       pageModel?.propertyData?.features?.accessibility
         ?.map((feature: any) => feature?.displayText)
@@ -257,7 +279,21 @@ export async function extractPropertyDataFromDOM(
       accessibilityFromUnstructuredText ||
       CHECKLIST_NO_VALUE.NOT_MENTIONED,
 
-    epc: epcData,
+    epc: {
+      url: pageModel?.propertyData?.epcGraphs?.[0]?.url || null,
+      automatedProcessingResult: null, // This would be populated by image/PDF processing later
+      value: epcRatingFromDom || epcRatingFromPageModelText,
+      confidence: epcRatingFromDom
+        ? ConfidenceLevels.HIGH
+        : epcRatingFromPageModelText
+          ? ConfidenceLevels.MEDIUM
+          : ConfidenceLevels.NONE,
+      source:
+        epcRatingFromDom || epcRatingFromPageModelText
+          ? EpcDataSourceType.LISTING
+          : EpcDataSourceType.NONE,
+      error: null,
+    },
     // Leasehold Info (from unstructured text extraction)
     leaseTerm: leaseTermFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     groundRent: groundRentFromText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
@@ -285,22 +321,29 @@ export async function extractPropertyDataFromDOM(
     miningImpactStatus: miningImpactStatus ?? null,
 
     // Media and History
-    floorPlan: floorPlan,
-    listingHistory: listingHistory || CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    floorPlan:
+      pageModel?.propertyData?.floorplans &&
+      pageModel?.propertyData?.floorplans?.length > 0 &&
+      pageModel?.propertyData?.floorplans?.[0]?.url
+        ? pageModel?.propertyData?.floorplans?.[0]?.url
+        : CHECKLIST_NO_VALUE.NOT_MENTIONED,
+    listingHistory:
+      pageModel?.propertyData?.listingHistory?.listingUpdateReason ||
+      CHECKLIST_NO_VALUE.NOT_MENTIONED,
     salesHistory: {
       priceDiscrepancy: {
-        value: priceDiscrepancyValue,
-        status: priceDiscrepancyStatus,
-        reason: priceDiscrepancyReason,
+        value: salesInsights.priceDiscrepancyValue,
+        status: salesInsights.priceDiscrepancyStatus,
+        reason: salesInsights.priceDiscrepancyReason,
       },
-      compoundAnnualGrowthRate,
-      volatility,
+      compoundAnnualGrowthRate: salesInsights.compoundAnnualGrowthRate,
+      volatility: salesInsights.volatility,
     },
 
     // Connectivity and Local Area
-    broadband: broadbandData,
-    nearestStations: nearestTrainStations,
-    nearbySchools: nearbySchools,
+    broadband: await getBroadbandData(),
+    nearestStations: pageModel?.propertyData?.nearestStations ?? [],
+    nearbySchools: await getNearbySchools(),
 
     // Keep original salePrice field for now, although 'price' is preferred
     salePrice: salePrice,

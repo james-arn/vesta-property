@@ -9,6 +9,7 @@ export const StorageKeys = {
   AUTH_ID_TOKEN: "vesta_auth_id_token",
   AUTH_ACCESS_TOKEN: "vesta_auth_access_token",
   AUTH_REFRESH_TOKEN: "vesta_auth_refresh_token",
+  AUTH_STATE: "vesta_auth_state",
   AUTH_CODE_VERIFIER: "vesta_auth_code_verifier",
   AUTH_IN_PROGRESS: "vesta_auth_in_progress",
   AUTH_SUCCESS: "vesta_auth_success",
@@ -19,4 +20,6 @@ export const StorageKeys = {
   // LOGOUT RELATED KEYS
   AUTH_LOGOUT_TAB_ID: "vesta_auth_logout_tab_id",
   AUTH_LOGOUT_START_TIME: "vesta_auth_logout_start_time",
+
+  PROPERTY_DATA_CACHE_PREFIX: "vesta_prop_cache_",
 } as const;

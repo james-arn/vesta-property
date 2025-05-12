@@ -22,6 +22,9 @@ export const ActionEvents = {
   AUTHENTICATION_COMPLETE: "AUTHENTICATION_COMPLETE",
   LOGOUT_COMPLETE: "LOGOUT_COMPLETE",
   GET_AUTH_STATUS: "GET_AUTH_STATUS",
+  // Address Lookup Actions
+  REQUEST_ADDRESS_LOOKUP: "REQUEST_ADDRESS_LOOKUP",
+  ADDRESS_LOOKUP_RESULT: "ADDRESS_LOOKUP_RESULT",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

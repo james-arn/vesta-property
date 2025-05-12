@@ -106,6 +106,7 @@ export interface Address {
   confirmedStreet?: string | null;
   confirmedTown?: string | null;
   confirmedPostcode?: string | null;
+  addressConfidence?: Confidence | null;
 }
 
 export interface ExtractedPropertyScrapingData {
