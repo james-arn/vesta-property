@@ -6,6 +6,7 @@ import { useCrimeScore } from '@/hooks/useCrimeScore';
 import { useFeedbackAutoPrompt } from '@/hooks/useFeedbackAutoPrompt';
 import { usePersistentPremiumData } from '@/hooks/usePersistentPremiumData';
 import { ReverseGeocodeResponse, useReverseGeocode } from '@/hooks/useReverseGeocode';
+import { useSidePanelCloseHandling } from '@/hooks/useSidePanelCloseHandling';
 import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -185,10 +186,36 @@ const App: React.FC = () => {
     setNearbyPlanningPermissionCardExpanded((prev) => (expand === undefined ? !prev : expand));
   };
 
+  useSidePanelCloseHandling();
+
   useEffect(function tellBackgroundSideBarOpened() {
-    chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED }, (response) => {
-      console.log('SIDE_PANEL_OPENED response:', response);
-    });
+    const queryParams = new URLSearchParams(location.search);
+    const tabIdFromUrlString = queryParams.get("tabId");
+    let tabId: number | undefined = tabIdFromUrlString ? parseInt(tabIdFromUrlString, 10) : undefined;
+
+    const sendMessageWithTabId = (idToSend?: number) => {
+      chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED, tabId: idToSend }, (response) => {
+        console.log('SIDE_PANEL_OPENED response from background:', response, 'for tabId:', idToSend);
+      });
+    };
+
+    if (tabId) {
+      sendMessageWithTabId(tabId);
+    } else {
+      // If tabId is not in the URL (e.g., opened by browser action click),
+      // try to get it from the currently active tab.
+      console.log("[App.tsx] tabId not in URL, querying for active tab.");
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs && tabs.length > 0 && tabs[0].id) {
+          const activeTabId = tabs[0].id;
+          console.log("[App.tsx] Found active tabId:", activeTabId);
+          sendMessageWithTabId(activeTabId);
+        } else {
+          console.error("[App.tsx] Could not determine active tabId when not found in URL.");
+          sendMessageWithTabId(undefined); // Send with undefined tabId as a fallback
+        }
+      });
+    }
   }, [])
 
   useEffect(function updateCrimeContentHeight() {

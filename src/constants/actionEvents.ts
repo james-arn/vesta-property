@@ -3,7 +3,11 @@ export const ActionEvents = {
   PROPERTY_PAGE_OPENED: "propertyPageOpened",
   SHOW_WARNING: "showWarning",
   TAB_CHANGED_OR_EXTENSION_OPENED: "navigatedUrlOrTabChangedOrExtensionOpened",
-  SIDE_PANEL_OPENED: "sidePanelOpened",
+  SIDE_PANEL_OPENED: "sidePanelOpened", // This is likely sent BY the side panel itself when it loads/initializes
+  REQUEST_OPEN_SIDE_PANEL: "requestOpenSidePanel", // Sent from content script button to request background to open panel
+  REQUEST_SIDE_PANEL_CLOSE_ACTION: "requestSidePanelCloseAction", // From pull tab to background
+  BACKGROUND_COMMANDS_SIDE_PANEL_CLOSE: "backgroundCommandsSidePanelClose", // From background to side panel UI
+  SIDE_PANEL_IS_NOW_CLOSING: "sidePanelIsNowClosing", // From side panel UI to content script
   // Authentication events
   AUTH_CODE_RECEIVED: "authCodeReceived",
   AUTH_TOKEN_EXCHANGE_SUCCESS: "authTokenExchangeSuccess",

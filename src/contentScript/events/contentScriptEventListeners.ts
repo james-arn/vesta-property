@@ -1,6 +1,7 @@
 import { clickBroadbandChecker } from "@/contentScript/utils/propertyScrapeHelpers";
 import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { ActionEvents } from "../../constants/actionEvents";
+import { createAndInjectPullTab } from "../dom/pullTab";
 import { extractPropertyDataFromDOM } from "../utils/propertyDataExtractor";
 
 // Sets up event listeners for the content script
@@ -46,9 +47,7 @@ export function setupContentScriptEventListeners() {
             action: ActionEvents.PROPERTY_PAGE_OPENED,
             data: propertyData,
           });
-          console.log(
-            "[Content Script] Sent PROPERTY_PAGE_OPENED successfully (synchronous part)."
-          );
+          createAndInjectPullTab();
         } catch (e) {
           console.error("[Content Script] Error synchronously sending PROPERTY_PAGE_OPENED:", e);
         }
@@ -81,6 +80,9 @@ export function setupContentScriptEventListeners() {
     try {
       chrome.runtime.sendMessage(messagePayload);
       console.log("[Content Script] Sent SHOW_WARNING successfully (synchronous part).");
+
+      // Update the UI when showing a warning (which now means ensuring pull tab is correctly shown/hidden)
+      createAndInjectPullTab();
     } catch (e) {
       console.error("[Content Script] Error synchronously sending SHOW_WARNING:", e);
     }
@@ -131,8 +133,8 @@ export function setupContentScriptEventListeners() {
 
     if (request.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
       const currentUrlFromBackground = request.data as string;
-      // Reset processing flag as this is a new focus/navigation event from background
       hasProcessedForCurrentNavigation = false;
+      createAndInjectPullTab();
 
       if (
         pageModel &&

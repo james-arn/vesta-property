@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vesta Property Checklist",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Make better property buying decisions. Get scored Rightmove property listings and helpful checklists with Vesta.",
   "permissions": [
     "activeTab",
@@ -64,7 +64,9 @@
         "injectScript.js",
         "login-success.html",
         "logout-success.html",
-        "sandbox.html"
+        "sandbox.html",
+        "images/icon48.png",
+        "images/logo-white-no-text.png"
       ],
       "matches": [
         "https://www.rightmove.co.uk/*",
