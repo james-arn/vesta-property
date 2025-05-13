@@ -51,7 +51,7 @@ const App: React.FC = () => {
   const queryClient = useQueryClient();
 
   const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler();
-  const { isAuthenticated, isCheckingAuth } = useSecureAuthentication();
+  const { isAuthenticated, isCheckingAuth, signInRedirect } = useSecureAuthentication();
 
   const {
     data: propertyData,
@@ -427,7 +427,11 @@ const App: React.FC = () => {
       )}
       {showUpsellModal && (
         <Suspense fallback={null}>
-          <LazyUpsellModal open={showUpsellModal} onOpenChange={setShowUpsellModal} />
+          <LazyUpsellModal
+            open={showUpsellModal}
+            onOpenChange={setShowUpsellModal}
+            onSignInClick={signInRedirect}
+          />
         </Suspense>
       )}
       {showPremiumConfirmationModal && isAuthenticated && (
