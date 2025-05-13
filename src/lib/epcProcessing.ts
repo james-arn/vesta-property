@@ -53,14 +53,38 @@ const handleSandboxMessage = (message: MessageEvent) => {
   }
   const messageData = message.data as SandboxResultMessage;
 
+  // Added more verbose logging here
+  console.log("[epcProcessing] handleSandboxMessage: Received message event. Data:", messageData);
+
   if (!messageData || messageData.source !== "sandbox" || messageData.action !== "OCR_RESULT") {
+    console.log(
+      "[epcProcessing] handleSandboxMessage: Message ignored (not a valid OCR_RESULT from sandbox).",
+      "Expected source 'sandbox', got:",
+      messageData?.source,
+      "Expected action 'OCR_RESULT', got:",
+      messageData?.action
+    );
     return;
   }
-  console.log("[epcProcessing] Received OCR_RESULT from sandbox:", messageData);
+  console.log(
+    "[epcProcessing] handleSandboxMessage: Valid OCR_RESULT received from sandbox. Request ID:",
+    messageData.requestId,
+    "Expected ID:",
+    currentOcrRequestId
+  );
 
   if (currentOcrRequestId && messageData.requestId === currentOcrRequestId) {
     if (ocrCallback) {
+      console.log(
+        "[epcProcessing] handleSandboxMessage: Invoking ocrCallback for request ID:",
+        currentOcrRequestId
+      );
       ocrCallback(messageData.data); // Resolve the promise
+    } else {
+      console.warn(
+        "[epcProcessing] handleSandboxMessage: ocrCallback is null for request ID:",
+        currentOcrRequestId
+      );
     }
     // Clear pending request
     ocrCallback = null;
@@ -111,7 +135,7 @@ const ensureSandboxIframe = (): Promise<HTMLIFrameElement> => {
 
 // Creates the iframe and returns a promise that resolves on load or rejects on error
 const createSandboxIframe = (): Promise<HTMLIFrameElement> => {
-  console.log("[epcProcessing] Attempting to create sandbox iframe...");
+  console.log("[epcProcessing] createSandboxIframe: Attempting to create sandbox iframe..."); // Enhanced log
   return new Promise((resolve, reject) => {
     const iframe = document.createElement("iframe");
     iframe.src = chrome.runtime.getURL(SANDBOX_HTML_PATH);
@@ -119,14 +143,22 @@ const createSandboxIframe = (): Promise<HTMLIFrameElement> => {
     iframe.setAttribute("aria-hidden", "true"); // Accessibility
 
     iframe.onload = () => {
-      console.log("[epcProcessing] Sandbox iframe ONLOAD event fired.");
+      console.log(
+        "[epcProcessing] createSandboxIframe: Sandbox iframe ONLOAD event fired. src:",
+        iframe.src
+      ); // Enhanced log
       // Optional: Add cleanup listener if iframe gets removed unexpectedly
       // We might rely on ensureSandboxIframe check instead
       resolve(iframe);
     };
 
     iframe.onerror = (event) => {
-      console.error("[epcProcessing] Sandbox iframe ONERROR event fired:", event);
+      console.error(
+        "[epcProcessing] createSandboxIframe: Sandbox iframe ONERROR event fired. src:",
+        iframe.src,
+        "Error event:",
+        event
+      ); // Enhanced log
       iframe.remove(); // Clean up failed iframe
       sandboxIframePromise = null; // Clear the promise so next call tries again
       reject(new Error("Failed to load sandbox iframe."));
@@ -163,33 +195,68 @@ export const removeSandboxIframe = () => {
 
 // --- OCR Task ---
 const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResponseData> => {
+  console.log("[epcProcessing] performOcrInSandbox: Ensuring sandbox iframe..."); // New log
   const iframe = await ensureSandboxIframe(); // Get or create the iframe
 
-  console.log("[epcProcessing] iframe object after ensure:", iframe);
-  console.log("[epcProcessing] iframe.contentWindow after ensure:", iframe.contentWindow);
+  console.log(
+    "[epcProcessing] performOcrInSandbox: iframe object after ensure:",
+    iframe ? iframe.src : "null iframe"
+  ); // Enhanced log
+  console.log(
+    "[epcProcessing] performOcrInSandbox: iframe.contentWindow after ensure:",
+    iframe ? (iframe.contentWindow ? "exists" : "null") : "N/A"
+  ); // Enhanced log
 
   // Setup the promise and callback reference *before* posting the message
   const requestId = crypto.randomUUID();
   currentOcrRequestId = requestId;
+  console.log(
+    "[epcProcessing] performOcrInSandbox: Generated new OCR request ID:",
+    currentOcrRequestId
+  ); // New log
+
   const ocrPromise = new Promise<PerformOcrResponseData>((resolve) => {
-    ocrCallback = resolve; // Assign the resolve function to the module-scope callback
+    ocrCallback = (result) => {
+      // Wrapped to log
+      console.log(
+        "[epcProcessing] performOcrInSandbox: ocrCallback invoked with result for request ID:",
+        currentOcrRequestId,
+        result
+      );
+      resolve(result);
+    };
   });
 
   if (iframe.contentWindow) {
-    console.log(`[epcProcessing] Posting OCR task with ID: ${requestId} to sandbox.`);
+    console.log(
+      `[epcProcessing] performOcrInSandbox: Posting OCR task with ID: ${requestId} to sandbox (iframe src: ${iframe.src}).`
+    ); // Enhanced log
     iframe.contentWindow.postMessage(
       { action: "PERFORM_OCR", requestId, data: { imageDataUrl } },
       "*"
     );
   } else {
-    console.error("[epcProcessing] Error: iframe.contentWindow was null or inaccessible.");
+    console.error(
+      "[epcProcessing] performOcrInSandbox: Error: iframe.contentWindow was null or inaccessible. iframe src:",
+      iframe.src
+    ); // Enhanced log
     currentOcrRequestId = null; // Clean up request ID
     ocrCallback = null; // Clean up callback
     throw new Error("Sandbox iframe contentWindow is not accessible.");
   }
 
   // Await the promise which will be resolved by handleSandboxMessage
+  console.log(
+    "[epcProcessing] performOcrInSandbox: Awaiting ocrPromise for request ID:",
+    currentOcrRequestId
+  ); // New log
   const result = await ocrPromise;
+  console.log(
+    "[epcProcessing] performOcrInSandbox: ocrPromise resolved for request ID:",
+    currentOcrRequestId,
+    "Result:",
+    result
+  ); // New log
   return result;
 };
 
@@ -200,7 +267,7 @@ const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResp
  * @param processingUrl URL of the PDF file.
  * @returns EpcProcessorResult object.
  */
-const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult> => {
+export const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult> => {
   try {
     const imageDataUrl = await renderPdfPageToDataUrl(processingUrl);
     if (!imageDataUrl) {

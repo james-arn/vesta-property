@@ -62,15 +62,18 @@ export function getStoredPropertyData(): ExtractedPropertyScrapingData | null {
 // --- UI Communication (Internal Helpers) ---
 function _sendPropertyDataToUI(data: ExtractedPropertyScrapingData | null): void {
   if (data) {
-    console.log("[ContentScript Comm Handler] Sending PROPERTY_PAGE_OPENED.", data);
+    console.log(
+      "[ContentScript Comm Handler] Sending CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED.",
+      data
+    );
     try {
       chrome.runtime.sendMessage({
-        action: ActionEvents.PROPERTY_PAGE_OPENED,
+        action: ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED,
         data: data,
       });
     } catch (error) {
       logErrorToSentry(
-        `[ContentScript Comm Handler] Error sending PROPERTY_PAGE_OPENED: ${error instanceof Error ? error.message : String(error)}`,
+        `[ContentScript Comm Handler] Error sending CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED: ${error instanceof Error ? error.message : String(error)}`,
         "error"
       );
     }

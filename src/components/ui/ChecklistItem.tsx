@@ -4,9 +4,9 @@ import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
 import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { checkIfClickableItemKey } from "@/types/clickableChecklist";
-import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
+import { DataStatus, PropertyDataListItem } from "@/types/property";
 import React, { useState } from 'react';
-import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUnlock, FaUserEdit } from "react-icons/fa";
+import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaTimesCircle, FaUnlock } from "react-icons/fa";
 import { EpcChecklistItem } from "./EpcChecklistItem";
 
 export interface ChecklistItemProps {
@@ -30,15 +30,6 @@ const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string 
     [DataStatus.IS_LOADING]: { icon: FaClock, color: 'text-blue-500' },
 };
 
-// Confidence Icons
-const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceLevels], React.ElementType | null> = {
-    [ConfidenceLevels.HIGH]: FaThumbsUp,
-    [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
-    [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-    [ConfidenceLevels.NONE]: null,
-};
-
-const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({

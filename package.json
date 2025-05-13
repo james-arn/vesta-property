@@ -65,6 +65,7 @@
     "date-fns": "^4.1.0",
     "dompurify": "^3.2.4",
     "image-js": "^0.36.0",
+    "jaro-winkler-typescript": "^1.0.1",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.474.0",
     "pdfjs-dist": "^5.1.91",

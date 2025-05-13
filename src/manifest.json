@@ -8,7 +8,8 @@
     "storage",
     "sidePanel",
     "tabs",
-    "notifications"
+    "notifications",
+    "offscreen"
   ],
   "host_permissions": [
     "https://*.rightmove.co.uk/*",
@@ -19,10 +20,11 @@
     "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com/*",
     "https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com/*",
     "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com/*",
-    "https://d84l1y8p4kdic.cloudfront.net/*"
+    "https://d84l1y8p4kdic.cloudfront.net/*",
+    "https://find-energy-certificate.service.gov.uk/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-elem 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://media.rightmove.co.uk https://www.google-analytics.com https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com https://www.rightmove.co.uk; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; img-src 'self' data:;",
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-elem 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://media.rightmove.co.uk https://www.google-analytics.com https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com https://www.rightmove.co.uk https://find-energy-certificate.service.gov.uk; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; img-src 'self' data:;",
     "sandbox": "sandbox allow-scripts; script-src 'self' 'wasm-unsafe-eval' blob:;"
   },
   "sandbox": {
@@ -98,6 +100,14 @@
   ],
   "side_panel": {
     "default_path": "sidepanel.html"
+  },
+  "offscreen": {
+    "reasons": [
+      "DOM_PARSING",
+      "IFRAME_SCRIPTING"
+    ],
+    "justification": "Handles GOV.UK EPC HTML parsing and orchestrates PDF OCR (which requires DOM access for its sandbox iframe).",
+    "document_path": "offscreen.html"
   },
   "externally_connectable": {
     "matches": [

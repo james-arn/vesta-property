@@ -28,20 +28,23 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
   const { userProfile } = useUserProfile();
   const { activatePremiumSearch } = usePersistentPremiumData();
 
-  useEffect(() => {
-    autoTriggerPendingForIdRef.current = null;
-    console.log(
-      `[Lock Reset Effect] Cleared lock due to propertyId change to: ${currentPropertyId}`
-    );
-  }, [currentPropertyId]);
+  // Ref to hold the latest message handling logic
+  const latestMessageHandlerRef = useRef<any>(null);
 
   useEffect(() => {
-    const handleMessage = (
+    // This function captures the current state of all dependencies on each render
+    // and is stored in the ref.
+    latestMessageHandlerRef.current = (
       message: { action: string; data?: any },
       sender: chrome.runtime.MessageSender,
       sendResponse: (response: any) => void
     ) => {
-      console.log("[Background Handler Hook] Received message:", message);
+      console.log(
+        "[Background Handler Hook] Received message (via ref):",
+        message,
+        "Auth:",
+        isAuthenticated
+      );
 
       const propertyId = (() => {
         if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
@@ -52,11 +55,44 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         return null;
       })();
 
-      setCurrentPropertyId(propertyId);
+      setCurrentPropertyId(propertyId); // This will trigger re-render if value changes
 
       if (message.action === ActionEvents.PROPERTY_PAGE_OPENED && propertyId) {
         console.log(`[Background Handler Hook] Handling PROPERTY_PAGE_OPENED for ${propertyId}`);
+        console.log(
+          `[useBackgroundMessageHandler] Inside PROPERTY_PAGE_OPENED block. PropertyId: ${propertyId}, Current loading state: ${isPropertyDataLoading}`
+        );
+
         const incomingData = message.data as ExtractedPropertyScrapingData;
+
+        // --- DIAGNOSTIC LOG ---
+        console.log(
+          "[SidePanel Hook] Received PROPERTY_PAGE_OPENED with incomingData:",
+          JSON.parse(JSON.stringify(incomingData)) // Deep copy for clean logging
+        );
+        if (incomingData?.address) {
+          console.log(
+            "[SidePanel Hook] Address Confidence:",
+            incomingData.address.addressConfidence
+          );
+          console.log("[SidePanel Hook] Address Display:", incomingData.address.displayAddress);
+          console.log(
+            "[SidePanel Hook] Address Source:",
+            // @ts-ignore
+            incomingData.address.source
+          );
+          console.log(
+            "[SidePanel Hook] Gov EPC Suggestions:",
+            incomingData.address.govEpcRegisterSuggestions
+          );
+        }
+        if (incomingData?.epc) {
+          console.log("[SidePanel Hook] EPC Value:", incomingData.epc.value);
+          console.log("[SidePanel Hook] EPC Confidence:", incomingData.epc.confidence);
+          console.log("[SidePanel Hook] EPC Source:", incomingData.epc.source);
+        }
+        // --- END DIAGNOSTIC LOG ---
+
         const cachedData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
           REACT_QUERY_KEYS.PROPERTY_DATA,
           propertyId,
@@ -78,6 +114,9 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         })();
 
         queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], dataToUpdate);
+        console.log(
+          `[useBackgroundMessageHandler] About to call setIsPropertyDataLoading(false). Current propertyId: ${propertyId}`
+        );
         setIsPropertyDataLoading(false);
         setNonPropertyPageWarningMessage(null);
         console.log(
@@ -108,25 +147,50 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         setIsPropertyDataLoading(false);
       }
 
-      // --- Call the Auto-trigger Helper Function ---
       console.log(
-        `[Handler] Calling checkAndTrigger. propertyId: ${propertyId}, pendingIdRef: ${autoTriggerPendingForIdRef.current}`
+        `[Handler] Calling checkAndTrigger. propertyId: ${propertyId}, pendingIdRef: ${autoTriggerPendingForIdRef.current}, auth: ${isAuthenticated}`
       );
       checkAndTriggerPremiumSearchOnPropertyIdMatch({
         propertyId,
-        isAuthenticated,
-        userProfile,
+        isAuthenticated, // Uses current value from hook's scope
+        userProfile, // Uses current value from hook's scope
         queryClient,
-        activatePremiumSearch,
+        activatePremiumSearch, // Uses current value from hook's scope
         autoTriggerPendingForIdRef: autoTriggerPendingForIdRef,
       });
 
       sendResponse({ status: "acknowledged", action: message.action });
     };
+  }); // Runs on every render to keep latestMessageHandlerRef.current up-to-date
 
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [queryClient, isAuthenticated, userProfile, activatePremiumSearch]);
+  useEffect(() => {
+    // This effect runs only once to add/remove the stable listener
+    const stableListenerWrapper = (
+      message: { action: string; data?: any },
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response: any) => void
+    ) => {
+      if (latestMessageHandlerRef.current) {
+        latestMessageHandlerRef.current(message, sender, sendResponse);
+      }
+    };
+
+    console.log("[Background Handler Hook] ADDING STABLE listener.");
+    chrome.runtime.onMessage.addListener(stableListenerWrapper);
+
+    return () => {
+      console.log("[Background Handler Hook] REMOVING STABLE listener.");
+      chrome.runtime.onMessage.removeListener(stableListenerWrapper);
+    };
+  }, []); // Empty dependency array: runs only on mount and unmount
+
+  // This effect correctly depends on currentPropertyId
+  useEffect(() => {
+    autoTriggerPendingForIdRef.current = null;
+    console.log(
+      `[Lock Reset Effect] Cleared lock due to propertyId change to: ${currentPropertyId}`
+    );
+  }, [currentPropertyId]);
 
   return { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId };
 };

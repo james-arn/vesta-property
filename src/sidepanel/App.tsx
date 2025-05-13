@@ -10,6 +10,7 @@ import { useSidePanelCloseHandling } from '@/hooks/useSidePanelCloseHandling';
 import { DashboardView } from '@/sidepanel/components/DashboardView';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GovEpcValidationMatch } from "../types/govEpcCertificate";
 import {
   Address,
   ConfidenceLevels,
@@ -28,6 +29,7 @@ import {
   PremiumFetchContext,
   SnapshotContextData
 } from '@/types/premiumStreetData';
+import PropertyAddressDisplay from './components/PropertyAddressDisplay';
 import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
 
@@ -48,6 +50,8 @@ const LazyPremiumConfirmationModal = lazy(() =>
 );
 
 const App: React.FC = () => {
+  console.log("[App.tsx] TOP OF FUNCTIONAL COMPONENT - render pass starting.");
+
   const queryClient = useQueryClient();
 
   const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler();
@@ -88,6 +92,49 @@ const App: React.FC = () => {
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
 
+  const openBuildingValidationModal = useCallback(() => {
+    setShowBuildingValidationModal(true);
+  }, [setShowBuildingValidationModal]);
+
+  const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
+    if (!currentPropertyId) {
+      console.error("Cannot select EPC suggestion: currentPropertyId is null.");
+      return;
+    }
+
+    queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
+      [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
+      (oldData) => {
+        if (!oldData) {
+          console.error("Cannot select EPC suggestion: no existing property data in cache for ID:", currentPropertyId);
+          return undefined;
+        }
+
+        const newData: ExtractedPropertyScrapingData = {
+          ...oldData,
+          address: {
+            ...(oldData.address as Address),
+            displayAddress: suggestion.retrievedAddress,
+            addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+            isAddressConfirmedByUser: true,
+            govEpcRegisterSuggestions: null,
+          },
+          epc: {
+            ...(oldData.epc as EpcData),
+            value: suggestion.retrievedRating,
+            confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+            source: EpcDataSourceType.GOV_EPC_REGISTER,
+            url: suggestion.certificateUrl,
+            automatedProcessingResult: null,
+            error: null,
+          },
+        };
+        console.log("[App.tsx] Updated property data with selected GOV EPC suggestion:", newData);
+        return newData;
+      }
+    );
+  }, [queryClient, currentPropertyId]);
+
   const { activatePremiumSearch, isActivatingPremiumSearch } =
     usePersistentPremiumData();
 
@@ -123,7 +170,7 @@ const App: React.FC = () => {
     isAuthenticated,
     isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false,
     addressConfidence: propertyData?.address?.addressConfidence,
-    openAddressConfirmationModal: useCallback(() => setShowBuildingValidationModal(true), []),
+    openAddressConfirmationModal: openBuildingValidationModal,
     onConfirmAndActivate: handleConfirmAndActivate,
     currentPropertyId: currentPropertyId,
     propertyAddress: propertyData?.address,
@@ -197,7 +244,8 @@ const App: React.FC = () => {
     let tabId: number | undefined = tabIdFromUrlString ? parseInt(tabIdFromUrlString, 10) : undefined;
 
     const sendMessageWithTabId = (idToSend?: number) => {
-      chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED, tabId: idToSend }, (response) => {
+      console.log(`[App.tsx] Sending SIDE_PANEL_OPENED to background. tabId: ${idToSend}`);
+      chrome.runtime.sendMessage({ action: ActionEvents.SIDE_PANEL_OPENED, data: { tabId: idToSend } }, (response) => {
         console.log('SIDE_PANEL_OPENED response from background:', response, 'for tabId:', idToSend);
       });
     };
@@ -205,9 +253,8 @@ const App: React.FC = () => {
     if (tabId) {
       sendMessageWithTabId(tabId);
     } else {
-      // If tabId is not in the URL (e.g., opened by browser action click),
-      // try to get it from the currently active tab.
       console.log("[App.tsx] tabId not in URL, querying for active tab.");
+      sendMessageWithTabId(undefined);
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs && tabs.length > 0 && tabs[0].id) {
           const activeTabId = tabs[0].id;
@@ -317,21 +364,60 @@ const App: React.FC = () => {
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
 
+  // --- App.tsx Render Diagnostics ---
+  console.log("[App.tsx] Rendering with State:", {
+    isCheckingAuth,
+    isLoadingQueryPropertyData,
+    isPropertyDataLoading,
+    propertyDataExists: !!propertyData,
+    currentPropertyId,
+    nonPropertyPageWarningMessage,
+    isActivatingPremiumSearch,
+    queryPropertyDataErrorExists: !!queryPropertyDataError,
+  });
+  // --- End App.tsx Render Diagnostics ---
+
   if (isCheckingAuth || isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
+    // --- App.tsx Loading Skeleton Condition Met ---
+    console.log("[App.tsx] Condition for <SideBarLoading /> MET:", {
+      isCheckingAuth,
+      isLoadingQueryPropertyData,
+      isPropertyDataLoading,
+      noPropertyData: !propertyData,
+      noWarning: !nonPropertyPageWarningMessage,
+      combinedNoDataNoWarning: (!propertyData && !nonPropertyPageWarningMessage),
+      isActivatingPremiumSearch,
+    });
+    // --- End App.tsx Loading Skeleton Condition ---
     return <SideBarLoading />;
   }
 
   if (nonPropertyPageWarningMessage || !propertyData) {
+    // --- App.tsx Warning/No Data Alert Condition Met ---
+    console.log("[App.tsx] Condition for Warning/No Data Alert MET:", {
+      nonPropertyPageWarningMessage,
+      noPropertyData: !propertyData,
+    });
+    // --- End App.tsx Warning/No Data Alert Condition ---
     return (
       <Alert type="warning" message={nonPropertyPageWarningMessage || "Property data could not be loaded."} />
     );
   }
 
   if (queryPropertyDataError) {
+    // --- App.tsx Error Alert Condition Met ---
+    console.log("[App.tsx] Condition for Error Alert MET:", {
+      queryPropertyDataError,
+    });
+    // --- End App.tsx Error Alert Condition ---
     return (
       <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
     );
   }
+
+  // --- App.tsx Rendering Main Content ---
+  console.log("[App.tsx] Proceeding to render main content (Dashboard or Checklist).");
+  // --- End App.tsx Rendering Main Content ---
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -347,6 +433,15 @@ const App: React.FC = () => {
         onGenerateMessageClick={handleGenerateMessageClick}
         onPremiumSearchClick={triggerPremiumFlow}
       />
+
+      {propertyData?.address && (
+        <PropertyAddressDisplay
+          address={propertyData.address}
+          reverseGeocodedAddress={reverseGeocodeQuery.data?.address}
+          onOpenAddressConfirmation={openBuildingValidationModal}
+          onSelectGovEpcSuggestion={handleSelectGovEpcSuggestion}
+        />
+      )}
 
       <main className="flex-1 overflow-y-auto p-4">
         {currentView === VIEWS.CHECKLIST && (

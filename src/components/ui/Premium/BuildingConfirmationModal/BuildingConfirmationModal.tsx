@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseDisplayAddress } from "@/lib/address";
-import { Address } from "@/types/property";
+import { Address, ConfidenceLevels } from "@/types/property";
 import React, { useEffect, useMemo, useState } from "react";
 
 interface BuildingConfirmationDialogProps {
@@ -25,6 +25,8 @@ interface BuildingConfirmationDialogProps {
     ) => void;
     reverseGeocodedAddress?: string | null;
 }
+
+const EPC_SEARCH_BASE_URL = "https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=";
 
 export function BuildingConfirmationDialog({
     open,
@@ -96,6 +98,18 @@ export function BuildingConfirmationDialog({
                         {reverseGeocodedAddress && (
                             <p className="text-xs text-muted-foreground italic">
                                 (Agent coordinates suggested: {reverseGeocodedAddress})
+                            </p>
+                        )}
+                        {addressData?.postcode && addressData.addressConfidence !== ConfidenceLevels.HIGH && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Unsure? <a
+                                    href={`${EPC_SEARCH_BASE_URL}${addressData.postcode}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline hover:text-primary"
+                                >
+                                    Check address by recent EPC ({addressData.postcode})
+                                </a>
                             </p>
                         )}
                     </DialogDescription>

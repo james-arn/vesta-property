@@ -51,18 +51,23 @@ export const usePremiumFlow = ({
       console.log("[PremiumFlow] User not authenticated, showing upsell modal.");
       setShowUpsellModal(true);
     } else {
-      if (isAddressConfirmed || addressConfidence === ConfidenceLevels.HIGH) {
+      if (
+        isAddressConfirmed ||
+        addressConfidence === ConfidenceLevels.HIGH ||
+        addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+      ) {
         console.log(
-          "[PremiumFlow] User authenticated. Address confirmed by user or high confidence from scrape."
+          "[PremiumFlow] User authenticated. Address confirmed by user, high confidence from scrape, or confirmed by GOV EPC."
         );
         if (
           !isAddressConfirmed &&
-          addressConfidence === ConfidenceLevels.HIGH &&
+          (addressConfidence === ConfidenceLevels.HIGH ||
+            addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC) &&
           currentPropertyId &&
           propertyAddress?.displayAddress
         ) {
           console.log(
-            "[PremiumFlow] High confidence scrape: Parsing displayAddress and updating cache before premium confirmation."
+            "[PremiumFlow] High confidence scrape or GOV EPC: Parsing displayAddress and updating cache before premium confirmation."
           );
           const parsed = parseDisplayAddress(
             propertyAddress.displayAddress,
@@ -83,7 +88,7 @@ export const usePremiumFlow = ({
                   confirmedTown: parsed.townGuess,
                   confirmedPostcode: parsed.postcodeGuess || propertyAddress.postcode,
                   isAddressConfirmedByUser: true,
-                  addressConfidence: ConfidenceLevels.HIGH,
+                  addressConfidence: addressConfidence,
                 },
               };
             }

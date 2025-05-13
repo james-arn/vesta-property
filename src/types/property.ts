@@ -7,6 +7,7 @@ import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
+import { GovEpcValidationMatch } from "./govEpcCertificate";
 import {
   ListedBuilding,
   ProcessedPremiumStreetData,
@@ -56,6 +57,7 @@ export const EpcDataSourceType = {
   LISTING: "Listing",
   PDF: "PDF",
   IMAGE: "Image",
+  GOV_EPC_REGISTER: "GovEpcRegister",
   NONE: "None",
   USER_PROVIDED: "UserProvided",
 } as const;
@@ -75,7 +77,10 @@ export interface EpcData {
   value: string | null; // The final EPC rating (A-G), potentially user-provided
   confidence: Confidence;
   source: EpcDataSourceType;
+  dataSourceType?: EpcDataSourceType | null;
   error?: string | null;
+  validUntil?: string | null;
+  isExpired?: boolean | null;
 }
 
 export interface NearbySchool {
@@ -107,6 +112,8 @@ export interface Address {
   confirmedTown?: string | null;
   confirmedPostcode?: string | null;
   addressConfidence?: Confidence | null;
+  govEpcRegisterSuggestions?: GovEpcValidationMatch[] | null;
+  source?: EpcDataSourceType | null;
 }
 
 export interface ExtractedPropertyScrapingData {
@@ -168,6 +175,7 @@ export const ConfidenceLevels = {
   HIGH: "High",
   MEDIUM: "Medium",
   USER_PROVIDED: "UserProvided",
+  CONFIRMED_BY_GOV_EPC: "ConfirmedByGovEpc",
   NONE: "None",
 } as const;
 

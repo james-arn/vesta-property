@@ -75,48 +75,106 @@ export const extractAddressAndPdfDataFromText = (text: string): ExtractedEpcData
   const extractedData: ExtractedEpcData = {
     fullAddress: null,
     currentEpcRating: null,
-    potentialEpcRating: null,
+    potentialEpcRating: null, // We might not always get this from simpler OCR
   };
 
   if (!text) {
     return extractedData;
   }
 
+  // Normalize text: replace multiple newlines/spaces with single ones for easier regex
+  const normalizedText = text.replace(/\s*\n\s*/g, "\\n").replace(/\s+/g, " ");
+
   // --- Address Extraction ---
-  const addressRegex =
-    /Energy performance certificate \(EPC\)[\s\n]*([\s\S]*?\n([A-Z]{1,2}[0-9R][0-9A-Z]?\s*[0-9][A-Z]{2}))/i;
-  const addressMatch = text.match(addressRegex);
+  // Try to find a line that looks like an address, often preceding "Valid until" or "Certificate number"
+  // And usually after "Energy performance certificate (EPC)"
+  // This is a bit more flexible.
+  // Look for lines starting with a number/letter (address part) followed by a Town and Postcode.
+  // Adjusted to be less reliant on "Energy performance certificate (EPC)" being immediately before.
+  const addressBlockRegex =
+    /(?:Energy performance certificate \(EPC\))?[\s\S]*?(\d+[\s\S]*?[A-Z]{1,2}[0-9R][0-9A-Z]?\s*[0-9][A-Z]{2})/i;
+  // Fallback: Try to capture lines that look like address components if the above is too strict
+  // This regex looks for typical address lines possibly ending with a postcode or town.
+  const looserAddressRegex =
+    /^(\d+[\s\w,.-]+?)\n([\w\s,.-]+?)\n([A-Z]{1,2}[0-9R][0-9A-Z]?\s*[0-9][A-Z]{2})/im;
+
+  let addressMatch = normalizedText.match(addressBlockRegex);
   if (addressMatch && addressMatch[1]) {
-    extractedData.fullAddress = addressMatch[1]
-      .trim()
-      .replace(/^Energy performance certificate \(EPC\)\s*/i, "")
-      .trim();
-    extractedData.fullAddress = extractedData.fullAddress
-      .split(/Valid until:|Certificate number:/i)[0]
-      .trim();
+    let rawAddress = addressMatch[1].trim();
+    // Further clean up by removing "Energy rating", "Valid until", "Certificate number" and their values
+    rawAddress = rawAddress.replace(/Energy rating.*?(\\n|$)/i, "").trim();
+    rawAddress = rawAddress.split(/Valid until:|Certificate number:/i)[0].trim();
+    // Remove any trailing EPC rating letters if they got caught
+    rawAddress = rawAddress.replace(/\s+[A-G]$/i, "").trim();
+    extractedData.fullAddress = rawAddress;
   } else {
-    console.warn("Could not reliably extract address from EPC text.");
-  }
-
-  // --- Rating Extraction ---
-  const ratingRegex = /energy rating is\s*([A-G])\s*\.\s*It has the\s*potential to be\s*([A-G])/i;
-  const ratingMatch = text.replace(/\n/g, " ").match(ratingRegex);
-
-  if (ratingMatch && ratingMatch[1] && ratingMatch[2]) {
-    extractedData.currentEpcRating = ratingMatch[1].toUpperCase();
-    extractedData.potentialEpcRating = ratingMatch[2].toUpperCase();
-  } else {
-    console.warn("Could not extract ratings using primary pattern. Trying fallback...");
-    const tableRatingRegex = /(\d+)\s+([A-G])\s+(\d+)\s+([A-G])/i;
-    const tableMatch = text.match(tableRatingRegex);
-    if (tableMatch && tableMatch[2] && tableMatch[4]) {
-      extractedData.currentEpcRating = tableMatch[2].toUpperCase();
-      extractedData.potentialEpcRating = tableMatch[4].toUpperCase();
-      console.warn("Extracted ratings using fallback table pattern.");
+    addressMatch = text.match(looserAddressRegex); // Use original text for multiline match
+    if (addressMatch) {
+      extractedData.fullAddress = `${addressMatch[1].trim()}, ${addressMatch[2].trim()}, ${addressMatch[3].trim()}`;
     } else {
-      console.warn("Could not extract current and potential ratings from EPC text.");
+      console.warn(
+        "Could not reliably extract address from EPC text using primary or looser regex."
+      );
     }
   }
 
+  // --- Rating Extraction ---
+  // Look for "Energy rating D" or "Rating D" or "Current rating D" etc.
+  // The OCR text has "FLEES D" - this is tricky.
+  // Let's try to find a letter A-G that's likely an EPC rating.
+  // Pattern: "Energy rating" followed by any characters (non-greedy) then a space and a single letter A-G.
+  const currentRatingRegex =
+    /(?:Energy\s+rating|Current\s+Rating|Rating)\s*.*?([A-G])(?=\s|$|\\n|\|)/i;
+  let ratingMatch = normalizedText.match(currentRatingRegex);
+
+  if (ratingMatch && ratingMatch[1]) {
+    extractedData.currentEpcRating = ratingMatch[1].toUpperCase();
+  } else {
+    // Fallback: Look for a standalone letter (A-G) possibly near words like "rating" or before "Certificate number" if OCR missed "Energy rating"
+    // This is more speculative and might need refinement based on more OCR examples.
+    // Example: "FLEES D" in your OCR text, or if it was just "D" on a line.
+    const fallbackRatingRegex =
+      /(?:[A-Z]{2,}\s+)?([A-G])(?=\s*(?:Certificate number|Valid until|\\n|$))/i;
+    ratingMatch = normalizedText.match(fallbackRatingRegex);
+    if (ratingMatch && ratingMatch[1]) {
+      extractedData.currentEpcRating = ratingMatch[1].toUpperCase();
+      console.warn("Extracted current rating using a more general fallback regex.");
+    } else {
+      console.warn("Could not extract current EPC rating from text.");
+    }
+  }
+
+  // Potential rating is often harder to get reliably from diverse PDF formats without a clear sentence structure.
+  // For now, we'll leave it as potentially null if not found by a very clear pattern.
+  const potentialRatingRegex = /potential\s*(?:to\s*be|rating\s*is)?\s*([A-G])/i;
+  const potentialMatch = normalizedText.match(potentialRatingRegex);
+  if (potentialMatch && potentialMatch[1]) {
+    extractedData.potentialEpcRating = potentialMatch[1].toUpperCase();
+  }
+
+  // Final cleanup for address if it looks like it only got street and needs town/postcode added back if separately found
+  if (extractedData.fullAddress && extractedData.fullAddress.split(",").length < 2) {
+    const postcodeRegex = /([A-Z]{1,2}[0-9R][0-9A-Z]?\s*[0-9][A-Z]{2})/i;
+    const pcMatch = normalizedText.match(postcodeRegex);
+    if (pcMatch && pcMatch[1] && !extractedData.fullAddress.includes(pcMatch[1])) {
+      // Simplistic append, assumes town might be before postcode in normalized text if address is too short
+      // This part is highly heuristic
+      const townAndPostcodeCandidate = normalizedText
+        .substring(0, pcMatch.index)
+        .split("\\n")
+        .pop()
+        ?.trim();
+      if (
+        townAndPostcodeCandidate &&
+        !extractedData.fullAddress.includes(townAndPostcodeCandidate)
+      ) {
+        extractedData.fullAddress += `, ${townAndPostcodeCandidate}`;
+      }
+      extractedData.fullAddress += `, ${pcMatch[1]}`;
+      extractedData.fullAddress = extractedData.fullAddress.replace(/,\s*,/g, ",").trim(); // clean up double commas
+    }
+  }
+
+  console.log("[pdfProcessingUtils] Final Extracted EPC Data:", extractedData);
   return extractedData;
 };

@@ -1,18 +1,11 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { confidenceIcons } from "@/constants/uiConstants";
 import { Confidence, ConfidenceLevels } from "@/types/property";
 import React from 'react';
-import { FaExclamationTriangle, FaThumbsUp, FaUserEdit } from "react-icons/fa";
 
 const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
 
-// Confidence Icons (Copied from ChecklistItem initially, can be moved to a shared location later if needed)
-const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceLevels], React.ElementType | null> = {
-    [ConfidenceLevels.HIGH]: FaThumbsUp,
-    [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
-    [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-    [ConfidenceLevels.NONE]: null,
-};
 
 interface EpcChecklistItemProps {
     value: string | null | undefined;
@@ -34,7 +27,7 @@ export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
         }
         const ConfidenceIcon = confidenceIcons[confidence];
         let iconColor = 'text-gray-400';
-        if (confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
+        if (confidence === ConfidenceLevels.HIGH || confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC) iconColor = 'text-green-500';
         if (confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
         if (confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 

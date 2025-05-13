@@ -25,6 +25,10 @@ export const ActionEvents = {
   // Address Lookup Actions
   REQUEST_ADDRESS_LOOKUP: "REQUEST_ADDRESS_LOOKUP",
   ADDRESS_LOOKUP_RESULT: "ADDRESS_LOOKUP_RESULT",
+  CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED: "CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED",
+  // Events for PDF OCR via Offscreen Document
+  BACKGROUND_REQUEST_PDF_OCR: "BACKGROUND_REQUEST_PDF_OCR",
+  OFFSCREEN_PDF_OCR_RESULT: "OFFSCREEN_PDF_OCR_RESULT",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];
