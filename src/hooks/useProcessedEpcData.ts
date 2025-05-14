@@ -7,6 +7,7 @@ import React from "react";
 interface UseProcessedEpcDataProps {
   initialEpcData: EpcData | null | undefined;
   epcUrl: string | null | undefined;
+  isParentDataLoading: boolean;
   epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   isEpcDebugModeOn?: boolean;
 }
@@ -20,12 +21,23 @@ interface UseProcessedEpcDataProps {
 export const useProcessedEpcData = ({
   initialEpcData,
   epcUrl,
+  isParentDataLoading,
   epcDebugCanvasRef,
   isEpcDebugModeOn,
 }: UseProcessedEpcDataProps) => {
+  const isEnabled =
+    !isParentDataLoading &&
+    !!epcUrl &&
+    (!initialEpcData || // If there's no initialEpcData at all
+      (initialEpcData.confidence === ConfidenceLevels.NONE &&
+        !initialEpcData.value &&
+        !initialEpcData.error));
+
+  console.log("[useProcessedEpcData] isEnabled:", isEnabled);
   const { data, isLoading, isError, error } = useQuery<EpcProcessorResult, Error>({
     queryKey: [REACT_QUERY_KEYS.PROCESSED_EPC, epcUrl],
     queryFn: async () => {
+      console.log("[useProcessedEpcData] queryFn EXECUTING for epcUrl:", epcUrl);
       if (!epcUrl) {
         // Return a default state if URL is missing
         return {
@@ -38,7 +50,15 @@ export const useProcessedEpcData = ({
       return await processEpcData(epcUrl, isEpcDebugModeOn ? epcDebugCanvasRef : undefined);
     },
     // Only run processing if URL exists AND initial confidence is NONE
-    enabled: !!epcUrl && initialEpcData?.confidence === ConfidenceLevels.NONE,
+    // enabled: !!epcUrl && initialEpcData?.confidence === ConfidenceLevels.NONE,
+    // More restrictive: only run if URL exists AND initialEpcData is truly empty/pristine
+    enabled:
+      !isParentDataLoading &&
+      !!epcUrl &&
+      (!initialEpcData || // If there's no initialEpcData at all
+        (initialEpcData.confidence === ConfidenceLevels.NONE &&
+          !initialEpcData.value &&
+          !initialEpcData.error)), // Or if it's truly untouched
     staleTime: Infinity,
     gcTime: 1000 * 60 * 60, // Cache for 60 mins after inactive
     initialData: () => {
@@ -54,6 +74,26 @@ export const useProcessedEpcData = ({
       return undefined; // Let TanStack Query handle loading state if confidence IS NONE
     },
   });
+
+  // Logging to confirm isEnabled status
+  const isEnabledLog =
+    !isParentDataLoading &&
+    !!epcUrl &&
+    (!initialEpcData || // If there's no initialEpcData at all
+      (initialEpcData.confidence === ConfidenceLevels.NONE &&
+        !initialEpcData.value &&
+        !initialEpcData.error));
+
+  console.log(
+    "[useProcessedEpcData] isEnabledLog:",
+    isEnabledLog,
+    "initialEpcData:",
+    JSON.parse(JSON.stringify(initialEpcData || {})),
+    "epcUrl:",
+    epcUrl,
+    "isParentDataLoading:",
+    isParentDataLoading
+  );
 
   // Return the results from useQuery
   // The component using this hook will get the data, loading state, etc.

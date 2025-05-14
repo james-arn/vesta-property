@@ -1,6 +1,6 @@
 export const ActionEvents = {
   PAGE_MODEL_AVAILABLE: "pageModelAvailable", // note- used as magic string in injectScript.js due to import syntax issues
-  PROPERTY_PAGE_OPENED: "propertyPageOpened",
+  PROPERTY_PAGE_OPENED: "PROPERTY_PAGE_OPENED",
   SHOW_WARNING: "showWarning",
   TAB_CHANGED_OR_EXTENSION_OPENED: "navigatedUrlOrTabChangedOrExtensionOpened",
   SIDE_PANEL_OPENED: "sidePanelOpened", // This is likely sent BY the side panel itself when it loads/initializes
@@ -29,6 +29,9 @@ export const ActionEvents = {
   // Events for PDF OCR via Offscreen Document
   BACKGROUND_REQUEST_PDF_OCR: "BACKGROUND_REQUEST_PDF_OCR",
   OFFSCREEN_PDF_OCR_RESULT: "OFFSCREEN_PDF_OCR_RESULT",
+  GET_PROPERTY_DATA_FROM_CACHE: "GET_PROPERTY_DATA_FROM_CACHE",
+  BACKGROUND_REQUESTS_CLIENT_PDF_OCR: "BACKGROUND_REQUESTS_CLIENT_PDF_OCR",
+  CLIENT_PDF_OCR_RESULT: "CLIENT_PDF_OCR_RESULT",
 } as const;
 
 export type ActionEvents = (typeof ActionEvents)[keyof typeof ActionEvents];

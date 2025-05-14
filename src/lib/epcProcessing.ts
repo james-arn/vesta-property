@@ -56,7 +56,12 @@ const handleSandboxMessage = (message: MessageEvent) => {
   // Added more verbose logging here
   console.log("[epcProcessing] handleSandboxMessage: Received message event. Data:", messageData);
 
-  if (!messageData || messageData.source !== "sandbox" || messageData.action !== "OCR_RESULT") {
+  if (
+    !messageData ||
+    typeof messageData !== "object" ||
+    messageData.source !== "sandbox" ||
+    messageData.action !== "OCR_RESULT"
+  ) {
     console.log(
       "[epcProcessing] handleSandboxMessage: Message ignored (not a valid OCR_RESULT from sandbox).",
       "Expected source 'sandbox', got:",
@@ -135,10 +140,25 @@ const ensureSandboxIframe = (): Promise<HTMLIFrameElement> => {
 
 // Creates the iframe and returns a promise that resolves on load or rejects on error
 const createSandboxIframe = (): Promise<HTMLIFrameElement> => {
-  console.log("[epcProcessing] createSandboxIframe: Attempting to create sandbox iframe..."); // Enhanced log
+  console.log("[epcProcessing] createSandboxIframe: Attempting to create sandbox iframe...");
   return new Promise((resolve, reject) => {
     const iframe = document.createElement("iframe");
-    iframe.src = chrome.runtime.getURL(SANDBOX_HTML_PATH);
+    try {
+      iframe.src = chrome.runtime.getURL(SANDBOX_HTML_PATH);
+      console.log("[epcProcessing] createSandboxIframe: Set iframe.src to:", iframe.src);
+    } catch (e) {
+      console.error(
+        "[epcProcessing] createSandboxIframe: ERROR calling chrome.runtime.getURL with path:",
+        SANDBOX_HTML_PATH,
+        e
+      );
+      reject(
+        new Error(
+          `Failed to get URL for sandbox.html: ${e instanceof Error ? e.message : String(e)}`
+        )
+      );
+      return;
+    }
     iframe.style.display = "none";
     iframe.setAttribute("aria-hidden", "true"); // Accessibility
 
@@ -146,7 +166,7 @@ const createSandboxIframe = (): Promise<HTMLIFrameElement> => {
       console.log(
         "[epcProcessing] createSandboxIframe: Sandbox iframe ONLOAD event fired. src:",
         iframe.src
-      ); // Enhanced log
+      );
       // Optional: Add cleanup listener if iframe gets removed unexpectedly
       // We might rely on ensureSandboxIframe check instead
       resolve(iframe);
@@ -158,18 +178,23 @@ const createSandboxIframe = (): Promise<HTMLIFrameElement> => {
         iframe.src,
         "Error event:",
         event
-      ); // Enhanced log
+      );
       iframe.remove(); // Clean up failed iframe
       sandboxIframePromise = null; // Clear the promise so next call tries again
-      reject(new Error("Failed to load sandbox iframe."));
+      reject(
+        new Error(
+          "Failed to load sandbox iframe. Check manifest.json web_accessible_resources and sandbox path."
+        )
+      );
     };
 
     try {
-      console.log("[epcProcessing] Appending sandbox iframe to body...");
+      console.log("[epcProcessing] Appending sandbox iframe to document.body...");
       document.body.appendChild(iframe);
       console.log("[epcProcessing] Sandbox iframe appended. Waiting for onload/onerror...");
     } catch (error) {
-      console.error("[epcProcessing] Error appending sandbox iframe:", error);
+      console.error("[epcProcessing] Error appending sandbox iframe to document.body:", error);
+      sandboxIframePromise = null; // Clear promise here too, as iframe instance is lost
       reject(error);
     }
   });
@@ -195,17 +220,17 @@ export const removeSandboxIframe = () => {
 
 // --- OCR Task ---
 const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResponseData> => {
-  console.log("[epcProcessing] performOcrInSandbox: Ensuring sandbox iframe..."); // New log
+  console.log("[epcProcessing] performOcrInSandbox: Ensuring sandbox iframe...");
   const iframe = await ensureSandboxIframe(); // Get or create the iframe
 
   console.log(
     "[epcProcessing] performOcrInSandbox: iframe object after ensure:",
     iframe ? iframe.src : "null iframe"
-  ); // Enhanced log
+  );
   console.log(
     "[epcProcessing] performOcrInSandbox: iframe.contentWindow after ensure:",
     iframe ? (iframe.contentWindow ? "exists" : "null") : "N/A"
-  ); // Enhanced log
+  );
 
   // Setup the promise and callback reference *before* posting the message
   const requestId = crypto.randomUUID();
@@ -213,9 +238,9 @@ const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResp
   console.log(
     "[epcProcessing] performOcrInSandbox: Generated new OCR request ID:",
     currentOcrRequestId
-  ); // New log
+  );
 
-  const ocrPromise = new Promise<PerformOcrResponseData>((resolve) => {
+  const ocrPromise = new Promise<PerformOcrResponseData>((resolve, reject) => {
     ocrCallback = (result) => {
       // Wrapped to log
       console.log(
@@ -225,39 +250,72 @@ const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResp
       );
       resolve(result);
     };
+    // Basic timeout for the callback, in case sandbox never responds
+    setTimeout(() => {
+      if (currentOcrRequestId === requestId) {
+        // Only reject if this request is still the active one
+        console.error(
+          `[epcProcessing] performOcrInSandbox: Timeout waiting for OCR result for request ID: ${requestId}. Sandbox might have crashed or failed to post back.`
+        );
+        ocrCallback = null; // Clear callback
+        currentOcrRequestId = null; // Clear current request ID
+        reject(
+          new Error(`Timeout waiting for OCR result from sandbox for request ID: ${requestId}.`)
+        );
+      }
+    }, 30000); // 30-second timeout for OCR response from sandbox
   });
 
-  if (iframe.contentWindow) {
+  if (iframe && iframe.contentWindow) {
+    const messagePayload = { action: "PERFORM_OCR", requestId, data: { imageDataUrl } };
     console.log(
-      `[epcProcessing] performOcrInSandbox: Posting OCR task with ID: ${requestId} to sandbox (iframe src: ${iframe.src}).`
-    ); // Enhanced log
-    iframe.contentWindow.postMessage(
-      { action: "PERFORM_OCR", requestId, data: { imageDataUrl } },
-      "*"
+      `[epcProcessing] performOcrInSandbox: Posting OCR task to sandbox. Request ID: ${requestId}, TargetOrigin: '*', Payload:`,
+      messagePayload
     );
+    iframe.contentWindow.postMessage(messagePayload, "*");
   } else {
     console.error(
-      "[epcProcessing] performOcrInSandbox: Error: iframe.contentWindow was null or inaccessible. iframe src:",
-      iframe.src
-    ); // Enhanced log
-    currentOcrRequestId = null; // Clean up request ID
-    ocrCallback = null; // Clean up callback
-    throw new Error("Sandbox iframe contentWindow is not accessible.");
+      "[epcProcessing] performOcrInSandbox: Error: iframe.contentWindow was null or inaccessible. Cannot post message. iframe src:",
+      iframe ? iframe.src : "iframe object is null"
+    );
+    // Clean up
+    currentOcrRequestId = null;
+    ocrCallback = null;
+    // Reject the promise directly if we can't post the message
+    return Promise.reject(
+      new Error("Sandbox iframe contentWindow is not accessible. Cannot post message.")
+    );
   }
 
   // Await the promise which will be resolved by handleSandboxMessage
   console.log(
     "[epcProcessing] performOcrInSandbox: Awaiting ocrPromise for request ID:",
     currentOcrRequestId
-  ); // New log
-  const result = await ocrPromise;
-  console.log(
-    "[epcProcessing] performOcrInSandbox: ocrPromise resolved for request ID:",
-    currentOcrRequestId,
-    "Result:",
-    result
-  ); // New log
-  return result;
+  );
+  try {
+    const result = await ocrPromise;
+    console.log(
+      "[epcProcessing] performOcrInSandbox: ocrPromise resolved for request ID:",
+      currentOcrRequestId,
+      "Result:",
+      result
+    );
+    return result;
+  } catch (error) {
+    console.error(
+      "[epcProcessing] performOcrInSandbox: ocrPromise rejected for request ID:",
+      currentOcrRequestId,
+      "Error:",
+      error
+    );
+    // Ensure cleanup if promise was rejected by timeout or other means
+    if (currentOcrRequestId === requestId) {
+      // Check if it's still the same request
+      ocrCallback = null;
+      currentOcrRequestId = null;
+    }
+    throw error; // Re-throw the error to be caught by processPdfUrl
+  }
 };
 
 // --- Processing Functions ---
@@ -267,7 +325,11 @@ const performOcrInSandbox = async (imageDataUrl: string): Promise<PerformOcrResp
  * @param processingUrl URL of the PDF file.
  * @returns EpcProcessorResult object.
  */
-export const processPdfUrl = async (processingUrl: string): Promise<EpcProcessorResult> => {
+export const processPdfUrl = async (
+  processingUrl: string,
+  domPostcode?: string | null,
+  domDisplayAddress?: string | null
+): Promise<EpcProcessorResult> => {
   try {
     const imageDataUrl = await renderPdfPageToDataUrl(processingUrl);
     if (!imageDataUrl) {
@@ -277,7 +339,12 @@ export const processPdfUrl = async (processingUrl: string): Promise<EpcProcessor
     const result = await performOcrInSandbox(imageDataUrl);
 
     if (result.success && result.text) {
-      const extractedData = extractAddressAndPdfDataFromText(result.text);
+      console.log("[epcProcessing] Raw OCR Text from Sandbox:", JSON.stringify(result.text));
+      const extractedData = extractAddressAndPdfDataFromText(
+        result.text,
+        domPostcode,
+        domDisplayAddress
+      );
       const extractedEpcValue = extractedData?.currentEpcRating ?? null;
 
       return {
@@ -407,7 +474,12 @@ export const processEpcData = async (
   const isImage = IMAGE_EXTENSIONS.some((ext) => processingUrl.toLowerCase().endsWith(ext));
 
   if (isPdf) {
-    return await processPdfUrl(processingUrl);
+    // For processEpcData, we don't have immediate access to DOM address hints here.
+    // This part of the refactor might require a slightly deeper change if processEpcData
+    // is called from a context where hints *could* be available but aren't passed.
+    // For now, PDF calls originating from background.ts via contentScript will have hints.
+    // Calls directly to processEpcData (e.g. from UI if any) won't pass them yet.
+    return await processPdfUrl(processingUrl); // Calls processPdfUrl without hints by default
   } else if (isImage) {
     return await processImageUrl(processingUrl, debugCanvasRef);
   } else {

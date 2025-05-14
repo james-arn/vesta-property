@@ -113,6 +113,10 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
           }
         })();
 
+        console.log(
+          "[SidePanel Hook] Final EPC being set to cache:",
+          JSON.parse(JSON.stringify(dataToUpdate.epc))
+        );
         queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], dataToUpdate);
         console.log(
           `[useBackgroundMessageHandler] About to call setIsPropertyDataLoading(false). Current propertyId: ${propertyId}`

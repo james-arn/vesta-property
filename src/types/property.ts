@@ -53,16 +53,16 @@ export interface PropertyItem {
   reason: string | null;
 }
 
-export const EpcDataSourceType = {
-  LISTING: "Listing",
-  PDF: "PDF",
-  IMAGE: "Image",
-  GOV_EPC_REGISTER: "GovEpcRegister",
-  NONE: "None",
-  USER_PROVIDED: "UserProvided",
-} as const;
-
-export type EpcDataSourceType = (typeof EpcDataSourceType)[keyof typeof EpcDataSourceType];
+export enum EpcDataSourceType {
+  NONE = "None",
+  LISTING = "Listing", // From the initial scrape if EPC is directly on page
+  PDF = "PDF", // From PDF OCR
+  IMAGE = "Image", // From Image (e.g. EPC graph) OCR
+  GOV_EPC_REGISTER = "GOV EPC Register", // Directly from a confirmed GOV EPC certificate
+  GOV_EPC_AND_FILE_EPC_MATCH = "GOV EPC Register (File EPC Match)", // New source
+  USER_PROVIDED = "User Provided",
+  // Add other potential sources as needed
+}
 
 export interface EpcData {
   url: string | null;

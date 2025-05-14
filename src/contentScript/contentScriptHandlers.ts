@@ -19,40 +19,8 @@ const getPropertyCacheKey = (propertyId: number | string): string => {
 async function _updateStoredPropertyData(
   data: ExtractedPropertyScrapingData | null
 ): Promise<void> {
-  console.log("[ContentScript State Handler] Updating stored data.", data);
+  console.log("[ContentScript State Handler] Updating stored data (in-memory only).", data);
   currentPropertyData = data;
-
-  const currentPropertyId = data?.propertyId;
-
-  if (currentPropertyId) {
-    const cacheKey = getPropertyCacheKey(currentPropertyId);
-    if (data) {
-      try {
-        await chrome.storage.local.set({ [cacheKey]: data });
-        console.log(`[ContentScript Cache] Saved data to storage for key: ${cacheKey}`);
-      } catch (error) {
-        logErrorToSentry(
-          `[ContentScript Cache] Error saving property data to storage for key ${cacheKey}: ${error instanceof Error ? error.message : String(error)}`,
-          "warning"
-        );
-      }
-    } else {
-      // If data is null, attempt to remove from cache using the key derived from existing ID
-      try {
-        await chrome.storage.local.remove(cacheKey);
-        console.log(`[ContentScript Cache] Removed data from storage for key: ${cacheKey}`);
-      } catch (error) {
-        logErrorToSentry(
-          `[ContentScript Cache] Error removing property data from storage for key ${cacheKey}: ${error instanceof Error ? error.message : String(error)}`,
-          "warning"
-        );
-      }
-    }
-  } else if (!data) {
-    // If data is null and had no ID, we can't clear a specific cache entry easily.
-    // Potentially clear all cache? Or do nothing.
-    console.log("[ContentScript Cache] Cannot clear cache: data is null and has no propertyId.");
-  }
 }
 
 export function getStoredPropertyData(): ExtractedPropertyScrapingData | null {
@@ -101,8 +69,6 @@ function _sendShowWarning(reasonUrl: string, specificMessage?: string): void {
       "error"
     );
   }
-  // If pull tab needs updating on warning, call it here.
-  // createAndInjectPullTab();
 }
 
 // --- Core Logic Handlers (Exported for Listeners) ---
@@ -155,14 +121,9 @@ export async function handlePageModelAvailable(model: RightmovePageModelType): P
 
     let extractedData: ExtractedPropertyScrapingData | null = null;
     try {
-      // Pass the address from cached data (if available) to the extractor
       const cachedAddress = cachedData?.address;
-      extractedData = await extractPropertyDataFromDOM(model, cachedAddress); // Pass cachedAddress
-
-      // Decision: Do we merge or replace? Let's replace for now, but prioritize high-confidence addresses.
-      // If newly extracted data lacks an address, but cached data had one, potentially merge?
-      // Simplified: If extraction fails or lacks displayAddress, AND we have cached data, keep cached. Otherwise use extracted.
-
+      extractedData = await extractPropertyDataFromDOM(model, cachedAddress);
+      // If extraction fails or lacks displayAddress, AND we have cached data, keep cached. Otherwise use extracted.
       if (
         extractedData &&
         !extractedData.address?.displayAddress &&
@@ -226,8 +187,6 @@ export function handleTabOrNavigationUpdate(urlFromBackground: string): void {
       "[ContentScript Handler] Waiting for new page model events for URL:",
       window.location.href
     );
-    // Potential enhancement: Trigger a cache load here if needed?
-    // For now, relies on handlePageModelAvailable being triggered eventually.
   }
 }
 

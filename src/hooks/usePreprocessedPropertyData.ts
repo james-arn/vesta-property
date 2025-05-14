@@ -29,6 +29,7 @@ import { useProcessedEpcData } from "./useProcessedEpcData";
 type UsePreprocessedPropertyDataArgs = {
   propertyData: UseChecklistAndDashboardDataArgs["propertyData"];
   premiumStreetDataQuery: UseQueryResult<GetPremiumStreetDataResponse | null, Error> | undefined;
+  isParentDataLoading: boolean;
   epcDebugCanvasRef: UseChecklistAndDashboardDataArgs["epcDebugCanvasRef"];
   isEpcDebugModeOn: UseChecklistAndDashboardDataArgs["isEpcDebugModeOn"];
 };
@@ -36,6 +37,7 @@ type UsePreprocessedPropertyDataArgs = {
 export const usePreprocessedPropertyData = ({
   propertyData,
   premiumStreetDataQuery,
+  isParentDataLoading,
   epcDebugCanvasRef,
   isEpcDebugModeOn,
 }: UsePreprocessedPropertyDataArgs): PreprocessedData => {
@@ -45,6 +47,7 @@ export const usePreprocessedPropertyData = ({
   const { processedEpcResult, isEpcProcessing, isEpcError, epcError } = useProcessedEpcData({
     initialEpcData,
     epcUrl,
+    isParentDataLoading,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
   });
@@ -90,8 +93,33 @@ export const usePreprocessedPropertyData = ({
 
   const { finalEpcValue, finalEpcConfidence, finalEpcSource, epcScoreForCalculation } =
     useMemo(() => {
-      // If user has made a specific EPC rating override, use that as prioirty.
+      // --- PRIORITY 1: Trust good data from background if available and not an error ---
+      // This comes from propertyData.epc, which is updated by the background script's successful processing.
+      if (
+        initialEpcData?.value &&
+        initialEpcData.confidence !== ConfidenceLevels.NONE &&
+        !initialEpcData.error
+      ) {
+        console.log(
+          "[usePreprocessedPropertyData] Using initialEpcData directly as it's good:",
+          initialEpcData
+        );
+        const score = mapGradeToScore(initialEpcData.value);
+        return {
+          finalEpcValue: initialEpcData.value,
+          finalEpcConfidence: initialEpcData.confidence || ConfidenceLevels.NONE,
+          finalEpcSource: initialEpcData.source || null,
+          epcScoreForCalculation: score,
+        };
+      }
+
+      // --- PRIORITY 2: User-provided override (if initialEpcData wasn't good enough above) ---
+      // initialEpcValue and initialEpcConfidence are derived from propertyData.epc at the top of this hook
       if (initialEpcConfidence === ConfidenceLevels.USER_PROVIDED && initialEpcValue) {
+        console.log(
+          "[usePreprocessedPropertyData] Using USER_PROVIDED initialEpcData:",
+          initialEpcData
+        );
         const score = mapGradeToScore(initialEpcValue);
         return {
           finalEpcValue: initialEpcValue,
@@ -101,24 +129,41 @@ export const usePreprocessedPropertyData = ({
         };
       }
 
-      // --- Prioritize High Confidence from Initial Scrape ---
-      // If we already have high confidence from the listing scrape, trust it
-      // and don't let potential errors in automated processing override it.
-      if (initialEpcConfidence === ConfidenceLevels.HIGH && initialEpcValue) {
+      // --- PRIORITY 3: High confidence from initial listing scrape (if not already caught by PRIORITY 1) ---
+      // This is mostly for cases where background script might not have run PDF/Image OCR yet.
+      // initialEpcValue and initialEpcConfidence are from propertyData.epc
+      if (
+        initialEpcConfidence === ConfidenceLevels.HIGH &&
+        initialEpcValue &&
+        !initialEpcData?.error
+      ) {
+        // Added null check for initialEpcData.error
+        console.log(
+          "[usePreprocessedPropertyData] Using HIGH confidence initialEpcData from listing:",
+          initialEpcData
+        );
         const score = mapGradeToScore(initialEpcValue);
         return {
           finalEpcValue: initialEpcValue,
           finalEpcConfidence: ConfidenceLevels.HIGH,
-          finalEpcSource: EpcDataSourceType.LISTING,
+          finalEpcSource: initialEpcData?.source || EpcDataSourceType.LISTING, // Ensure source if only LISTING
           epcScoreForCalculation: score,
         };
       }
 
-      // --- If no user override OR low confidence initial scrape, proceed with automated processing result ---
+      // --- If none of the above apply (e.g. initialEpcData is truly NONE or errored),
+      //     THEN rely on the client-side processedEpcResult from useProcessedEpcData hook.
       const automatedResult = processedEpcResult;
+      console.log(
+        "[usePreprocessedPropertyData] Falling back to automatedResult from useProcessedEpcData:",
+        automatedResult
+      );
 
       // --- Handle Loading State for Automated Processing ---
       if (isEpcProcessing || !automatedResult) {
+        console.log(
+          "[usePreprocessedPropertyData] Automated EPC is loading or result not available yet."
+        );
         return {
           finalEpcValue: null,
           finalEpcConfidence: ConfidenceLevels.NONE,
@@ -127,22 +172,29 @@ export const usePreprocessedPropertyData = ({
         };
       }
 
-      // --- Handle Error State ---
+      // --- Handle Error State from Automated Processing ---
       if (isEpcError || automatedResult.error) {
+        console.warn(
+          "[usePreprocessedPropertyData] Automated EPC processing resulted in an error:",
+          automatedResult.error || epcError
+        );
         return {
           finalEpcValue: null,
           finalEpcConfidence: ConfidenceLevels.NONE,
-          finalEpcSource: null,
+          finalEpcSource: automatedResult?.source || null, // Preserve source if available, even on error
           epcScoreForCalculation: null,
         };
       }
 
-      // --- Process Successful Automated Result ---
+      // --- Process Successful Automated Result (from useProcessedEpcData) ---
+      console.log(
+        "[usePreprocessedPropertyData] Processing successful automatedResult:",
+        automatedResult
+      );
       const value: string | null = automatedResult?.value ?? null;
       const confidence: Confidence = automatedResult?.confidence ?? ConfidenceLevels.NONE;
       const source: EpcDataSourceType | null = automatedResult?.source ?? null;
 
-      // Determine the score, preferring the score calculated during processing if available
       let score: number | null = null;
       if (
         automatedResult?.automatedProcessingResult &&
@@ -150,20 +202,26 @@ export const usePreprocessedPropertyData = ({
       ) {
         const bandResult = automatedResult.automatedProcessingResult as EpcBandResult;
         score = bandResult.currentBand?.score ?? null;
-        if (score === null) {
-          console.warn(
-            "EPC BandResult found, but currentBand.score was null. Falling back to grade mapping for:",
-            value
-          );
+        if (score === null && value) {
+          // ensure value exists before mapping
           score = mapGradeToScore(value);
         }
       } else if (
         automatedResult?.automatedProcessingResult &&
         "currentEpcRating" in automatedResult.automatedProcessingResult
       ) {
-        const extractedResult = automatedResult.automatedProcessingResult;
-        score = mapGradeToScore(extractedResult.currentEpcRating);
-      } else {
+        // Type assertion to help TypeScript understand the structure
+        const extractedResult = automatedResult.automatedProcessingResult as {
+          currentEpcRating?: string | null;
+        };
+        if (extractedResult.currentEpcRating) {
+          score = mapGradeToScore(extractedResult.currentEpcRating);
+        } else if (value) {
+          // Fallback to top-level value if currentEpcRating is missing
+          score = mapGradeToScore(value);
+        }
+      } else if (value) {
+        // Ensure value exists before mapping
         score = mapGradeToScore(value);
       }
 
@@ -174,12 +232,14 @@ export const usePreprocessedPropertyData = ({
         epcScoreForCalculation: score,
       };
     }, [
-      initialEpcValue,
-      initialEpcConfidence,
-      initialEpcSource,
+      initialEpcData, // Added to dependency array
+      // initialEpcValue, initialEpcConfidence, initialEpcSource are derived from initialEpcData
+      // so they don't need to be separate dependencies if initialEpcData covers their changes.
       processedEpcResult,
       isEpcProcessing,
       isEpcError,
+      epcError, // Ensure epcError from the hook is a dependency
+      // Removed initialEpcValue, initialEpcConfidence, initialEpcSource from deps as initialEpcData covers them
     ]);
 
   const nearbySchoolsScoreValue = useMemo(() => {

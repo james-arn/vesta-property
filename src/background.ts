@@ -8,7 +8,6 @@ import {
   findBestGovEpcMatch,
   getPlausibleGovEpcMatches,
 } from "./background/govEpcService/govEpcMatcher";
-import { sendMessageToOffscreenDocument } from "./background/offscreenDocumentHelper";
 import { ActionEvents } from "./constants/actionEvents";
 import { ENV_CONFIG } from "./constants/environmentConfig";
 import { RIGHTMOVE_PROPERTY_PAGE_REGEX } from "./constants/regex";
@@ -44,6 +43,11 @@ const PDF_OCR_OFFSCREEN_JUSTIFICATION =
 
 // Session cache for GOV EPC postcode lookups
 const govEpcPostcodeCache = new Map<string, GovEpcCertificate[] | null>();
+// Map to store resolve functions for pending client PDF OCR requests
+const pendingClientPdfOcrRequests = new Map<string, (result: EpcProcessorResult) => void>();
+
+// Set to track property IDs currently being processed to prevent concurrent runs
+const processingPropertyIds = new Set<string>();
 
 console.log("[background.ts] Service Worker loaded and running.");
 
@@ -676,8 +680,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED) {
     // Pass to the async handler function. Return true to indicate async response.
-    handlePropertyDataExtraction(message.data as ExtractedPropertyScrapingData, sendResponse);
+    handlePropertyDataExtraction(
+      message.data as ExtractedPropertyScrapingData,
+      sendResponse,
+      sender.tab?.id
+    );
     return true;
+  }
+
+  // Listen for results from client-side PDF OCR
+  if (message.action === ActionEvents.CLIENT_PDF_OCR_RESULT) {
+    const { requestId, result } = message.payload as {
+      requestId: string;
+      result: EpcProcessorResult;
+    };
+    if (pendingClientPdfOcrRequests.has(requestId)) {
+      const resolve = pendingClientPdfOcrRequests.get(requestId);
+      resolve?.(result);
+      pendingClientPdfOcrRequests.delete(requestId);
+      console.log(
+        `[background.ts] Received and resolved CLIENT_PDF_OCR_RESULT for requestId: ${requestId}`
+      );
+    } else {
+      console.warn(
+        `[background.ts] Received CLIENT_PDF_OCR_RESULT for unknown requestId: ${requestId}`
+      );
+    }
+    return false; // No need to sendResponse back for this, it's a response to a background-initiated request
   }
 
   // If a message is not handled by any of the specific handlers above:
@@ -731,234 +760,511 @@ const generateCodeChallenge = async (verifier: string) => {
 // Ensure this function is properly defined if it was missing or causing issues before.
 async function handlePropertyDataExtraction(
   propertyData: ExtractedPropertyScrapingData,
-  sendResponseToContentScript: (response: any) => void
+  sendResponseToContentScript: (response: any) => void,
+  tabId?: number
 ) {
-  let currentPropertyData = { ...propertyData }; // Work with a mutable copy
+  const { propertyId } = propertyData;
 
-  console.log(
-    `[background.ts] Processing ${ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED}:`,
-    currentPropertyData
-  );
-
-  // Initial cache and UI update with scraped data
-  if (currentPropertyData.propertyId) {
-    await chrome.storage.local.set({
-      [`${StorageKeys.PROPERTY_DATA_CACHE_PREFIX}${currentPropertyData.propertyId}`]:
-        currentPropertyData,
-    });
-  }
-  chrome.runtime.sendMessage({
-    action: ActionEvents.PROPERTY_PAGE_OPENED,
-    data: currentPropertyData,
-  });
-
-  // --- GOV.UK EPC Validation Logic ---
-  if (
-    currentPropertyData.address?.postcode &&
-    (currentPropertyData.address.addressConfidence !== ConfidenceLevels.HIGH ||
-      currentPropertyData.epc?.confidence !== ConfidenceLevels.HIGH) &&
-    currentPropertyData.address.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC &&
-    currentPropertyData.epc?.source !== EpcDataSourceType.GOV_EPC_REGISTER
-  ) {
-    console.log(
-      "[background.ts] Attempting GOV.UK EPC validation for postcode:",
-      currentPropertyData.address.postcode
+  if (propertyId && processingPropertyIds.has(propertyId)) {
+    console.warn(
+      `[background.ts] handlePropertyDataExtraction: Processing already in progress for propertyId: ${propertyId}. Skipping new run.`
     );
-    try {
-      const postcode = currentPropertyData.address.postcode;
-      const cachedCertificates = govEpcPostcodeCache.get(postcode);
-      let govCertificates: GovEpcCertificate[] | null = cachedCertificates || null;
+    sendResponseToContentScript({ status: "Processing already in progress, current run skipped." });
+    return;
+  }
 
-      if (cachedCertificates === undefined) {
-        // Check for undefined to distinguish from null (cache hit, no certs)
-        govCertificates = await fetchGovEpcCertificatesByPostcode(postcode);
-        govEpcPostcodeCache.set(postcode, govCertificates);
-      } else {
-        console.log("[background.ts] Using cached GOV EPC certificates for postcode:", postcode);
-      }
+  if (propertyId) {
+    processingPropertyIds.add(propertyId);
+  }
 
-      if (govCertificates && govCertificates.length > 0) {
-        const bestMatch: GovEpcValidationMatch | null = findBestGovEpcMatch(
-          govCertificates,
-          currentPropertyData
+  try {
+    // --- Load authoritative data from storage ---
+    let authoritativePropertyData: ExtractedPropertyScrapingData | null = null;
+    if (propertyId) {
+      const storageKey = `${StorageKeys.PROPERTY_DATA_CACHE_PREFIX}${propertyId}`;
+      const result = await chrome.storage.local.get(storageKey);
+      if (result[storageKey]) {
+        authoritativePropertyData = result[storageKey] as ExtractedPropertyScrapingData;
+        console.log(
+          `[background.ts] Loaded authoritative data for ${propertyId} from storage:`,
+          JSON.parse(JSON.stringify(authoritativePropertyData))
         );
-
-        if (bestMatch && bestMatch.overallMatchStrength === "strong") {
-          // Corrected to lowercase "strong"
-          console.log("[background.ts] Strong GOV.UK EPC match found:", bestMatch);
-          currentPropertyData = {
-            ...currentPropertyData,
-            address: {
-              ...currentPropertyData.address,
-              displayAddress: bestMatch.retrievedAddress,
-              addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
-              govEpcRegisterSuggestions: null,
-            } as Address,
-            epc: {
-              ...currentPropertyData.epc,
-              value: bestMatch.retrievedRating,
-              confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
-              source: EpcDataSourceType.GOV_EPC_REGISTER,
-              url: bestMatch.certificateUrl,
-              automatedProcessingResult: {
-                currentEpcRating: bestMatch.retrievedRating,
-                pdfAddress: bestMatch.retrievedAddress, // This field may not be accurate if source is not PDF
-                // Consider naming it 'retrievedOfficialAddress' or similar in a common structure
-              },
-              error: null,
-            } as EpcData,
-          };
-        } else {
-          const plausibleMatches = getPlausibleGovEpcMatches(govCertificates, currentPropertyData);
-          console.log("[background.ts] Plausible GOV.UK EPC matches:", plausibleMatches);
-          currentPropertyData = {
-            ...currentPropertyData,
-            address: {
-              ...currentPropertyData.address,
-              govEpcRegisterSuggestions: plausibleMatches.length > 0 ? plausibleMatches : null,
-            } as Address,
-          };
-        }
-
-        // No storage set or UI message here yet, will be done after PDF attempt
-      } else {
-        console.log("[background.ts] No GOV.UK EPC certificates found for postcode:", postcode);
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error("[background.ts] Error during GOV.UK EPC validation:", errorMsg);
-      logErrorToSentry(
-        error instanceof Error ? error : new Error(`GOV.UK EPC validation failed: ${errorMsg}`),
-        "error"
-      );
     }
-  }
-  // --- End GOV.UK EPC Validation Logic ---
 
-  // --- PDF OCR Fallback Logic ---
-  const { address, epc } = currentPropertyData;
-  const isAddressStillUnconfirmed =
-    address?.addressConfidence !== ConfidenceLevels.HIGH &&
-    address?.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC;
-  const isEpcStillUnconfirmed =
-    epc?.confidence !== ConfidenceLevels.HIGH &&
-    epc?.confidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC;
-  const hasPdfUrlForEpc = epc?.url && epc.url.toLowerCase().endsWith(".pdf");
-  const isNotAlreadyProcessedPdf = epc?.source !== EpcDataSourceType.PDF;
+    // --- Merge fresh scrape with authoritative data ---
+    let currentPropertyData: ExtractedPropertyScrapingData;
 
-  if (
-    (isAddressStillUnconfirmed || isEpcStillUnconfirmed) &&
-    hasPdfUrlForEpc &&
-    isNotAlreadyProcessedPdf
-  ) {
-    console.log(
-      "[background.ts] Low confidence after GOV EPC, attempting PDF OCR for EPC URL:",
-      epc.url
-    );
-    try {
-      const ocrResult = await sendMessageToOffscreenDocument<EpcProcessorResult>(
-        PDF_OCR_OFFSCREEN_DOCUMENT_PATH,
-        PDF_OCR_OFFSCREEN_REASONS,
-        PDF_OCR_OFFSCREEN_JUSTIFICATION,
-        {
-          action: ActionEvents.BACKGROUND_REQUEST_PDF_OCR,
-          payload: { pdfUrl: epc.url },
-        }
-      );
+    if (authoritativePropertyData) {
+      const freshScrapeEpc = propertyData.epc;
+      const authoritativeEpc = authoritativePropertyData.epc;
 
       console.log(
-        "[background.ts] PDF OCR Result from Offscreen:",
-        JSON.stringify(ocrResult, null, 2)
+        "[background.ts] Merge Pre-check: freshScrapeEpc:",
+        JSON.parse(JSON.stringify(freshScrapeEpc || {})),
+        "authoritativeEpc:",
+        JSON.parse(JSON.stringify(authoritativeEpc || {}))
       );
 
-      // Check if OCR was successful (no error string and status indicates success)
-      if (ocrResult && !ocrResult.error && ocrResult.status === DataStatus.FOUND_POSITIVE) {
-        const ocrProcessedEpcValue = ocrResult.value; // This is the EPC rating (e.g., "C")
-        let ocrExtractedAddress: string | null = null;
+      let mergedEpc: EpcData | null | undefined = freshScrapeEpc; // Default to fresh scrape EPC
 
-        if (
-          ocrResult.automatedProcessingResult &&
-          "fullAddress" in ocrResult.automatedProcessingResult
-        ) {
-          ocrExtractedAddress = (ocrResult.automatedProcessingResult as PdfExtractedEpcDataType)
-            .fullAddress;
-        }
-
-        // Update EPC data from PDF if an EPC value was found
-        if (ocrProcessedEpcValue) {
-          currentPropertyData = {
-            ...currentPropertyData,
-            epc: {
-              ...currentPropertyData.epc,
-              value: ocrProcessedEpcValue,
-              confidence: ConfidenceLevels.MEDIUM, // EPC from PDF might be medium confidence
-              source: EpcDataSourceType.PDF,
-              url: ocrResult.url, // The PDF URL itself
-              automatedProcessingResult: ocrResult.automatedProcessingResult,
-              error: null, // Clear previous errors
-            } as EpcData,
-          };
-        }
-
-        if (
-          ocrExtractedAddress &&
-          !(
-            currentPropertyData.address.addressConfidence === ConfidenceLevels.HIGH ||
-            currentPropertyData.address.addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
-          )
-        ) {
-          console.log("[background.ts] Updating address from PDF OCR result:", ocrExtractedAddress);
-          currentPropertyData = {
-            ...currentPropertyData,
-            address: {
-              ...currentPropertyData.address,
-              displayAddress: ocrExtractedAddress,
-              addressConfidence: ConfidenceLevels.MEDIUM, // Address from PDF gets medium confidence
-              govEpcRegisterSuggestions: null,
-            } as Address,
-          };
-        }
-      } else {
-        const errorDetail = ocrResult?.error || `OCR status was ${ocrResult?.status || "unknown"}`;
-        console.warn(
-          `[background.ts] PDF OCR was attempted but returned an error or non-positive status. Detail: ${errorDetail}. Full OCR Result:`,
-          ocrResult
-        );
-        if (ocrResult?.error) {
-          logErrorToSentry(`[background.ts] PDF OCR explicit error: ${ocrResult.error}`, "warning");
-        }
+      if (
+        authoritativeEpc?.source === EpcDataSourceType.PDF &&
+        (authoritativeEpc?.confidence === ConfidenceLevels.MEDIUM ||
+          authoritativeEpc?.confidence === ConfidenceLevels.HIGH)
+      ) {
+        mergedEpc = authoritativeEpc; // Prefer stored good PDF data
+        console.log(`[background.ts] Using authoritative PDF EPC for ${propertyId}`);
+      } else if (
+        authoritativeEpc?.source === EpcDataSourceType.GOV_EPC_REGISTER &&
+        authoritativeEpc?.confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+      ) {
+        mergedEpc = authoritativeEpc; // Prefer stored good GOV EPC data
+        console.log(`[background.ts] Using authoritative GOV EPC for ${propertyId}`);
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logErrorToSentry(
-        `[background.ts] Error during PDF OCR offscreen orchestration: ${errorMessage}`,
-        "error"
+      // If neither authoritative PDF nor GOV EPC is definitive,
+      // freshScrapeEpc (or potentially authoritativeEpc if fresh is null) will be used.
+      // If freshScrapeEpc is null, but authoritativeEpc exists, use authoritativeEpc.
+      else if (!freshScrapeEpc && authoritativeEpc) {
+        mergedEpc = authoritativeEpc;
+      }
+
+      console.log(
+        "[background.ts] Merge Post-check: determined mergedEpc:",
+        JSON.parse(JSON.stringify(mergedEpc || {}))
       );
-      if (!(error instanceof Error)) {
-        console.error("[background.ts] Original non-Error object in PDF OCR catch:", error);
+
+      currentPropertyData = {
+        ...authoritativePropertyData, // Base: fields from last full process
+        ...propertyData, // Overlay: fresh scrape (e.g., price, agent, listing status)
+        // Merge complex objects carefully:
+        address: {
+          // Start with authoritative, overlay fresh, then restore specific authoritative fields if needed
+          ...(authoritativePropertyData.address || {}),
+          ...(propertyData.address || {}),
+          // If authoritative address was GOV_CONFIRMED, keep that confidence & address unless user explicitly changes
+          displayAddress:
+            authoritativePropertyData.address?.addressConfidence ===
+            ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+              ? authoritativePropertyData.address.displayAddress
+              : propertyData.address?.displayAddress ||
+                authoritativePropertyData.address?.displayAddress,
+          addressConfidence:
+            authoritativePropertyData.address?.addressConfidence ===
+            ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+              ? authoritativePropertyData.address.addressConfidence
+              : propertyData.address?.addressConfidence ||
+                authoritativePropertyData.address?.addressConfidence ||
+                ConfidenceLevels.NONE,
+          govEpcRegisterSuggestions:
+            propertyData.address?.govEpcRegisterSuggestions || // Fresh suggestions take precedence
+            authoritativePropertyData.address?.govEpcRegisterSuggestions,
+        },
+        epc: mergedEpc, // Use the merged EPC from above logic
+      };
+      console.log(
+        `[background.ts] Merged data for ${propertyId}:`,
+        JSON.parse(JSON.stringify(currentPropertyData))
+      );
+    } else {
+      currentPropertyData = { ...propertyData }; // No authoritative data, use fresh scrape as is
+      console.log(
+        `[background.ts] No authoritative data for ${propertyId}, using fresh scrape:`,
+        JSON.parse(JSON.stringify(currentPropertyData))
+      );
+    }
+
+    console.log(
+      `[background.ts] Processing ${ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED} for tabId: ${tabId}:`,
+      currentPropertyData
+    );
+
+    // Initial cache and UI update with scraped data
+    if (currentPropertyData.propertyId) {
+      await chrome.storage.local.set({
+        [`${StorageKeys.PROPERTY_DATA_CACHE_PREFIX}${currentPropertyData.propertyId}`]:
+          currentPropertyData,
+      });
+    }
+    chrome.runtime.sendMessage({
+      action: ActionEvents.PROPERTY_PAGE_OPENED,
+      data: currentPropertyData,
+    });
+
+    // --- GOV.UK EPC Validation Logic ---
+    if (
+      currentPropertyData.address?.postcode &&
+      (currentPropertyData.address.addressConfidence !== ConfidenceLevels.HIGH ||
+        currentPropertyData.epc?.confidence !== ConfidenceLevels.HIGH) &&
+      currentPropertyData.address.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC &&
+      currentPropertyData.epc?.source !== EpcDataSourceType.GOV_EPC_REGISTER
+    ) {
+      console.log(
+        "[background.ts] Attempting GOV.UK EPC validation for postcode:",
+        currentPropertyData.address.postcode
+      );
+      try {
+        const postcode = currentPropertyData.address.postcode;
+        const cachedCertificates = govEpcPostcodeCache.get(postcode);
+        let govCertificates: GovEpcCertificate[] | null = cachedCertificates || null;
+
+        if (cachedCertificates === undefined) {
+          // Check for undefined to distinguish from null (cache hit, no certs)
+          govCertificates = await fetchGovEpcCertificatesByPostcode(postcode);
+          govEpcPostcodeCache.set(postcode, govCertificates);
+        } else {
+          console.log("[background.ts] Using cached GOV EPC certificates for postcode:", postcode);
+        }
+
+        if (govCertificates && govCertificates.length > 0) {
+          const bestMatch: GovEpcValidationMatch | null = findBestGovEpcMatch(
+            govCertificates,
+            currentPropertyData
+          );
+
+          if (bestMatch && bestMatch.overallMatchStrength === "strong") {
+            // Corrected to lowercase "strong"
+            console.log("[background.ts] Strong GOV.UK EPC match found:", bestMatch);
+            currentPropertyData = {
+              ...currentPropertyData,
+              address: {
+                ...currentPropertyData.address,
+                displayAddress: bestMatch.retrievedAddress,
+                addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+                govEpcRegisterSuggestions: null,
+              } as Address,
+              epc: {
+                ...currentPropertyData.epc,
+                value: bestMatch.retrievedRating,
+                confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+                source: EpcDataSourceType.GOV_EPC_REGISTER,
+                url: bestMatch.certificateUrl,
+                automatedProcessingResult: {
+                  currentEpcRating: bestMatch.retrievedRating,
+                  pdfAddress: bestMatch.retrievedAddress, // This field may not be accurate if source is not PDF
+                  // Consider naming it 'retrievedOfficialAddress' or similar in a common structure
+                },
+                error: null,
+              } as EpcData,
+            };
+          } else {
+            const plausibleMatches = getPlausibleGovEpcMatches(
+              govCertificates,
+              currentPropertyData
+            );
+            console.log("[background.ts] Plausible GOV.UK EPC matches:", plausibleMatches);
+            currentPropertyData = {
+              ...currentPropertyData,
+              address: {
+                ...currentPropertyData.address,
+                govEpcRegisterSuggestions: plausibleMatches.length > 0 ? plausibleMatches : null,
+              } as Address,
+            };
+          }
+
+          // No storage set or UI message here yet, will be done after PDF attempt
+        } else {
+          console.log("[background.ts] No GOV.UK EPC certificates found for postcode:", postcode);
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error("[background.ts] Error during GOV.UK EPC validation:", errorMsg);
+        logErrorToSentry(
+          error instanceof Error ? error : new Error(`GOV.UK EPC validation failed: ${errorMsg}`),
+          "error"
+        );
       }
     }
-  }
-  // --- END OF PDF OCR ATTEMPT ---
+    // --- End GOV.UK EPC Validation Logic ---
 
-  // --- FINAL DATA PROCESSING AND UI UPDATE (MOVED HERE) ---
-  // This section now runs regardless of PDF OCR success/failure,
-  // ensuring the UI always gets an update with the best data available.
-  console.log(
-    "[background.ts] Finalizing property data processing. Caching and notifying UI (after all attempts).",
-    currentPropertyData
-  );
-  if (currentPropertyData.propertyId) {
-    await chrome.storage.local.set({
-      [`${StorageKeys.PROPERTY_DATA_CACHE_PREFIX}${currentPropertyData.propertyId}`]:
-        currentPropertyData,
+    // --- Log EPC state before PDF OCR decision ---
+    console.log(
+      "[background.ts] EPC state BEFORE PDF OCR Logic evaluation:",
+      JSON.parse(JSON.stringify(currentPropertyData.epc || {}))
+    );
+
+    // --- PDF OCR Fallback Logic ---
+    const { address, epc } = currentPropertyData;
+    const hasPdfUrlForEpc = epc?.url && epc.url.toLowerCase().endsWith(".pdf");
+
+    // Define unconfirmed states based on the potentially updated epc and address
+    const isAddressStillUnconfirmed =
+      address?.addressConfidence !== ConfidenceLevels.HIGH &&
+      address?.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC;
+
+    const isCurrentEpcLowConfidence =
+      epc?.confidence !== ConfidenceLevels.HIGH &&
+      epc?.confidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC &&
+      epc?.confidence !== ConfidenceLevels.MEDIUM; // Assuming MEDIUM from PDF is good enough to not re-OCR
+
+    const isEpcPdfProcessedAndGood =
+      epc?.source === EpcDataSourceType.PDF &&
+      (epc.confidence === ConfidenceLevels.MEDIUM || epc.confidence === ConfidenceLevels.HIGH);
+
+    const isEpcGovConfirmedAndGood =
+      epc?.source === EpcDataSourceType.GOV_EPC_REGISTER &&
+      epc.confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC;
+
+    // Determine if a PDF OCR attempt is needed
+    const needsPdfOcrAttempt =
+      hasPdfUrlForEpc &&
+      !isEpcPdfProcessedAndGood && // Not already from a good PDF source
+      !isEpcGovConfirmedAndGood && // Not already from a good GOV source
+      (isAddressStillUnconfirmed || isCurrentEpcLowConfidence); // Address or EPC still needs better confirmation
+
+    if (needsPdfOcrAttempt) {
+      console.log(
+        `[background.ts] Conditions met, attempting PDF OCR via client for EPC URL: ${epc?.url} (tabId: ${tabId})`
+      );
+      if (typeof tabId === "number" && epc?.url) {
+        // Ensure epc.url is available for the log and send
+        try {
+          const requestId = crypto.randomUUID();
+          const ocrPromise = new Promise<EpcProcessorResult>((resolve) => {
+            pendingClientPdfOcrRequests.set(requestId, resolve);
+          });
+
+          chrome.tabs.sendMessage(tabId, {
+            action: ActionEvents.BACKGROUND_REQUESTS_CLIENT_PDF_OCR,
+            payload: {
+              pdfUrl: epc.url,
+              requestId,
+              domPostcode: address?.postcode,
+              domDisplayAddress: address?.displayAddress,
+            },
+          });
+
+          console.log(
+            `[background.ts] Sent BACKGROUND_REQUESTS_CLIENT_PDF_OCR to tab ${tabId} for requestId: ${requestId}`
+          );
+
+          // Timeout for the client response
+          const timeoutPromise = new Promise<EpcProcessorResult>(
+            (_, reject) =>
+              setTimeout(() => {
+                if (pendingClientPdfOcrRequests.has(requestId)) {
+                  pendingClientPdfOcrRequests.delete(requestId);
+                  reject(
+                    new Error(
+                      `Timeout waiting for client PDF OCR result for requestId: ${requestId}`
+                    )
+                  );
+                }
+              }, 60000) // 60-second timeout for client OCR
+          );
+
+          const ocrResult = await Promise.race([ocrPromise, timeoutPromise]);
+
+          console.log(
+            `[background.ts] PDF OCR Result from Client (tabId: ${tabId}):`,
+            JSON.stringify(ocrResult, null, 2)
+          );
+
+          // Check if OCR was successful (no error string and status indicates success)
+          if (ocrResult && !ocrResult.error && ocrResult.status === DataStatus.FOUND_POSITIVE) {
+            const ocrProcessedEpcValue = ocrResult.value; // This is the EPC rating (e.g., "C")
+            let ocrExtractedAddress: string | null = null;
+
+            if (
+              ocrResult.automatedProcessingResult &&
+              "fullAddress" in ocrResult.automatedProcessingResult
+            ) {
+              ocrExtractedAddress = (ocrResult.automatedProcessingResult as PdfExtractedEpcDataType)
+                .fullAddress;
+            }
+
+            // Update EPC data from PDF if an EPC value was found
+            if (ocrProcessedEpcValue) {
+              currentPropertyData = {
+                ...currentPropertyData,
+                epc: {
+                  ...currentPropertyData.epc,
+                  value: ocrProcessedEpcValue,
+                  confidence: ConfidenceLevels.MEDIUM, // EPC from PDF might be medium confidence
+                  source: EpcDataSourceType.PDF,
+                  url: ocrResult.url, // The PDF URL itself
+                  automatedProcessingResult: ocrResult.automatedProcessingResult,
+                  error: null, // Clear previous errors
+                } as EpcData,
+              };
+            }
+
+            if (
+              ocrExtractedAddress &&
+              !(
+                currentPropertyData.address.addressConfidence === ConfidenceLevels.HIGH ||
+                currentPropertyData.address.addressConfidence ===
+                  ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+              )
+            ) {
+              console.log(
+                "[background.ts] Updating address from PDF OCR result:",
+                ocrExtractedAddress
+              );
+              currentPropertyData = {
+                ...currentPropertyData,
+                address: {
+                  ...currentPropertyData.address,
+                  displayAddress: ocrExtractedAddress,
+                  addressConfidence: ConfidenceLevels.MEDIUM, // Address from PDF gets medium confidence
+                  govEpcRegisterSuggestions: null,
+                } as Address,
+              };
+            }
+          } else {
+            const errorDetail =
+              ocrResult?.error || `OCR status was ${ocrResult?.status || "unknown"}`;
+            console.warn(
+              `[background.ts] PDF OCR was attempted but returned an error or non-positive status. Detail: ${errorDetail}. Full OCR Result:`,
+              ocrResult
+            );
+            if (ocrResult?.error) {
+              logErrorToSentry(
+                `[background.ts] PDF OCR explicit error: ${ocrResult.error}`,
+                "warning"
+              );
+            }
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logErrorToSentry(
+            `[background.ts] Error during client PDF OCR orchestration (tabId: ${tabId}): ${errorMessage}`,
+            "error"
+          );
+          if (!(error instanceof Error)) {
+            console.error(
+              `[background.ts] Original non-Error object in client PDF OCR catch (tabId: ${tabId}):`,
+              error
+            );
+          }
+        }
+      } else {
+        console.warn(
+          `[background.ts] Cannot request client PDF OCR: tabId is undefined or EPC URL is missing. EPC URL: ${epc?.url}`
+        );
+      }
+    } else {
+      console.log(
+        `[background.ts] Skipping PDF OCR. Conditions: hasPdfUrlForEpc: ${hasPdfUrlForEpc}, isEpcPdfProcessedAndGood: ${isEpcPdfProcessedAndGood}, isEpcGovConfirmedAndGood: ${isEpcGovConfirmedAndGood}, isAddressStillUnconfirmed: ${isAddressStillUnconfirmed}, isCurrentEpcLowConfidence: ${isCurrentEpcLowConfidence}, currentEpcSource: ${epc?.source}, currentEpcConfidence: ${epc?.confidence}`
+      );
+    }
+    // --- END OF PDF OCR ATTEMPT ---
+
+    // --- Re-evaluate GOV EPC Suggestions with PDF EPC Data --- (NEW BLOCK)
+    if (
+      currentPropertyData.epc?.value && // We have a processed EPC rating
+      (currentPropertyData.epc.source === EpcDataSourceType.PDF ||
+        currentPropertyData.epc.source === EpcDataSourceType.IMAGE) && // from PDF or Image OCR
+      currentPropertyData.address?.govEpcRegisterSuggestions &&
+      currentPropertyData.address.govEpcRegisterSuggestions.length > 0 &&
+      currentPropertyData.epc.confidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC && // Don't override if GOV EPC was already a perfect direct match
+      currentPropertyData.address.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC // Also ensure address wasn't already Gov Confirmed
+    ) {
+      const processedEpcRating = currentPropertyData.epc.value;
+      console.log(
+        `[background.ts] Re-evaluating GOV EPC suggestions using Processed File EPC Rating (${currentPropertyData.epc.source}): ${processedEpcRating}`
+      );
+
+      // Explicitly type the suggestions to preserve GovEpcValidationMatch fields
+      const updatedSuggestions: (GovEpcValidationMatch & { matchesFileEpcRating: boolean })[] =
+        currentPropertyData.address.govEpcRegisterSuggestions.map(
+          (suggestion: GovEpcValidationMatch) => ({
+            ...suggestion,
+            matchesFileEpcRating: suggestion.retrievedRating === processedEpcRating,
+          })
+        );
+
+      // Filter to get only suggestions that match the file-derived EPC rating
+      const suggestionsMatchingFileEpc = updatedSuggestions.filter((s) => s.matchesFileEpcRating);
+
+      // Check if the file-derived EPC (from PDF/Image) is considered reliable enough for this auto-confirmation step
+      const epcConfidence = currentPropertyData.epc?.confidence;
+      const isFileEpcConsideredReliableForGovMatch =
+        epcConfidence === ConfidenceLevels.MEDIUM ||
+        epcConfidence === ConfidenceLevels.HIGH ||
+        epcConfidence === ConfidenceLevels.USER_PROVIDED;
+
+      if (suggestionsMatchingFileEpc.length === 1 && isFileEpcConsideredReliableForGovMatch) {
+        const theOnlyFileEpcMatch = suggestionsMatchingFileEpc[0];
+        console.log(
+          `[background.ts] Unique GOV suggestion found by matching reliable File EPC (${processedEpcRating}):`,
+          theOnlyFileEpcMatch
+        );
+
+        // Auto-confirm address and EPC to HIGH confidence
+        currentPropertyData = {
+          ...currentPropertyData,
+          address: {
+            ...(currentPropertyData.address || {}), // Handle potential null address
+            displayAddress: theOnlyFileEpcMatch.retrievedAddress,
+            addressConfidence: ConfidenceLevels.HIGH, // Set to HIGH
+            // UI Hint: This unique match was auto-confirmed.
+            govEpcRegisterSuggestions: [theOnlyFileEpcMatch], // Show only this one
+          } as Address, // Cast needed as address could be null initially
+          epc: {
+            ...(currentPropertyData.epc || {}), // Preserve other file EPC details like automatedProcessingResult
+            value: theOnlyFileEpcMatch.retrievedRating, // from GOV match
+            confidence: ConfidenceLevels.HIGH, // Set to HIGH
+            source: EpcDataSourceType.GOV_EPC_AND_FILE_EPC_MATCH, // New combined source
+            url: theOnlyFileEpcMatch.certificateUrl, // from GOV match
+            expiryDate: theOnlyFileEpcMatch.validUntil, // Use validUntil for expiryDate
+            error: null,
+          } as EpcData, // Cast needed as epc could be null initially
+        };
+        console.log(
+          "[background.ts] Auto-confirmed address and EPC to HIGH confidence based on unique GOV match to reliable file EPC."
+        );
+      } else {
+        // No unique reliable match (0 or >1), or file EPC not considered reliable enough for auto-confirmation.
+        // Update the suggestions with the match flags for the UI to display choices.
+        currentPropertyData = {
+          ...currentPropertyData,
+          address: {
+            ...(currentPropertyData.address || {}), // Handle potential null address
+            govEpcRegisterSuggestions: updatedSuggestions, // Show all (with flags)
+          } as Address,
+        };
+        if (suggestionsMatchingFileEpc.length > 1 && isFileEpcConsideredReliableForGovMatch) {
+          console.log(
+            "[background.ts] Multiple GOV EPC suggestions match the reliable File EPC rating. User selection advised."
+          );
+        } else if (suggestionsMatchingFileEpc.length === 0 && currentPropertyData.epc?.value) {
+          console.log("[background.ts] No GOV EPC suggestions match the File EPC rating.");
+        } else if (!isFileEpcConsideredReliableForGovMatch && currentPropertyData.epc?.value) {
+          console.log(
+            "[background.ts] File EPC rating available but not deemed reliable enough for auto-confirmation with GOV match. User selection advised with all GOV suggestions."
+          );
+        }
+      }
+    }
+    // --- END Re-evaluate GOV EPC --- (NEW BLOCK)
+
+    // --- FINAL DATA PROCESSING AND UI UPDATE (MOVED HERE) ---
+    // This section now runs regardless of PDF OCR success/failure,
+    // ensuring the UI always gets an update with the best data available.
+    console.log(
+      "[background.ts] Finalizing property data processing. Caching and notifying UI (after all attempts).",
+      currentPropertyData
+    );
+    if (currentPropertyData.propertyId) {
+      await chrome.storage.local.set({
+        [`${StorageKeys.PROPERTY_DATA_CACHE_PREFIX}${currentPropertyData.propertyId}`]:
+          currentPropertyData,
+      });
+    }
+    chrome.runtime.sendMessage({
+      action: ActionEvents.PROPERTY_PAGE_OPENED,
+      data: currentPropertyData,
     });
-  }
-  chrome.runtime.sendMessage({
-    action: ActionEvents.PROPERTY_PAGE_OPENED,
-    data: currentPropertyData,
-  });
-  // --- END FINAL DATA PROCESSING AND UI UPDATE (MOVED HERE) ---
+    // --- END FINAL DATA PROCESSING AND UI UPDATE (MOVED HERE) ---
 
-  sendResponseToContentScript({ status: "Property data processing complete in background." });
+    sendResponseToContentScript({ status: "Property data processing complete in background." });
+  } finally {
+    if (propertyId) {
+      processingPropertyIds.delete(propertyId);
+      console.log(
+        `[background.ts] Finished processing for propertyId: ${propertyId}. Removed from processing set.`
+      );
+    }
+  }
 }

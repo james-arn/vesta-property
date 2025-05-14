@@ -169,25 +169,47 @@ The core data flow operates as follows:
     - Upon detecting a property page, it scrapes the initial data using the content script (`contentScript.ts`).
     - The background script determines the unique `propertyId` for the current page.
 
-2.  **Data Propagation to UI:**
+2.  **Data Processing and Propagation to UI:**
 
-    - The `useBackgroundMessageHandler` hook in `App.tsx` listens for messages from the background script.
-    - It receives the `currentPropertyId` and updates the React Query client when new property data is scraped and sent from the background. The background script directly populates the cache for the relevant `propertyId` using `queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], scrapedData)`.
+    - The background script (`background.ts`) takes the initial scrape and performs several processing steps to enrich and validate the data, creating a `currentPropertyData` object. This involves:
+      - Loading any existing "authoritative" data for the `propertyId` from `chrome.storage.local` (data from previous complete processing runs).
+      - Merging the fresh scrape with this authoritative data, prioritizing more reliable existing EPC/address information.
+      - **GOV.UK EPC Validation:** If the address/EPC is not yet highly confident, it fetches potential EPC certificates from the GOV.UK register based on the postcode. It attempts to find a "strong" direct match. If not found, it gathers "plausible" matches.
+      - **PDF/Image EPC OCR:** If an EPC PDF/Image URL is available and the EPC data isn't already high quality (e.g., from a good PDF OCR in storage or confirmed by GOV.UK), it requests the content script to perform OCR. The results (EPC rating, potentially an address) are merged into `currentPropertyData`.
+      - **Re-evaluation of GOV Suggestions & Auto-Confirmation:** After potential PDF/Image OCR, the background script re-evaluates the plausible GOV.UK EPC suggestions. If a unique GOV.UK suggestion's EPC rating matches a reliable file-derived EPC rating (e.g., from PDF OCR with `MEDIUM` or `HIGH` confidence), the system automatically confirms this address and EPC. `currentPropertyData` is updated with `addressConfidence: ConfidenceLevels.HIGH`, `epcConfidence: ConfidenceLevels.HIGH`, and `epcSource: EpcDataSourceType.GOV_EPC_AND_FILE_EPC_MATCH`. The `govEpcRegisterSuggestions` list will then contain only this single, auto-selected match.
+      - For other cases, `govEpcRegisterSuggestions` will contain all plausible suggestions, each flagged with `matchesFileEpcRating` indicating if its EPC rating matches the file-derived one.
+    - The fully processed `currentPropertyData` (containing fields like `address.displayAddress`, `address.addressConfidence`, `address.govEpcRegisterSuggestions`, `epc.value`, `epc.confidence`, `epc.source`, etc.) is then sent to the UI via a `PROPERTY_PAGE_OPENED` message.
+    - The `useBackgroundMessageHandler` hook in `App.tsx` listens for this message and updates the React Query client, specifically setting the data for the key `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]` with this processed `currentPropertyData`.
 
-3.  **React Query Data Hooks in `App.tsx`:**
+3.  **React Query Data Hooks and UI Display in `App.tsx` & `PropertyAddressDisplay.tsx`:**
 
-    - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information and user confirmations (like address). React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
-      User inputs handled in the UI, such as manual EPC value entry or address confirmation (via the structured address modal), directly update this base property data cache using `queryClient.setQueryData`. This ensures the primary data object immediately reflects user overrides before being passed to processing hooks.
+    - **Base Property Data Retrieval:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached and processed property data. This data is the single source of truth for the property's current state in the UI.
+    - **Address and EPC Display (`PropertyAddressDisplay.tsx`):** This component receives the `address` object and `epc.source` from the `propertyData`.
+      - It always displays the `address.displayAddress` and a corresponding confidence icon (e.g., green for `HIGH`/`CONFIRMED_BY_GOV_EPC`, yellow for `MEDIUM`).
+      - **Confirmed Address:** If `address.addressConfidence` is `HIGH` or `CONFIRMED_BY_GOV_EPC`:
+        - If this high confidence resulted from an auto-selected GOV EPC match (indicated by `epcSource === GOV_EPC_AND_FILE_EPC_MATCH` and `govEpcRegisterSuggestions` having one item matching `displayAddress`), this confirmed GOV address is explicitly shown.
+        - No further confirmation options are presented.
+      - **Address Needs Review/Confirmation:** If `address.addressConfidence` is lower (e.g., `MEDIUM`, `LOW`, `NONE`):
+        - An accordion titled "Review / Confirm Address" (with a warning icon) is displayed.
+        - This accordion contains:
+          - A list of "Suggestions from GOV EPC (matching file EPC)": These are `govEpcRegisterSuggestions` filtered by `matchesFileEpcRating`. Each has a "Use this address" button.
+          - A link to "Search all EPCs for postcode: \[postcode]".
+          - "Agent Pin Location": The reverse geocoded address, clearly labeled with a disclaimer.
+          - A button "Enter address manually...", which triggers a callback (`onOpenAddressConfirmation`) handled by `App.tsx` to likely open a dedicated address confirmation modal.
+    - **User Confirmation and Cache Update:** User interactions within `PropertyAddressDisplay.tsx` or the subsequent address confirmation modal (not yet fully implemented but planned) lead to updates:
+      - Selecting a GOV suggestion via its "Use" button updates the address and EPC details, setting `addressConfidence` to `USER_PROVIDED` or `HIGH`.
+      - Manually confirming/entering an address via the modal similarly updates the address, setting confidence to `USER_PROVIDED` or `HIGH`.
+      - These user-driven updates directly modify the `PROPERTY_DATA` cache using `queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId], updatedPropertyData)`. This ensures the UI immediately reflects the confirmed data, which then flows into other hooks like `useChecklistAndDashboardData`.
     - **Supplementary Data:** Other hooks fetch additional data, managed internally by React Query for caching:
       - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated via the flow described below. Results are cached via React Query using the key `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]`.
       - `useCrimeScore`: Fetches crime scores based on coordinates, results are cached.
       - `useReverseGeocode`: Fetches address details based on listing coordinates. **Note:** This result is _not_ used to update the main property data cache automatically (as coordinates can be imprecise). Instead, it's passed as an informational hint to the address confirmation modal.
-      - _(Note: EPC processing is also handled separately, potentially caching results based on the EPC document URL)._
+      - _(Note: EPC processing, including the PDF/Image OCR trigger detailed in step 2, is part of the comprehensive data enrichment contributing to the `PROPERTY_DATA` cache)._
 
 4.  **Premium Feature Activation & Persistence Flow:** This flow ensures premium data is fetched, paid for, persisted, and restored correctly.
 
     - **Trigger:** The user clicks an "Unlock Premium Data" (or similar) button, likely managed within the `usePremiumFlow` hook or `App.tsx`.
-    - **Pre-checks:** The flow checks authentication (`isAuthenticated`). If not authenticated, an `UpsellModal` is shown. If authenticated, it proceeds. It then checks if the address needs confirmation (`propertyData.address.isAddressConfirmedByUser`) and shows the `BuildingConfirmationDialog` if needed, updating the `PROPERTY_DATA` cache on confirmation.
+    - **Pre-checks:** The flow checks authentication (`isAuthenticated`). If not authenticated, an `UpsellModal` is shown. If authenticated, it proceeds. It then checks if the address needs confirmation (e.g., if `propertyData.address.addressConfidence` is not `HIGH`, `USER_PROVIDED`, or `CONFIRMED_BY_GOV_EPC`) and may show a confirmation dialog (like the planned address confirmation modal, or the existing `BuildingConfirmationDialog` if it serves this purpose), updating the `PROPERTY_DATA` cache on confirmation.
     - **Confirmation:** If authenticated and address is confirmed, the `PremiumConfirmationModal` is shown.
     - **Frontend Request (on User Confirmation):**
       - The frontend gathers the current user-modified context data (confirmed address, user-provided EPC, etc. from the `PROPERTY_DATA` cache) along with the primary `propertyId`.

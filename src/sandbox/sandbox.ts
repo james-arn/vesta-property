@@ -5,9 +5,9 @@ console.log("[sandbox.ts] Sandbox page loaded.");
 
 // --- Tesseract Configuration ---
 const TESSERACT_CONFIG = {
-  workerPath: "../worker.min.js", // Relative path from sandbox.js to dist root
-  corePath: "../tesseract-core/", // Relative path from sandbox.js to tesseract-core dir
-  // langPath: '../lang-data/', // Relative path if language data is added later
+  workerPath: "worker.min.js", // Relative path from sandbox.js to dist root
+  corePath: "tesseract-core/", // Relative path from sandbox.js to tesseract-core dir
+  // langPath: 'lang-data/', // Relative path if language data is added later (ensure this dir is also web_accessible)
   logger: (m: Tesseract.LoggerMessage) =>
     console.log("[Sandbox Tesseract]", m.status, m.progress ? m.progress * 100 + "%" : ""),
 };

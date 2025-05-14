@@ -8,6 +8,7 @@ export interface GovEpcCertificate {
 
 export interface GovEpcValidationMatch extends GovEpcCertificate {
   addressMatchScore: number; // Score comparing retrievedAddress to listing's displayAddress (e.g., 0 to 1)
-  isEpcRatingMatch: boolean; // Compares retrievedRating to listing's current EPC value
+  isEpcRatingMatch: boolean; // Compares retrievedRating to listing's current EPC value (from initial scrape)
+  matchesFileEpcRating?: boolean; // New: Compares retrievedRating to the EPC value extracted from PDF/Image file processing
   overallMatchStrength?: "strong" | "medium" | "weak"; // A qualitative measure of the match
 }
