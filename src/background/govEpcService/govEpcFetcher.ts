@@ -207,11 +207,3 @@ export async function fetchGovEpcCertificatesByPostcode(
     return null;
   }
 }
-
-// Helper to extract date and calculate expiry - this can remain or be utility
-// This function seems okay to stay here as it operates on string data
-function extractValidUntil(dateString: string | null | undefined): string | null {
-  if (!dateString) return null;
-  const match = dateString.match(/(\d{1,2} [A-Za-z]+ \d{4})/);
-  return match ? match[1] : null;
-}

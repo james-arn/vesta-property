@@ -29,7 +29,7 @@ import {
   PremiumFetchContext,
   SnapshotContextData
 } from '@/types/premiumStreetData';
-import PropertyAddressDisplay from './components/PropertyAddressDisplay';
+import PropertyAddressBar from './components/PropertyAddressBar/PropertyAddressBar';
 import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
 
@@ -315,13 +315,14 @@ const App: React.FC = () => {
           return {
             ...oldData,
             address: {
-              ...oldData.address,
+              ...(oldData.address as Address),
               displayAddress: newDisplayAddress,
               isAddressConfirmedByUser: true,
               confirmedBuilding: confirmedAddress.confirmedBuilding,
               confirmedStreet: confirmedAddress.confirmedStreet,
               confirmedTown: confirmedAddress.confirmedTown,
               confirmedPostcode: confirmedAddress.confirmedPostcode,
+              addressConfidence: ConfidenceLevels.USER_PROVIDED,
             },
           };
         }
@@ -435,7 +436,7 @@ const App: React.FC = () => {
       />
 
       {propertyData?.address && (
-        <PropertyAddressDisplay
+        <PropertyAddressBar
           address={propertyData.address}
           reverseGeocodedAddress={reverseGeocodeQuery.data?.address}
           onOpenAddressConfirmation={openBuildingValidationModal}

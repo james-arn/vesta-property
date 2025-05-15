@@ -12,3 +12,7 @@ export const confidenceIcons: Record<
   [ConfidenceLevels.CONFIRMED_BY_GOV_EPC]: FaThumbsUp,
   [ConfidenceLevels.NONE]: null,
 };
+
+export const DISCLAIMER_TEXT = "Exact address based on agent's geolocation coordinates.";
+export const EPC_SEARCH_BASE_URL =
+  "https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=";

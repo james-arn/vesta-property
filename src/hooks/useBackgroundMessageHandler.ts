@@ -99,18 +99,45 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         ]);
 
         const dataToUpdate: ExtractedPropertyScrapingData = (() => {
-          if (cachedData && cachedData.epc?.confidence === ConfidenceLevels.USER_PROVIDED) {
+          let preservedAddress = incomingData.address;
+          if (
+            cachedData?.address &&
+            (cachedData.address.isAddressConfirmedByUser ||
+              cachedData.address.addressConfidence === ConfidenceLevels.USER_PROVIDED)
+          ) {
+            console.log(
+              "[Background Handler Hook] Preserving user-confirmed address details from cache for propertyId:",
+              propertyId
+            );
+            // Merge incoming address with cached, prioritizing confirmed fields from cache
+            preservedAddress = {
+              ...incomingData.address, // Start with fresh data
+              ...cachedData.address, // Overwrite with cached fields (especially confirmed ones)
+              displayAddress: cachedData.address.displayAddress, // Ensure displayAddress is from confirmed
+              isAddressConfirmedByUser: cachedData.address.isAddressConfirmedByUser,
+              addressConfidence: cachedData.address.addressConfidence,
+              confirmedBuilding: cachedData.address.confirmedBuilding,
+              confirmedStreet: cachedData.address.confirmedStreet,
+              confirmedTown: cachedData.address.confirmedTown,
+              confirmedPostcode: cachedData.address.confirmedPostcode,
+              // Keep govEpcRegisterSuggestions from incomingData unless specifically handled
+              govEpcRegisterSuggestions:
+                incomingData.address?.govEpcRegisterSuggestions !== undefined
+                  ? incomingData.address.govEpcRegisterSuggestions
+                  : cachedData.address.govEpcRegisterSuggestions,
+            };
+          }
+
+          let preservedEpc = incomingData.epc;
+          if (cachedData?.epc?.confidence === ConfidenceLevels.USER_PROVIDED) {
             console.log(
               "[Background Handler Hook] Preserving user-provided EPC from cache for propertyId:",
               propertyId
             );
-            return {
-              ...incomingData,
-              epc: cachedData.epc,
-            };
-          } else {
-            return incomingData;
+            preservedEpc = cachedData.epc;
           }
+
+          return { ...incomingData, address: preservedAddress, epc: preservedEpc };
         })();
 
         console.log(
