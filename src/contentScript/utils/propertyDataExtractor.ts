@@ -1,5 +1,3 @@
-import { AddressLookupPayload } from "@/background/addressLookupHelper";
-import { ActionEvents } from "@/constants/actionEvents";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   extractInfoFromPageModelKeyFeaturesAndDescription,
@@ -8,10 +6,10 @@ import {
   getNearbySchools,
   isRentalProperty,
 } from "@/contentScript/utils/propertyScrapeHelpers";
-import { RequestAddressLookupMessage } from "@/types/messages";
 import { ListedBuilding } from "@/types/premiumStreetData";
 import {
   Address,
+  AddressLookupInputData,
   ConfidenceLevels,
   DataStatus,
   EpcDataSourceType,
@@ -141,53 +139,25 @@ export async function extractPropertyDataFromDOM(
   const nearbySoldPropertiesPath =
     pageModel?.propertyData?.propertyUrls?.nearbySoldPropertiesUrl ?? null;
 
-  // --- Step 5: Add Address Lookup Request Logic (Conditional on Cache) ---
+  // --- Step 5: Prepare Address Lookup Inputs (but don't send message) ---
   const bedrooms = pageModel?.propertyData?.bedrooms ?? null;
-  let shouldRequestAddressLookup = true; // Assume we need to look up unless cached
-
-  if (cachedAddress && cachedAddress.addressConfidence === ConfidenceLevels.HIGH) {
-    console.log("[Extractor DOM] Skipping address lookup: High confidence address found in cache.");
-    shouldRequestAddressLookup = false;
-  }
-
-  // Only proceed if needed and conditions met
-  if (
-    shouldRequestAddressLookup &&
+  const addressLookupInputs: AddressLookupInputData | null =
     nearbySoldPropertiesPath &&
     mostRecentSaleFromInsights &&
     (mostRecentSaleFromInsights.year || mostRecentSaleFromInsights.soldPrice)
-  ) {
-    const lookupPayload: AddressLookupPayload = {
-      targetSaleYear: mostRecentSaleFromInsights.year,
-      targetSalePrice: mostRecentSaleFromInsights.soldPrice,
-      targetBedrooms: typeof bedrooms === "number" ? bedrooms : null,
-      nearbySoldPropertiesPath: nearbySoldPropertiesPath,
-    };
+      ? {
+          targetSaleYear: mostRecentSaleFromInsights.year,
+          targetSalePrice: mostRecentSaleFromInsights.soldPrice,
+          targetBedrooms: typeof bedrooms === "number" ? bedrooms : null,
+          nearbySoldPropertiesPath: nearbySoldPropertiesPath,
+        }
+      : null;
 
-    const message: RequestAddressLookupMessage = {
-      type: ActionEvents.REQUEST_ADDRESS_LOOKUP,
-      payload: lookupPayload,
-    };
-
-    try {
-      chrome.runtime.sendMessage(message).catch((error) => {
-        logErrorToSentry(
-          `[Extractor DOM] Error sending REQUEST_ADDRESS_LOOKUP (async): ${error instanceof Error ? error.message : String(error)}`,
-          "warning"
-        );
-      });
-      // REMOVED diagnostic log
-      // console.log("[Extractor DOM] REQUEST_ADDRESS_LOOKUP message initiated.");
-    } catch (syncError) {
-      logErrorToSentry(
-        `[Extractor DOM] Error sending REQUEST_ADDRESS_LOOKUP (sync): ${syncError instanceof Error ? syncError.message : String(syncError)}`,
-        "error"
-      );
-    }
-  } else if (shouldRequestAddressLookup) {
-    // Log why lookup was skipped if it wasn't due to cache
+  if (addressLookupInputs) {
+    console.log("[Extractor DOM] Address Lookup Inputs prepared:", addressLookupInputs);
+  } else {
     console.log(
-      "[Extractor DOM] Skipping address lookup: Conditions not met (or already skipped by cache check).",
+      "[Extractor DOM] Conditions for Address Lookup Inputs not met. Inputs will be null.",
       {
         nearbySoldPropertiesPath,
         hasSaleHistory: !!mostRecentSaleFromInsights,
@@ -347,6 +317,7 @@ export async function extractPropertyDataFromDOM(
 
     // Keep original salePrice field for now, although 'price' is preferred
     salePrice: salePrice,
+    addressLookupInputs: addressLookupInputs,
   };
 
   return propertyData;

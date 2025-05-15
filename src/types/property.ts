@@ -58,10 +58,18 @@ export enum EpcDataSourceType {
   LISTING = "Listing", // From the initial scrape if EPC is directly on page
   PDF = "PDF", // From PDF OCR
   IMAGE = "Image", // From Image (e.g. EPC graph) OCR
-  GOV_EPC_REGISTER = "GOV EPC Register", // Directly from a confirmed GOV EPC certificate
-  GOV_EPC_AND_FILE_EPC_MATCH = "GOV EPC Register (File EPC Match)", // New source
-  USER_PROVIDED = "User Provided",
-  // Add other potential sources as needed
+  GOV_EPC_REGISTER = "GOV_EPC_REGISTER",
+  USER_PROVIDED = "USER_PROVIDED",
+  GOV_EPC_AND_FILE_EPC_MATCH = "GOV_EPC_AND_FILE_EPC_MATCH",
+}
+
+export enum AddressSourceType {
+  NONE = "None",
+  INITIAL_SCRAPE = "InitialScrape", // Address as initially scraped from the listing
+  HOUSE_PRICES_PAGE_MATCH = "HousePricesPageMatch", // Address confirmed via the house prices page
+  GOV_EPC_CONFIRMED = "GovEpcConfirmed", // Address confirmed as part of a GOV EPC lookup
+  USER_PROVIDED = "UserProvided", // Address manually entered or confirmed by the user
+  REVERSE_GEOCODE = "ReverseGeocode", // Address suggested by reverse geocoding
 }
 
 export interface EpcData {
@@ -113,7 +121,14 @@ export interface Address {
   confirmedPostcode?: string | null;
   addressConfidence?: Confidence | null;
   govEpcRegisterSuggestions?: GovEpcValidationMatch[] | null;
-  source?: EpcDataSourceType | null;
+  source?: AddressSourceType | null;
+}
+
+export interface AddressLookupInputData {
+  targetSaleYear: string | null;
+  targetSalePrice: string | null;
+  targetBedrooms: number | null;
+  nearbySoldPropertiesPath: string | null;
 }
 
 export interface ExtractedPropertyScrapingData {
@@ -154,15 +169,13 @@ export interface ExtractedPropertyScrapingData {
   size: string | null;
   tenure: string | null;
   windows: string | null;
-  locationCoordinates: {
-    lat: number | null;
-    lng: number | null;
-  };
+  locationCoordinates: { lat: number | null; lng: number | null };
   leaseTerm: string | null;
   groundRent: string | null;
   serviceCharge: number | null;
   nearestStations: Station[];
   nearbySchools: NearbySchool[];
+  addressLookupInputs?: AddressLookupInputData | null;
 }
 
 export interface SaleHistoryEntry {
@@ -197,9 +210,7 @@ export interface CategoryScoreData {
   calculationStatus: ScoreCalculationStatus; // Uses the derived type
 }
 
-export type DashboardScores = {
-  [key in DashboardScoreCategory]?: CategoryScoreData;
-};
+export type DashboardScores = { [key in DashboardScoreCategory]?: CategoryScoreData };
 
 export enum ScoreQuality {
   GOOD = "GOOD",

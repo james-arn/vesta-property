@@ -3,6 +3,7 @@ import { RightmovePageModelType } from "@/types/rightmovePageModel";
 import { ActionEvents } from "../../constants/actionEvents";
 import {
   INITIAL_EPC_RESULT_STATE,
+  processEpcData,
   processPdfUrl,
   type EpcProcessorResult,
 } from "../../lib/epcProcessing";
@@ -111,6 +112,65 @@ export function setupContentScriptEventListeners() {
                 url: pdfUrl,
                 status: DataStatus.FOUND_NEGATIVE,
                 error: `Client-side PDF processing failed: ${errorMessage}`,
+                isLoading: false,
+              } as EpcProcessorResult,
+            },
+          });
+        });
+      return true; // Indicate that sendResponse will be called asynchronously
+    }
+    // Handle IMAGE OCR requests from the background script
+    else if (request.action === ActionEvents.BACKGROUND_REQUESTS_CLIENT_IMAGE_OCR) {
+      console.log(
+        "[CS runtimeListener] Received BACKGROUND_REQUESTS_CLIENT_IMAGE_OCR",
+        request.payload
+      );
+      const { fileUrl, requestId } = request.payload as {
+        fileUrl: string;
+        requestId: string;
+        // domPostcode and domDisplayAddress are not typically used by processEpcData for images directly
+      };
+
+      if (!fileUrl || !requestId) {
+        const errorMsg = "Missing fileUrl or requestId for BACKGROUND_REQUESTS_CLIENT_IMAGE_OCR";
+        console.error("[CS runtimeListener]", errorMsg);
+        chrome.runtime.sendMessage({
+          action: ActionEvents.CLIENT_PDF_OCR_RESULT, // Reusing this result action
+          payload: {
+            requestId,
+            result: {
+              ...INITIAL_EPC_RESULT_STATE,
+              url: fileUrl,
+              status: DataStatus.FOUND_NEGATIVE,
+              error: errorMsg,
+              isLoading: false,
+            } as EpcProcessorResult,
+          },
+        });
+        return false; // Synchronous response (error)
+      }
+
+      // Call processEpcData which will internally call processImageUrl
+      processEpcData(fileUrl) // domPostcode, domDisplayAddress are not passed here as processEpcData for images doesn't use them directly
+        .then((ocrResult: EpcProcessorResult) => {
+          console.log("[CS runtimeListener] Image OCR processed. Result:", ocrResult);
+          chrome.runtime.sendMessage({
+            action: ActionEvents.CLIENT_PDF_OCR_RESULT, // Reusing this result action
+            payload: { requestId, result: ocrResult },
+          });
+        })
+        .catch((error: unknown) => {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error("[CS runtimeListener] Error processing Image for OCR:", errorMessage);
+          chrome.runtime.sendMessage({
+            action: ActionEvents.CLIENT_PDF_OCR_RESULT, // Reusing this result action
+            payload: {
+              requestId,
+              result: {
+                ...INITIAL_EPC_RESULT_STATE,
+                url: fileUrl,
+                status: DataStatus.FOUND_NEGATIVE,
+                error: `Client-side Image processing failed: ${errorMessage}`,
                 isLoading: false,
               } as EpcProcessorResult,
             },

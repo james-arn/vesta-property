@@ -112,8 +112,6 @@ export function BuildingConfirmationDialog({
         setShowHelpSection(false); // Reset if address data changes, implying a new context
     }, [addressData]);
 
-    const matchingEPC = matchingSuggestions[0].retrievedRating;
-
     return (
         <Dialog open={open} onOpenChange={handleDialogClose}>
             <DialogContent className="max-w-md">

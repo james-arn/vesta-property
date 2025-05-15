@@ -196,7 +196,6 @@ export async function handleAddressLookupResult(payload: {
 }): Promise<void> {
   const currentData = getStoredPropertyData();
 
-  // --- MODIFIED CONDITION ---
   if (currentData && payload.fullAddress) {
     console.log("[ContentScript Handler] Updating address with high confidence.");
 
@@ -208,7 +207,6 @@ export async function handleAddressLookupResult(payload: {
         ...existingAddress,
         displayAddress: payload.fullAddress,
         addressConfidence: ConfidenceLevels.HIGH,
-        // Store structured fields here if/when available
       },
     };
     // Update state & SAVE TO CACHE
