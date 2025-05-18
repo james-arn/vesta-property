@@ -1,5 +1,6 @@
 import { lookupAddressFromHousePricesPage } from "@/background/addressLookupHelper";
 import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers";
+import { convertEpcUrlToDataUrlIfHttp } from "./background/epcBackgroundHelpers";
 import { fetchGovEpcCertificatesByPostcode } from "./background/govEpcService/govEpcFetcher";
 import {
   findBestGovEpcMatch,
@@ -24,16 +25,6 @@ import {
   ExtractedPropertyScrapingData,
 } from "./types/property";
 import { logErrorToSentry } from "./utils/sentry";
-
-// --- Constants for Offscreen Document ---
-const PDF_OCR_OFFSCREEN_DOCUMENT_PATH = "offscreen.html";
-const PDF_OCR_OFFSCREEN_REASONS: chrome.offscreen.Reason[] = [
-  chrome.offscreen.Reason.IFRAME_SCRIPTING,
-  chrome.offscreen.Reason.DOM_SCRAPING,
-];
-const PDF_OCR_OFFSCREEN_JUSTIFICATION =
-  "Required for processing PDF EPC documents using an iframe sandbox (via epcProcessing.ts) to extract data in a background context.";
-// --- End Constants for Offscreen Document ---
 
 // Session cache for GOV EPC postcode lookups
 const govEpcPostcodeCache = new Map<string, GovEpcCertificate[] | null>();
@@ -600,7 +591,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message.url) {
       logErrorToSentry("FETCH_IMAGE_FOR_CANVAS missing URL", "warning");
       sendResponse({ success: false, error: "Missing URL for image fetch." });
-      return false;
+      return true;
     }
     fetch(message.url)
       .then((response) => {
@@ -674,63 +665,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       "warning"
     );
     sendResponse({ status: "error", message: "Unknown or timed out OCR requestId." });
-    return false;
+    return true;
   }
 
-  // If a message is not handled by any of the specific handlers above:
-  // console.warn(`[onMessage] Unhandled message action: ${message?.action} from ${senderContext}`);
-  // sendResponse({ status: "Action not handled by background script" }); // Optionally respond for unhandled cases
   return false; // Default to false if not returning true for async responses
 });
 
-async function getLoginUrl(): Promise<string> {
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  await chrome.storage.local.set({ [StorageKeys.AUTH_CODE_VERIFIER]: codeVerifier });
-
-  // Use AUTH_COGNITO_DOMAIN for the base URL and ensure /authorize path is appended
-  const baseUrl = ENV_CONFIG.AUTH_COGNITO_DOMAIN;
-  const authorizeUrl = baseUrl.endsWith("/")
-    ? `${baseUrl}oauth2/authorize`
-    : `${baseUrl}/oauth2/authorize`;
-  // Cognito typically uses /oauth2/authorize, not just /authorize. Confirm if your setup is different.
-
-  const authUrl = new URL(authorizeUrl);
-  authUrl.searchParams.append("response_type", "code");
-  authUrl.searchParams.append("client_id", ENV_CONFIG.AUTH_CLIENT_ID);
-  authUrl.searchParams.append("redirect_uri", ENV_CONFIG.REDIRECT_URI);
-  authUrl.searchParams.append("code_challenge", codeChallenge);
-  authUrl.searchParams.append("code_challenge_method", "S256");
-  // authUrl.searchParams.append("audience", ENV_CONFIG.AUDIENCE); // AUDIENCE is not defined in your ENV_CONFIG
-  return authUrl.toString();
-}
-
-// PKCE HELPER FUNCTIONS
-const generateCodeVerifier = (length = 64) => {
-  const SPREAD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-  let token = "";
-  for (let i = 0; i < length; i++) {
-    token += SPREAD[Math.floor(Math.random() * SPREAD.length)];
-  }
-  return token;
-};
-
-const generateCodeChallenge = async (verifier: string) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-};
-
-// Ensure this function is properly defined if it was missing or causing issues before.
 async function handlePropertyDataExtraction(
   propertyData: ExtractedPropertyScrapingData,
   sendResponseToContentScript: (response: any) => void,
   tabId?: number
 ) {
+  // 1. ERROR CHECKS
   const propertyId = propertyData.propertyId;
   if (!propertyId) {
     logErrorToSentry("[handlePropertyDataExtraction] Missing propertyId. Aborting.", "warning");
@@ -738,6 +684,7 @@ async function handlePropertyDataExtraction(
     return;
   }
 
+  // 2. CHECK IF PROCESSING IS ALREADY IN PROGRESS
   if (processingPropertyIds.has(propertyId)) {
     console.log(
       `[BG Process] handlePropertyDataExtraction already running for property ID: ${propertyId}. Aborting duplicate run.`
@@ -757,6 +704,7 @@ async function handlePropertyDataExtraction(
     }
   );
 
+  // 3. CACHE CHECK
   try {
     // Ensure tabId is valid before proceeding with operations that require it
     if (typeof tabId !== "number") {
@@ -821,14 +769,17 @@ async function handlePropertyDataExtraction(
     // Initialize confidence flags (will be updated by subsequent steps)
     let addressIsNowHighlyConfident =
       currentPropertyData.address?.addressConfidence === ConfidenceLevels.HIGH ||
-      currentPropertyData.address?.addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC ||
+      currentPropertyData.address?.addressConfidence ===
+        ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED ||
       currentPropertyData.address?.addressConfidence === ConfidenceLevels.USER_PROVIDED;
     let epcIsNowHighlyConfident =
       currentPropertyData.epc?.confidence === ConfidenceLevels.HIGH ||
-      currentPropertyData.epc?.confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC ||
+      currentPropertyData.epc?.confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED ||
       currentPropertyData.epc?.confidence === ConfidenceLevels.USER_PROVIDED;
 
-    // --- House Prices Page Address Lookup --- (Moved earlier)
+    // 4. --- HOUSE PRICES PAGE ADDRESS LOOKUP ---
+    // Fetches the Rightmove sold house prices page,
+    // and attempts to find a matching property based on sale history.
     if (currentPropertyData.addressLookupInputs && !addressIsNowHighlyConfident) {
       console.log(
         `[BG Address Lookup] Address confidence is not high (${currentPropertyData.address.addressConfidence}). Attempting House Prices Page lookup for ${propertyId}.`
@@ -851,7 +802,7 @@ async function handlePropertyDataExtraction(
           addressIsNowHighlyConfident =
             currentPropertyData.address.addressConfidence === ConfidenceLevels.HIGH ||
             currentPropertyData.address.addressConfidence ===
-              ConfidenceLevels.CONFIRMED_BY_GOV_EPC ||
+              ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED ||
             currentPropertyData.address.addressConfidence === ConfidenceLevels.USER_PROVIDED;
         } else {
           console.log(
@@ -878,31 +829,35 @@ async function handlePropertyDataExtraction(
       }
     }
 
-    // --- GOV.UK EPC Validation Logic ---
+    // 5. --- GOV.UK EPC Validation Logic ---
+    // Attempts to validate the EPC rating using the GOV.UK EPC register online web page.
+    // It uses the address we may have found on the sold house prices page for more accuracy,
+    // or alternatively, just returns the list of plausible addresses for the postcode and their epc ratings. The UI will then filter based on an confidence medium match (where we have tried to extract EPC from EPC image or pdf).
+    // It may also find the property address from the EPC register if the address is not found on the sold house prices page.
     if (
       currentPropertyData.address &&
       currentPropertyData.address.postcode &&
-      currentPropertyData.epc.source !== EpcDataSourceType.GOV_EPC_REGISTER &&
-      currentPropertyData.epc.confidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+      currentPropertyData.epc.source !== EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS &&
+      currentPropertyData.epc.confidence !== ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
     ) {
       console.log(
         `[BG EPC Validation] Attempting GOV.UK EPC validation for ${propertyId} (Postcode: ${currentPropertyData.address.postcode}).`
       );
       try {
         const postcode = currentPropertyData.address.postcode;
-        const cachedCertificates = govEpcPostcodeCache.get(postcode);
-        let govCertificates: GovEpcCertificate[] | null = cachedCertificates || null;
+        const cachedEPCs = govEpcPostcodeCache.get(postcode);
+        let govEPCs: GovEpcCertificate[] | null = cachedEPCs || null;
 
-        if (cachedCertificates === undefined) {
+        if (cachedEPCs === undefined) {
           // Check for undefined to distinguish from null (cache hit, no certs)
-          govCertificates = await fetchGovEpcCertificatesByPostcode(postcode);
-          govEpcPostcodeCache.set(postcode, govCertificates);
+          govEPCs = await fetchGovEpcCertificatesByPostcode(postcode);
+          govEpcPostcodeCache.set(postcode, govEPCs);
         } else {
           console.log("[background.ts] Using cached GOV EPC certificates for postcode:", postcode);
         }
 
-        if (govCertificates && govCertificates.length > 0) {
-          const plausibleMatches = getPlausibleGovEpcMatches(govCertificates, currentPropertyData);
+        if (govEPCs && govEPCs.length > 0) {
+          const plausibleMatches = getPlausibleGovEpcMatches(govEPCs, currentPropertyData);
 
           if (plausibleMatches.length > 0) {
             currentPropertyData.address.govEpcRegisterSuggestions = plausibleMatches;
@@ -912,8 +867,8 @@ async function handlePropertyDataExtraction(
               currentPropertyData.address = {
                 ...currentPropertyData.address,
                 displayAddress: bestMatch.retrievedAddress,
-                addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
-                source: AddressSourceType.GOV_EPC_CONFIRMED,
+                addressConfidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
+                source: AddressSourceType.GOV_FIND_EPC_SERVICE_CONFIRMED,
               };
               addressIsNowHighlyConfident = true;
 
@@ -921,8 +876,8 @@ async function handlePropertyDataExtraction(
                 ...currentPropertyData.epc,
                 value: bestMatch.retrievedRating,
                 validUntil: bestMatch.validUntil,
-                source: EpcDataSourceType.GOV_EPC_REGISTER,
-                confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+                source: EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS,
+                confidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
               };
               epcIsNowHighlyConfident = true;
               console.log(
@@ -933,12 +888,14 @@ async function handlePropertyDataExtraction(
               console.log(
                 `[BG EPC Validation] Plausible matches found for ${propertyId} but no single best match. Count: ${plausibleMatches.length}`
               );
-              currentPropertyData.epc.source = EpcDataSourceType.GOV_EPC_REGISTER;
+              currentPropertyData.epc.source =
+                EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS;
               currentPropertyData.epc.confidence = ConfidenceLevels.NONE;
             }
           } else {
             console.log(`[BG EPC Validation] No plausible EPC matches found for ${propertyId}.`);
-            currentPropertyData.epc.source = EpcDataSourceType.GOV_EPC_REGISTER;
+            currentPropertyData.epc.source =
+              EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS;
             currentPropertyData.epc.confidence = ConfidenceLevels.NONE;
           }
         } else {
@@ -953,23 +910,41 @@ async function handlePropertyDataExtraction(
       }
     }
 
-    // --- Image OCR Logic ---
-    // Attempt if EPC is not already highly confident and an image URL exists
+    // 6. --- IMAGE EPC URL PROCESSING ---
+    // (FOR IMG OCR IF NEEDED & FOR DISPLAYING EPC IMAGE IN CHECKLIST)
+    // Fetch happens in background not ui to avoid CORS issues.
+    const epcUrlAfterImageUrlConversion = await convertEpcUrlToDataUrlIfHttp(
+      currentPropertyData.epc.url,
+      currentPropertyData.propertyId
+    );
+
+    if (
+      epcUrlAfterImageUrlConversion &&
+      epcUrlAfterImageUrlConversion !== currentPropertyData.epc.url
+    ) {
+      const updatedEpc = {
+        ...currentPropertyData.epc,
+        url: epcUrlAfterImageUrlConversion,
+      };
+      currentPropertyData = {
+        ...currentPropertyData,
+        epc: updatedEpc,
+      };
+    }
+
+    // 7. --- IMAGE EPC OCR LOGIC ---
+    // Attempt if EPC is not already highly confident on EPC and an image EPC URL exists (not PDF)
     // The content script should have populated propertyData.epc.url if an EPC image was found on the page.
     const epcConfidenceForImageOcr = currentPropertyData.epc.confidence;
-    const imageUrlForOcr =
-      typeof propertyData.epc?.url === "string" && propertyData.epc.url.startsWith("http")
-        ? propertyData.epc.url
-        : null;
 
     if (
       epcConfidenceForImageOcr !== ConfidenceLevels.HIGH &&
-      epcConfidenceForImageOcr !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC &&
-      imageUrlForOcr && // Check if imageUrlForOcr is not null
-      typeof tabId === "number" // Ensure tabId is still valid
+      epcConfidenceForImageOcr !== ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED &&
+      epcUrlAfterImageUrlConversion &&
+      typeof tabId === "number"
     ) {
       console.log(
-        `[BG Image OCR] EPC confidence is ${epcConfidenceForImageOcr}. Attempting Image OCR for property ${propertyId} using URL: ${imageUrlForOcr}`
+        `[BG Image OCR] EPC confidence is ${epcConfidenceForImageOcr}. Attempting Image OCR for property ${propertyId} using URL: ${epcUrlAfterImageUrlConversion}`
       );
       const requestId = `imageOcr-${propertyId}-${Date.now()}`;
       try {
@@ -987,7 +962,7 @@ async function handlePropertyDataExtraction(
         chrome.tabs.sendMessage(tabId, {
           action: ActionEvents.BACKGROUND_REQUESTS_CLIENT_IMAGE_OCR,
           payload: {
-            fileUrl: imageUrlForOcr, // Now guaranteed to be a string
+            fileUrl: epcUrlAfterImageUrlConversion,
             requestId,
           },
         });
@@ -1007,54 +982,204 @@ async function handlePropertyDataExtraction(
             source: EpcDataSourceType.IMAGE,
             confidence: ocrImageResult.confidence || ConfidenceLevels.MEDIUM, // Use .confidence
             url: ocrImageResult.url,
-            error: ocrImageResult.error || null,
+            error: ocrImageResult.error || null, // If ocrImageResult itself has an error string
           };
           console.log(
             `[BG Image OCR] Successfully updated EPC from Image OCR for ${propertyId}. New rating: ${currentPropertyData.epc.value}`
           );
-          // Update epcIsNowHighlyConfident if applicable
           if (
             currentPropertyData.epc.confidence === ConfidenceLevels.HIGH ||
-            currentPropertyData.epc.confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+            currentPropertyData.epc.confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
           ) {
             epcIsNowHighlyConfident = true;
           }
         } else if (ocrImageResult && ocrImageResult.error) {
+          // Case: OCR process completed but returned a structured result indicating an error.
+          const errorMessage = String(ocrImageResult.error);
           console.warn(
-            `[BG Image OCR] Image OCR for ${propertyId} resulted in an error: ${ocrImageResult.error}`
+            `[BG Image OCR] Image OCR for ${propertyId} resulted in an error: ${errorMessage}`
           );
+          currentPropertyData.epc = {
+            ...currentPropertyData.epc,
+            value: null,
+            confidence: ConfidenceLevels.NONE,
+            source: EpcDataSourceType.IMAGE, // Still mark as IMAGE attempt
+            error: errorMessage,
+            automatedProcessingResult: ocrImageResult.automatedProcessingResult || null,
+          };
+        } else {
+          // Case: OCR process completed but result was not positive or had no value, and no explicit error string in ocrImageResult.error
+          // This might indicate an inconclusive OCR.
+          const inconclusiveError = "Image OCR was inconclusive or did not yield a value.";
+          console.warn(`[BG Image OCR] ${inconclusiveError} for ${propertyId}`);
+          currentPropertyData.epc = {
+            ...currentPropertyData.epc,
+            value: null,
+            confidence: ConfidenceLevels.NONE,
+            source: EpcDataSourceType.IMAGE,
+            error: ocrImageResult?.error || inconclusiveError, // Use error from result if present, else generic
+            automatedProcessingResult: ocrImageResult?.automatedProcessingResult || null,
+          };
         }
       } catch (error) {
+        // Case: Promise rejected (e.g., timeout, sendMessage error, unhandled exception in content script promise chain before returning EpcProcessorResult)
         const errorMsg = error instanceof Error ? error.message : String(error);
         logErrorToSentry(
-          `[BG Image OCR] Error during Image OCR process for ${propertyId}: ${errorMsg}`,
+          `[BG Image OCR] Critical error during Image OCR promise for ${propertyId}: ${errorMsg}`,
           "error"
         );
-        // Ensure the request is cleaned up from the map in case of timeout or other errors
-        // The requestId might not be in scope here if promise creation failed, but a check is good.
-        // The timeout also handles deletion.
-        // If sendMessage fails, it's caught here.
-        // The original requestId would need to be available in this scope if we wanted to delete here.
-        // For now, relying on timeout and promise rejection to clear.
+        currentPropertyData.epc = {
+          ...currentPropertyData.epc,
+          value: null,
+          confidence: ConfidenceLevels.NONE,
+          source: EpcDataSourceType.IMAGE, // Still mark as IMAGE attempt
+          error: `Image OCR process failed: ${errorMsg}`,
+          automatedProcessingResult: null,
+        };
       }
     } else {
       if (
         epcConfidenceForImageOcr === ConfidenceLevels.HIGH ||
-        epcConfidenceForImageOcr === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+        epcConfidenceForImageOcr === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
       ) {
         console.log(
           `[BG Image OCR] Skipping Image OCR for ${propertyId} as EPC confidence is already ${epcConfidenceForImageOcr}.`
         );
       }
-      if (!imageUrlForOcr) {
+      if (!epcUrlAfterImageUrlConversion) {
         console.log(
           `[BG Image OCR] Skipping Image OCR for ${propertyId} as no relevant EPC image URL was provided. Initial URL: ${propertyData.epc?.url}`
         );
       }
     }
-    // --- End of Image OCR Logic ---
 
-    // --- (D) Re-evaluation of GOV Suggestions & Auto-Confirmation ---
+    // 8. --- PDF OCR LOGIC ---
+    // Attempt if EPC is not already highly confident on EPC and a PDF EPC URL exists
+    // The content script should have populated propertyData.epc.url if an EPC PDF was found on the page.
+    const epcConfidenceForPdfOcr = currentPropertyData.epc.confidence;
+    const pdfUrlForOcr =
+      typeof propertyData.epc?.url === "string" &&
+      propertyData.epc.url.toLowerCase().endsWith(".pdf")
+        ? propertyData.epc.url
+        : null;
+
+    if (
+      epcConfidenceForPdfOcr !== ConfidenceLevels.HIGH &&
+      epcConfidenceForPdfOcr !== ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED &&
+      !epcIsNowHighlyConfident && // Added check, if Image OCR made it highly confident, skip PDF
+      pdfUrlForOcr &&
+      typeof tabId === "number"
+    ) {
+      console.log(
+        `[BG PDF OCR] EPC confidence is ${epcConfidenceForPdfOcr}. Attempting PDF OCR for property ${propertyId} using URL: ${pdfUrlForOcr}`
+      );
+      const requestId = `pdfOcr-${propertyId}-${Date.now()}`;
+      try {
+        const pdfOcrPromise = new Promise<EpcProcessorResult>((resolve, reject) => {
+          pendingClientPdfOcrRequests.set(requestId, resolve);
+          setTimeout(() => {
+            if (pendingClientPdfOcrRequests.has(requestId)) {
+              pendingClientPdfOcrRequests.delete(requestId);
+              reject(new Error(`PDF OCR request ${requestId} timed out after 30 seconds`));
+            }
+          }, 30000); // 30 seconds timeout
+        });
+
+        chrome.tabs.sendMessage(tabId, {
+          action: ActionEvents.BACKGROUND_REQUESTS_CLIENT_PDF_OCR,
+          payload: {
+            fileUrl: pdfUrlForOcr,
+            requestId,
+          },
+        });
+
+        const ocrPdfResult = await pdfOcrPromise;
+        console.log(`[BG PDF OCR] Received result for ${requestId}:`, ocrPdfResult);
+
+        if (
+          ocrPdfResult &&
+          ocrPdfResult.status === DataStatus.FOUND_POSITIVE &&
+          ocrPdfResult.value
+        ) {
+          currentPropertyData.epc = {
+            ...currentPropertyData.epc,
+            value: ocrPdfResult.value,
+            automatedProcessingResult: ocrPdfResult.automatedProcessingResult,
+            source: EpcDataSourceType.PDF,
+            confidence: ocrPdfResult.confidence || ConfidenceLevels.MEDIUM,
+            url: ocrPdfResult.url, // Keep the original PDF URL or the one from result if different
+            error: ocrPdfResult.error || null,
+          };
+          console.log(
+            `[BG PDF OCR] Successfully updated EPC from PDF OCR for ${propertyId}. New rating: ${currentPropertyData.epc.value}`
+          );
+          if (
+            currentPropertyData.epc.confidence === ConfidenceLevels.HIGH ||
+            currentPropertyData.epc.confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
+          ) {
+            epcIsNowHighlyConfident = true; // Update master flag
+          }
+        } else if (ocrPdfResult && ocrPdfResult.error) {
+          const errorMessage = String(ocrPdfResult.error);
+          console.warn(
+            `[BG PDF OCR] PDF OCR for ${propertyId} resulted in an error: ${errorMessage}`
+          );
+          currentPropertyData.epc = {
+            ...currentPropertyData.epc,
+            value: null,
+            confidence: ConfidenceLevels.NONE,
+            source: EpcDataSourceType.PDF,
+            error: errorMessage,
+            automatedProcessingResult: ocrPdfResult.automatedProcessingResult || null,
+          };
+        } else {
+          const inconclusiveError = "PDF OCR was inconclusive or did not yield a value.";
+          console.warn(`[BG PDF OCR] ${inconclusiveError} for ${propertyId}`);
+          currentPropertyData.epc = {
+            ...currentPropertyData.epc,
+            value: null,
+            confidence: ConfidenceLevels.NONE,
+            source: EpcDataSourceType.PDF,
+            error: ocrPdfResult?.error || inconclusiveError,
+            automatedProcessingResult: ocrPdfResult?.automatedProcessingResult || null,
+          };
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        logErrorToSentry(
+          `[BG PDF OCR] Critical error during PDF OCR promise for ${propertyId}: ${errorMsg}`,
+          "error"
+        );
+        currentPropertyData.epc = {
+          ...currentPropertyData.epc,
+          value: null,
+          confidence: ConfidenceLevels.NONE,
+          source: EpcDataSourceType.PDF,
+          error: `PDF OCR process failed: ${errorMsg}`,
+          automatedProcessingResult: null,
+        };
+      }
+    } else {
+      if (
+        epcIsNowHighlyConfident ||
+        epcConfidenceForPdfOcr === ConfidenceLevels.HIGH ||
+        epcConfidenceForPdfOcr === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
+      ) {
+        console.log(
+          `[BG PDF OCR] Skipping PDF OCR for ${propertyId} as EPC confidence is already high (${currentPropertyData.epc.confidence}).`
+        );
+      }
+      if (!pdfUrlForOcr) {
+        console.log(
+          `[BG PDF OCR] Skipping PDF OCR for ${propertyId} as no relevant PDF URL was provided. Initial URL: ${propertyData.epc?.url}`
+        );
+      }
+    }
+    // --- End of PDF OCR Logic ---
+    // 9. --- RE-EVALUATION OF GOV SUGGESTIONS & AUTO-CONFIRMATION ---
+    // If we have an EPC value from OCR, and the EPC source is either IMAGE or PDF,
+    // we can re-evaluate the GOV EPC suggestions to see if we can auto-confirm the EPC value.
+    // For example, OCR result is EPC: C and there is only 1 address in list as C - then this can auto-confirm (with medium confidence as OCR so the user double checks)
     const epcValueFromOcr = currentPropertyData.epc.value;
     const epcSourceIsFileBased =
       currentPropertyData.epc.source === EpcDataSourceType.IMAGE ||
@@ -1067,8 +1192,9 @@ async function handlePropertyDataExtraction(
       currentPropertyData.address.govEpcRegisterSuggestions.length > 0 &&
       // Only attempt if we haven't already got a top-tier GOV confirmed EPC
       !(
-        currentPropertyData.epc.source === EpcDataSourceType.GOV_EPC_REGISTER &&
-        currentPropertyData.epc.confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+        currentPropertyData.epc.source ===
+          EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS &&
+        currentPropertyData.epc.confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
       )
     ) {
       console.log(
@@ -1102,21 +1228,23 @@ async function handlePropertyDataExtraction(
         console.log(
           `[BG Re-eval GOV] Unique strong match found with OCR EPC. Auto-confirming: Address: ${confirmedMatchFromSuggestions.retrievedAddress}, EPC: ${confirmedMatchFromSuggestions.retrievedRating}`
         );
+        // ADDRESS
         currentPropertyData.address = {
           ...currentPropertyData.address,
           displayAddress: confirmedMatchFromSuggestions.retrievedAddress,
-          addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
-          source: AddressSourceType.GOV_EPC_CONFIRMED,
+          addressConfidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
+          source: AddressSourceType.GOV_FIND_EPC_SERVICE_CONFIRMED,
           govEpcRegisterSuggestions: null, // Clear suggestions as we have a confirmed one
         };
         addressIsNowHighlyConfident = true;
 
+        // EPC
         currentPropertyData.epc = {
           ...currentPropertyData.epc,
           value: confirmedMatchFromSuggestions.retrievedRating, // Should match epcValueFromOcr
           validUntil: confirmedMatchFromSuggestions.validUntil,
-          source: EpcDataSourceType.GOV_EPC_AND_FILE_EPC_MATCH, // New combined source
-          confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC, // High confidence due to multi-source agreement
+          source: EpcDataSourceType.GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH, // New combined source
+          confidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED, // High confidence due to multi-source agreement
         };
         epcIsNowHighlyConfident = true;
       } else if (!multipleStrongCandidates) {
@@ -1126,13 +1254,9 @@ async function handlePropertyDataExtraction(
       }
       // If multipleStrongCandidates is true, we logged it and suggestions remain as they are.
     }
-    // --- End of (D) Re-evaluation ---
 
-    // --- PDF OCR Fallback Logic --- (This is where PDF OCR would go if still needed)
-    // ... (existing PDF OCR logic or placeholder comments) ...
-    // --- End of PDF OCR Fallback Logic ---
-
-    // Send PROPERTY_PAGE_OPENED to UI only after all initial data processing
+    // 10. Send PROPERTY_PAGE_OPENED to UI only after all initial data processing
+    // also upate the cache with the latest processed data
     console.log("[BG Finalize] Finalizing property data processing. Caching and notifying UI.", {
       propertyId,
       finalAddressConfidence: currentPropertyData.address.addressConfidence,

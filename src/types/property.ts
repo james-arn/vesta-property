@@ -3,8 +3,7 @@ import {
   CALCULATED_STATUS,
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
-import { EpcBandResult } from "@/sidepanel/propertychecklist/epcImageUtils";
+import { EpcBandResult } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
 import { GovEpcValidationMatch } from "./govEpcCertificate";
@@ -33,12 +32,14 @@ export interface PropertyDataListItem {
   askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
   epcBandData?: EpcBandResult;
+  epcImageUrl?: string | null;
   confidence?: Confidence | null;
   isUnlockedWithPremium: boolean;
   isBoostedWithPremium: boolean;
   isExpectedInListing: boolean;
   restrictiveCovenants?: RestrictiveCovenant[] | null;
   publicRightOfWay?: RightOfWayDetails | null;
+  epcSource?: EpcDataSourceType | null;
 }
 
 export interface AgentDetails {
@@ -58,16 +59,18 @@ export enum EpcDataSourceType {
   LISTING = "Listing", // From the initial scrape if EPC is directly on page
   PDF = "PDF", // From PDF OCR
   IMAGE = "Image", // From Image (e.g. EPC graph) OCR
-  GOV_EPC_REGISTER = "GOV_EPC_REGISTER",
-  USER_PROVIDED = "USER_PROVIDED",
-  GOV_EPC_AND_FILE_EPC_MATCH = "GOV_EPC_AND_FILE_EPC_MATCH",
+  GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS = "GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS", // Here we found this property's address (or a very similar one) uniquely on the GOV EPC register, and this is the EPC data directly from that official record.".
+  USER_PROVIDED = "USER_PROVIDED", // EPC chosen from user
+  GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH = "GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH", // This source signifies that the EPC rating from a local file (OCR'd PDF/Image) was successfully
+  // matched with the EPC rating of a unique property found on the GOV EPC Register's list for the postcode.
+  PREMIUM_API = "PremiumAPI", // EPC data sourced from the premium API
 }
 
 export enum AddressSourceType {
   NONE = "None",
   INITIAL_SCRAPE = "InitialScrape", // Address as initially scraped from the listing
-  HOUSE_PRICES_PAGE_MATCH = "HousePricesPageMatch", // Address confirmed via the house prices page
-  GOV_EPC_CONFIRMED = "GovEpcConfirmed", // Address confirmed as part of a GOV EPC lookup
+  HOUSE_PRICES_PAGE_MATCH = "HousePricesPageMatch", // Address confirmed via the house prices page (most reliable)
+  GOV_FIND_EPC_SERVICE_CONFIRMED = "GOV_FIND_EPC_SERVICE_CONFIRMED", // Address confirmed as part of a GOV EPC lookup
   USER_PROVIDED = "UserProvided", // Address manually entered or confirmed by the user
   REVERSE_GEOCODE = "ReverseGeocode", // Address suggested by reverse geocoding
 }
@@ -188,7 +191,7 @@ export const ConfidenceLevels = {
   HIGH: "High",
   MEDIUM: "Medium",
   USER_PROVIDED: "UserProvided",
-  CONFIRMED_BY_GOV_EPC: "ConfirmedByGovEpc",
+  GOV_FIND_EPC_SERVICE_CONFIRMED: "GOV_FIND_EPC_SERVICE_CONFIRMED",
   NONE: "None",
 } as const;
 
@@ -222,7 +225,7 @@ export enum ScoreQuality {
 export interface PreprocessedData {
   isPreprocessedDataLoading: boolean;
   preprocessedDataError: Error | null;
-  processedEpcResult: EpcProcessorResult | null;
+  finalEpcBandData: EpcBandResult | undefined;
   processedPremiumData: ProcessedPremiumStreetData | null;
   finalEpcValue: string | null;
   finalEpcConfidence: Confidence | null;

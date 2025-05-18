@@ -115,15 +115,15 @@ const App: React.FC = () => {
           address: {
             ...(oldData.address as Address),
             displayAddress: suggestion.retrievedAddress,
-            addressConfidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
+            addressConfidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
             isAddressConfirmedByUser: true,
             govEpcRegisterSuggestions: null,
           },
           epc: {
             ...(oldData.epc as EpcData),
             value: suggestion.retrievedRating,
-            confidence: ConfidenceLevels.CONFIRMED_BY_GOV_EPC,
-            source: EpcDataSourceType.GOV_EPC_REGISTER,
+            confidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
+            source: EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS,
             url: suggestion.certificateUrl,
             automatedProcessingResult: null,
             error: null,
@@ -365,60 +365,21 @@ const App: React.FC = () => {
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
 
-  // --- App.tsx Render Diagnostics ---
-  console.log("[App.tsx] Rendering with State:", {
-    isCheckingAuth,
-    isLoadingQueryPropertyData,
-    isPropertyDataLoading,
-    propertyDataExists: !!propertyData,
-    currentPropertyId,
-    nonPropertyPageWarningMessage,
-    isActivatingPremiumSearch,
-    queryPropertyDataErrorExists: !!queryPropertyDataError,
-  });
-  // --- End App.tsx Render Diagnostics ---
-
-  if (isCheckingAuth || isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
-    // --- App.tsx Loading Skeleton Condition Met ---
-    console.log("[App.tsx] Condition for <SideBarLoading /> MET:", {
-      isCheckingAuth,
-      isLoadingQueryPropertyData,
-      isPropertyDataLoading,
-      noPropertyData: !propertyData,
-      noWarning: !nonPropertyPageWarningMessage,
-      combinedNoDataNoWarning: (!propertyData && !nonPropertyPageWarningMessage),
-      isActivatingPremiumSearch,
-    });
-    // --- End App.tsx Loading Skeleton Condition ---
+  if (isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
   }
 
   if (nonPropertyPageWarningMessage || !propertyData) {
-    // --- App.tsx Warning/No Data Alert Condition Met ---
-    console.log("[App.tsx] Condition for Warning/No Data Alert MET:", {
-      nonPropertyPageWarningMessage,
-      noPropertyData: !propertyData,
-    });
-    // --- End App.tsx Warning/No Data Alert Condition ---
     return (
       <Alert type="warning" message={nonPropertyPageWarningMessage || "Property data could not be loaded."} />
     );
   }
 
   if (queryPropertyDataError) {
-    // --- App.tsx Error Alert Condition Met ---
-    console.log("[App.tsx] Condition for Error Alert MET:", {
-      queryPropertyDataError,
-    });
-    // --- End App.tsx Error Alert Condition ---
     return (
       <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
     );
   }
-
-  // --- App.tsx Rendering Main Content ---
-  console.log("[App.tsx] Proceeding to render main content (Dashboard or Checklist).");
-  // --- End App.tsx Rendering Main Content ---
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -457,7 +418,7 @@ const App: React.FC = () => {
               togglePlanningPermissionCard={togglePlanningPermissionCard}
               toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
               isPremiumDataFetched={premiumDataQuery.isFetched}
-              processedEpcResult={preprocessedData.processedEpcResult}
+              epcBandData={preprocessedData.finalEpcBandData}
               handleEpcValueChange={handleEpcValueChange}
               isEpcDebugModeOn={isEpcDebugModeOn}
               epcDebugCanvasRef={epcDebugCanvasRef}
@@ -499,7 +460,7 @@ const App: React.FC = () => {
             nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
             onTriggerPremiumFlow={triggerPremiumFlow}
             isPremiumDataFetched={premiumDataQuery.isFetched}
-            processedEpcResult={preprocessedData.processedEpcResult}
+            epcBandData={preprocessedData.finalEpcBandData}
             epcDebugCanvasRef={epcDebugCanvasRef}
             isEpcDebugModeOn={isEpcDebugModeOn}
             handleEpcValueChange={handleEpcValueChange}
@@ -518,6 +479,7 @@ const App: React.FC = () => {
             addressData={propertyData?.address ?? null}
             handleConfirm={handleBuildingNameOrNumberConfirmation}
             reverseGeocodedAddress={reverseGeocodeQuery.data?.address ?? null}
+            currentEpcRating={propertyData?.epc?.value ?? null}
           />
         </Suspense>
       )}

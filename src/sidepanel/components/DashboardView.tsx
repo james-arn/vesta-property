@@ -1,5 +1,3 @@
-import React, { Suspense, useState } from 'react';
-// Correct import path and type
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import {
     TooltipProvider,
@@ -7,8 +5,8 @@ import {
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
+import { EpcBandResult } from "@/types/epc";
 import {
     GetPremiumStreetDataResponse
 } from "@/types/premiumStreetData";
@@ -22,6 +20,7 @@ import {
     ShieldAlert,
     TrendingUp
 } from 'lucide-react';
+import React, { Suspense, useState } from 'react';
 import { DashboardScoreItem } from './DashboardScoreItem';
 import { DashboardTile } from './DashboardTile';
 
@@ -45,7 +44,7 @@ interface DashboardViewProps {
     togglePlanningPermissionCard: (expand?: boolean) => void;
     toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
     isPremiumDataFetched: boolean;
-    processedEpcResult: EpcProcessorResult | null | undefined;
+    epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     handleEpcValueChange: (newValue: string) => void;
@@ -101,7 +100,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow,
     isPremiumDataFetched,
-    processedEpcResult,
+    epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     handleEpcValueChange
@@ -145,9 +144,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="mt-1">Additional premium data points (e.g., planning history, crime details) are available.</p>
         </>
     );
-
-    const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
-    const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
 
     return (
         <TooltipProvider delayDuration={300}>
@@ -208,7 +204,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                     nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
                                     onOpenUpsellModal={onTriggerPremiumFlow}
                                     handleEpcValueChange={handleEpcValueChange}
-                                    epcData={processedEpcResult ?? undefined}
+                                    epcBandData={epcBandData}
                                     epcDebugCanvasRef={epcDebugCanvasRef}
                                     isEpcDebugModeOn={isEpcDebugModeOn}
                                     invertColorScale={false}

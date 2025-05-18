@@ -199,7 +199,7 @@ The core data flow operates as follows:
       - **Outcome:** If a match is found, `currentPropertyData.address` is updated with high confidence (`ConfidenceLevels.HIGH`, `AddressSourceType.HOUSE_PRICES_PAGE_MATCH`).
 
     - **(B) GOV.UK EPC Validation - `background.ts`:**
-    - If we can use our address (precise or not) to check what the EPC si for the property based on the gov uk's epc site.
+    - If we can use our address (precise or not) to check what the EPC is for the property based on the gov uk's epc site.
 
       - **Condition:** Proceeds if address from (A) is not high confidence OR EPC data is not yet high confidence.
       - **Action (Background):** Fetches from GOV.UK EPC register by postcode. Seeks strong or plausible matches.

@@ -9,7 +9,7 @@ export const confidenceIcons: Record<
   [ConfidenceLevels.HIGH]: FaThumbsUp,
   [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
   [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-  [ConfidenceLevels.CONFIRMED_BY_GOV_EPC]: FaThumbsUp,
+  [ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED]: FaThumbsUp,
   [ConfidenceLevels.NONE]: null,
 };
 

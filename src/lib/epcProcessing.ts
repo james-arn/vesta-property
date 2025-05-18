@@ -1,5 +1,5 @@
 import { ActionEvents } from "@/constants/actionEvents";
-import { processEpcImageDataUrl } from "@/sidepanel/propertychecklist/epcImageUtils";
+import { processEpcImageDataUrl } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
 import { ConfidenceLevels, DataStatus, EpcData, EpcDataSourceType } from "@/types/property";
 import {
   extractAddressAndPdfDataFromText,
@@ -15,6 +15,12 @@ const SANDBOX_HTML_PATH = "sandbox.html";
 export interface EpcProcessorResult extends EpcData {
   isLoading: boolean;
   status: DataStatus;
+}
+
+interface FetchImageCanvasResponse {
+  success: boolean;
+  dataUrl?: string;
+  error?: string;
 }
 
 // Initial state structure
@@ -388,69 +394,96 @@ const processImageUrl = async (
   debugCanvasRef?: React.RefObject<HTMLCanvasElement | null>
 ): Promise<EpcProcessorResult> => {
   removeSandboxIframe(); // No sandbox needed for image processing
-  console.log(`[epcProcessing] Requesting fetch for image: ${processingUrl}`);
 
   try {
-    // Fetch image as data URL via background script
-    const response = await new Promise<{
-      success: boolean;
-      dataUrl?: string;
-      error?: string;
-    }>((resolve) => {
-      chrome.runtime.sendMessage(
-        { action: ActionEvents.FETCH_IMAGE_FOR_CANVAS, url: processingUrl },
-        (res) => resolve(res || { success: false, error: "No response from background script" })
-      );
-    });
+    let fetchedDataUrl: string | undefined;
 
-    if (response.success && response.dataUrl) {
-      const fetchedDataUrl = response.dataUrl;
-      // Process the data URL for EPC bands
-      const result = await processEpcImageDataUrl(fetchedDataUrl, debugCanvasRef?.current);
-
-      const extractedEpcValue = result.currentBand?.letter ?? null;
-      const hasPotentialBand = !!result.potentialBand?.letter;
-      const hasBands = !!extractedEpcValue || hasPotentialBand;
-
-      return {
-        ...INITIAL_EPC_RESULT_STATE, // Start fresh
-        url: processingUrl, // Keep original URL
-        displayUrl: fetchedDataUrl, // Store data URI for display
-        isLoading: false,
-        status: result.error
-          ? DataStatus.ASK_AGENT
-          : hasBands
-            ? DataStatus.FOUND_POSITIVE
-            : DataStatus.ASK_AGENT,
-        automatedProcessingResult: result,
-        value: extractedEpcValue,
-        confidence: result.error
-          ? ConfidenceLevels.NONE
-          : extractedEpcValue
-            ? ConfidenceLevels.MEDIUM
-            : ConfidenceLevels.NONE,
-        source: result.error
-          ? EpcDataSourceType.NONE
-          : extractedEpcValue
-            ? EpcDataSourceType.IMAGE
-            : EpcDataSourceType.NONE,
-        error: result.error || (hasBands ? null : "Could not determine bands from image."),
-      };
+    // Check if the URL is a data URL
+    if (processingUrl.toLowerCase().startsWith("data:image/")) {
+      console.log("[epcProcessing] Detected data URL, using directly.");
+      fetchedDataUrl = processingUrl;
     } else {
-      throw new Error(response.error || "Failed to fetch image data from background.");
+      // If not a data URL, fetch it through the background script
+      console.log(`[epcProcessing] Requesting fetch for remote image: ${processingUrl}`);
+      const responsePayload = await new Promise<FetchImageCanvasResponse>((resolve) => {
+        chrome.runtime.sendMessage(
+          { action: ActionEvents.FETCH_IMAGE_FOR_CANVAS, url: processingUrl },
+          (res: any) => {
+            console.log(
+              "[processImageUrl] Raw response from background for FETCH_IMAGE_FOR_CANVAS:",
+              JSON.stringify(res)
+            );
+            if (res && typeof res.success === "boolean") {
+              resolve(res as FetchImageCanvasResponse);
+            } else {
+              resolve({
+                success: false,
+                error: `Unexpected response from background: \${JSON.stringify(res)}`,
+              });
+            }
+          }
+        );
+      });
+
+      if (responsePayload.success && responsePayload.dataUrl) {
+        fetchedDataUrl = responsePayload.dataUrl;
+      } else {
+        console.error("[processImageUrl] Error condition. Full response payload:", responsePayload);
+        throw new Error(
+          responsePayload.error || "Failed to fetch image data from background (unknown reason)."
+        );
+      }
     }
+
+    if (!fetchedDataUrl) {
+      // This case should ideally be caught by the error throw above if not a data URL
+      // or if the data URL itself was somehow invalid (though unlikely for this check).
+      console.error("[processImageUrl] fetchedDataUrl is undefined after attempt to obtain it.");
+      throw new Error("Failed to obtain image data URL.");
+    }
+
+    const result = await processEpcImageDataUrl(fetchedDataUrl, debugCanvasRef?.current);
+
+    const extractedEpcValue = result.currentBand?.letter ?? null;
+    const hasPotentialBand = !!result.potentialBand?.letter;
+    const hasBands = !!extractedEpcValue || hasPotentialBand;
+
+    return {
+      ...INITIAL_EPC_RESULT_STATE,
+      url: processingUrl,
+      displayUrl: fetchedDataUrl,
+      isLoading: false,
+      status: result.error
+        ? DataStatus.ASK_AGENT
+        : hasBands
+          ? DataStatus.FOUND_POSITIVE
+          : DataStatus.ASK_AGENT,
+      automatedProcessingResult: result,
+      value: extractedEpcValue,
+      confidence: result.error
+        ? ConfidenceLevels.NONE
+        : extractedEpcValue
+          ? ConfidenceLevels.MEDIUM
+          : ConfidenceLevels.NONE,
+      source: result.error
+        ? EpcDataSourceType.NONE
+        : extractedEpcValue
+          ? EpcDataSourceType.IMAGE
+          : EpcDataSourceType.NONE,
+      error: result.error || (hasBands ? null : "Could not determine bands from image."),
+    };
   } catch (error) {
     const displayError = error instanceof Error ? error.message : "Image processing failed.";
     logErrorToSentry(error instanceof Error ? error : new Error(displayError), "error");
     return {
-      ...INITIAL_EPC_RESULT_STATE, // Start fresh
+      ...INITIAL_EPC_RESULT_STATE,
       url: processingUrl,
       isLoading: false,
       status: DataStatus.ASK_AGENT,
       error: displayError,
       confidence: ConfidenceLevels.NONE,
       source: EpcDataSourceType.NONE,
-      displayUrl: null, // Clear displayUrl on error
+      displayUrl: null,
     };
   }
 };
@@ -468,10 +501,10 @@ export const processEpcData = async (
   processingUrl: string,
   debugCanvasRef?: React.RefObject<HTMLCanvasElement | null>
 ): Promise<EpcProcessorResult> => {
-  console.log(`[epcProcessing] Starting processing for URL: ${processingUrl}`);
-
   const isPdf = processingUrl.toLowerCase().endsWith(".pdf");
-  const isImage = IMAGE_EXTENSIONS.some((ext) => processingUrl.toLowerCase().endsWith(ext));
+  const isImage =
+    processingUrl.toLowerCase().startsWith("data:image/") ||
+    IMAGE_EXTENSIONS.some((ext) => processingUrl.toLowerCase().endsWith(ext));
 
   if (isPdf) {
     // For processEpcData, we don't have immediate access to DOM address hints here.

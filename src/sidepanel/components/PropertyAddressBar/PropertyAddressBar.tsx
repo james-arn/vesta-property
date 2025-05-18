@@ -23,8 +23,8 @@ const PropertyAddressBar: React.FC<PropertyAddressDisplayProps> = ({
     const confidence: Confidence = address.addressConfidence || ConfidenceLevels.NONE;
 
     const isSingleAutoConfirmedGovMatch =
-        (confidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC ||
-            (confidence === ConfidenceLevels.HIGH && epcSource === EpcDataSourceType.GOV_EPC_AND_FILE_EPC_MATCH)
+        (confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED ||
+            (confidence === ConfidenceLevels.HIGH && epcSource === EpcDataSourceType.GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH)
         ) &&
         address.govEpcRegisterSuggestions && address.govEpcRegisterSuggestions.length === 1 &&
         address.govEpcRegisterSuggestions[0].retrievedAddress === address.displayAddress;

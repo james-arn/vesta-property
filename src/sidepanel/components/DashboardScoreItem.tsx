@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { CALCULATED_STATUS, DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
-import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { EpcBandResult } from "@/types/epc";
 import {
     GetPremiumStreetDataResponse
 } from '@/types/premiumStreetData';
@@ -41,7 +41,7 @@ interface DashboardScoreItemProps {
     icon?: React.ElementType;
     isPremiumDataFetched: boolean;
     upgradeUrl: string;
-    epcData?: EpcProcessorResult;
+    epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     getValueClickHandler: GetValueClickHandlerType;
@@ -78,7 +78,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     invertColorScale = false,
     icon: IconComponent,
     isPremiumDataFetched,
-    epcData,
+    epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     getValueClickHandler,
@@ -187,7 +187,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         key={item.key}
                                         item={item}
                                         isPremiumDataFetched={isPremiumDataFetched}
-                                        epcData={item.key === CHECKLIST_KEYS.EPC ? epcData : undefined}
+                                        epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
                                         epcDebugCanvasRef={epcDebugCanvasRef}
                                         isEpcDebugModeOn={isEpcDebugModeOn}
                                         onValueClick={handleClick}

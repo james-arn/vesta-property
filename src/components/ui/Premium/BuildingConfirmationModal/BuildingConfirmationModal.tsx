@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { DISCLAIMER_TEXT, EPC_SEARCH_BASE_URL } from "@/constants/uiConstants";
 import { parseDisplayAddress } from "@/lib/address";
 import { GovEpcValidationMatch } from "@/types/govEpcCertificate";
-import { Address, ConfidenceLevels, EpcDataSourceType } from "@/types/property";
+import { Address, ConfidenceLevels } from "@/types/property";
 import React, { useEffect, useMemo, useState } from "react";
 
 interface BuildingConfirmationDialogProps {
@@ -32,8 +32,8 @@ interface BuildingConfirmationDialogProps {
         >
     ) => void;
     reverseGeocodedAddress?: string | null;
-    epcSource?: EpcDataSourceType | null;
     onSelectGovEpcSuggestion?: (suggestion: GovEpcValidationMatch) => void;
+    currentEpcRating?: string | null;
 }
 
 export function BuildingConfirmationDialog({
@@ -42,6 +42,7 @@ export function BuildingConfirmationDialog({
     addressData,
     handleConfirm,
     reverseGeocodedAddress,
+    currentEpcRating,
 }: BuildingConfirmationDialogProps) {
     const initialParsedAddress = useMemo(
         () => parseDisplayAddress(addressData?.displayAddress ?? null, addressData?.postcode ?? null),
@@ -94,12 +95,12 @@ export function BuildingConfirmationDialog({
 
     const matchingSuggestions = useMemo(() => {
         return addressData?.govEpcRegisterSuggestions?.filter(
-            (suggestion) => suggestion.matchesFileEpcRating
+            (suggestion) => suggestion.retrievedRating === currentEpcRating
         ) || [];
     }, [addressData?.govEpcRegisterSuggestions]);
 
     const [showHelpSection, setShowHelpSection] = useState(false);
-    const shouldOfferHelp = addressData?.addressConfidence !== ConfidenceLevels.HIGH && addressData?.addressConfidence !== ConfidenceLevels.CONFIRMED_BY_GOV_EPC;
+    const shouldOfferHelp = addressData?.addressConfidence !== ConfidenceLevels.HIGH && addressData?.addressConfidence !== ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED;
 
     // Reset showHelpSection when dialog is closed or addressData changes
     useEffect(() => {

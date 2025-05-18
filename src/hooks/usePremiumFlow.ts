@@ -54,7 +54,7 @@ export const usePremiumFlow = ({
       if (
         isAddressConfirmed ||
         addressConfidence === ConfidenceLevels.HIGH ||
-        addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC
+        addressConfidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
       ) {
         console.log(
           "[PremiumFlow] User authenticated. Address confirmed by user, high confidence from scrape, or confirmed by GOV EPC."
@@ -62,7 +62,7 @@ export const usePremiumFlow = ({
         if (
           !isAddressConfirmed &&
           (addressConfidence === ConfidenceLevels.HIGH ||
-            addressConfidence === ConfidenceLevels.CONFIRMED_BY_GOV_EPC) &&
+            addressConfidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED) &&
           currentPropertyId &&
           propertyAddress?.displayAddress
         ) {
