@@ -5,3 +5,5 @@ export const parkingRegex = /\bparking\b/gi;
 
 export const RIGHTMOVE_PROPERTY_PAGE_REGEX =
   /^https:\/\/www\.rightmove\.co\.uk\/(properties\/|property-for-sale\/|property-to-rent\/)/;
+
+export const outcodeRegex = /^([A-Z]{1,2}[0-9R][0-9A-Z]?)/i; // Matches M1, SW1A, WR11 etc.

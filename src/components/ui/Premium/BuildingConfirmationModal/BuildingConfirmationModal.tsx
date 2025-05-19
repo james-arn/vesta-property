@@ -20,6 +20,7 @@ import { parseDisplayAddress } from "@/lib/address";
 import { GovEpcValidationMatch } from "@/types/govEpcCertificate";
 import { Address, ConfidenceLevels } from "@/types/property";
 import React, { useEffect, useMemo, useState } from "react";
+import { stripOutcodeFromTown } from "./helpers";
 
 interface BuildingConfirmationDialogProps {
     open: boolean;
@@ -67,36 +68,38 @@ export function BuildingConfirmationDialog({
         const isAddressConfrimedByUser = addressData.isAddressConfirmedByUser;
 
         // Case 1: User has confirmed, or confidence is high/gov-confirmed.
-        // Prioritize already confirmed fields, then the main postcode, then parsed values.
         if (
             isAddressConfrimedByUser
             || addressConfidence === ConfidenceLevels.HIGH
             || addressConfidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
         ) {
+            const townSource = addressData.confirmedTown ?? parsed.townGuess;
+            const postcodeSource = addressData.postcode ?? addressData.confirmedPostcode ?? parsed.postcodeGuess;
             setBuilding(addressData.confirmedBuilding ?? parsed.buildingGuess);
             setStreet(addressData.confirmedStreet ?? parsed.streetGuess);
-            setTown(addressData.confirmedTown ?? parsed.townGuess);
-            setPostcode(addressData.postcode ?? addressData.confirmedPostcode ?? parsed.postcodeGuess);
+            setTown(stripOutcodeFromTown(townSource, postcodeSource));
+            setPostcode(postcodeSource);
         }
         // Case 2: Low/Medium confidence and NOT user confirmed.
-        // This is where the "shift" logic applies: building is empty,
-        // street takes what parseDisplayAddress put in buildingGuess,
-        // town takes what parseDisplayAddress put in streetGuess.
         else if (
             addressConfidence === ConfidenceLevels.NONE
             || addressConfidence === ConfidenceLevels.MEDIUM
         ) {
-            setBuilding(""); // Explicitly empty building
-            setStreet(parsed.buildingGuess); // Assumes displayAddress's first part (the "shifted" street) is in buildingGuess
-            setTown(parsed.streetGuess);     // Assumes displayAddress's second part (the "shifted" town) is in streetGuess
-            setPostcode(addressData.postcode ?? parsed.postcodeGuess); // Prioritize main postcode field
+            const townSource = parsed.streetGuess; // Town is derived from streetGuess in this "shifted" case
+            const postcodeSource = addressData.postcode ?? parsed.postcodeGuess;
+            setBuilding("");
+            setStreet(parsed.buildingGuess);
+            setTown(stripOutcodeFromTown(townSource, postcodeSource));
+            setPostcode(postcodeSource);
         }
-        // Case 3: Default fallback (e.g., confidence is undefined, or other unhandled states)
+        // Case 3: Default fallback
         else {
+            const townSource = parsed.townGuess;
+            const postcodeSource = addressData.postcode ?? parsed.postcodeGuess;
             setBuilding(parsed.buildingGuess);
             setStreet(parsed.streetGuess);
-            setTown(parsed.townGuess);
-            setPostcode(addressData.postcode ?? parsed.postcodeGuess);
+            setTown(stripOutcodeFromTown(townSource, postcodeSource));
+            setPostcode(postcodeSource);
         }
     }, [addressData]);
 
@@ -119,10 +122,11 @@ export function BuildingConfirmationDialog({
                 addressData?.displayAddress ?? null,
                 addressData?.postcode ?? null
             );
+            const postcodeForReset = addressData?.postcode ?? parsed.postcodeGuess;
             setBuilding(parsed.buildingGuess);
             setStreet(parsed.streetGuess);
-            setTown(parsed.townGuess);
-            setPostcode(parsed.postcodeGuess);
+            setTown(stripOutcodeFromTown(parsed.townGuess, postcodeForReset));
+            setPostcode(postcodeForReset);
         }
         onOpenChange(newOpenState);
     };
