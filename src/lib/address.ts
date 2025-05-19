@@ -19,7 +19,6 @@ export const parseDisplayAddress = (
   const safeDisplayAddress = displayAddress ?? "";
   const safePostcode = postcode ?? "";
 
-  // 1. Attempt to remove postcode from the end
   const addressWithoutPostcode =
     safePostcode && safeDisplayAddress.endsWith(safePostcode)
       ? safeDisplayAddress
@@ -28,41 +27,45 @@ export const parseDisplayAddress = (
           .replace(/,$/, "")
       : safeDisplayAddress;
 
-  // 2. Split the remaining string by comma
   const parts = addressWithoutPostcode
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
 
-  // 3. Process the first part (potential building/street)
   let buildingGuess = "";
   let streetGuess = "";
+  let townPartsStartIndex = 0; // Default: town would effectively start from parts[0] if no building/street found
+
   if (parts.length > 0) {
     const firstPart = parts[0];
-    // Very basic heuristic: check if first word is a number (or range like 1-3)
-    const buildingMatch = firstPart.match(/^(\d+(?:-\d+)?(?:[A-Za-z])?)\s+(.*)/);
-    if (buildingMatch) {
-      buildingGuess = buildingMatch[1]; // The number/range part
-      streetGuess = buildingMatch[2]; // The rest of the first part
+    // Heuristic: Check if firstPart ("Number Street Name") contains both building and street
+    const buildingStreetMatch = firstPart.match(/^(\d+(?:-\d+)?(?:[A-Za-z])?)\s+(.*)/);
+    if (buildingStreetMatch) {
+      buildingGuess = buildingStreetMatch[1]; // e.g., "123"
+      streetGuess = buildingStreetMatch[2]; // e.g., "Main Street"
+      townPartsStartIndex = 1; // Town parts start from the next element in `parts` (i.e. parts[1])
     } else {
-      // If no number found, assume the whole first part might be street or building name
-      // It's hard to distinguish reliably without context or better parsing library
-      // Let's put it all in street for now, user can correct
-      buildingGuess = "";
-      streetGuess = firstPart;
+      // Default assignment: Part 1 (parts[0]) is building. Subsequent parts are street, then town.
+      buildingGuess = firstPart;
+      townPartsStartIndex = 1; // After building (parts[0]), next is potentially street (parts[1]) then town (parts[2+])
+
+      if (parts.length > 1) {
+        streetGuess = parts[1];
+        townPartsStartIndex = 2; // Street took parts[1], so town starts from parts[2]
+      }
+      // If parts.length is 1 (only buildingGuess was assigned from parts[0]),
+      // streetGuess remains "", and townPartsStartIndex means town would be sought from parts[1] (which doesn't exist).
     }
-  } else {
-    // If no parts after splitting (e.g., only postcode was removed), put remainder here?
-    streetGuess = addressWithoutPostcode; // Or should this be empty?
   }
 
-  // 4. Determine town based on remaining parts
-  const townGuess = parts.length > 1 ? parts.slice(1).join(", ") : "";
+  // Determine town based on remaining parts, using townPartsStartIndex
+  const townGuess =
+    parts.length > townPartsStartIndex ? parts.slice(townPartsStartIndex).join(", ") : "";
 
   return {
-    buildingGuess: buildingGuess || "",
-    streetGuess: streetGuess || "",
-    townGuess: townGuess || "",
+    buildingGuess: buildingGuess,
+    streetGuess: streetGuess,
+    townGuess: townGuess,
     postcodeGuess: safePostcode,
   };
 };

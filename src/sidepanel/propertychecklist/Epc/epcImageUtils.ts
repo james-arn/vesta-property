@@ -376,14 +376,8 @@ export const processEpcImageDataUrl = async (
         // Sample dominant color from the *dynamically found* region
         const color = getDominantColorInRegion(ctx, region, canvas.width, canvas.height, 8, 4);
 
-        if (color) {
-          console.log(
-            `[Canvas Process - VC] Actual sampled color for Band ${bandInfo.letter}:`,
-            color,
-            `at region y:${region.y.toFixed(2)}, h:${region.height.toFixed(2)}`
-          );
-          return { color, bandInfo }; // Use the *sampled* color as the reference
-        }
+        if (color) return { color, bandInfo }; // Use the *sampled* color as the reference
+
         console.warn(
           `[Canvas Process - VC] Could not sample dominant color for Band ${bandInfo.letter} in its dynamic region.`
         );
@@ -489,11 +483,6 @@ export const processEpcImageDataUrl = async (
       .sort(([, dataA], [, dataB]) => dataB.count - dataA.count) // Sort by count
       .map(([bandKey]) => bandKey);
 
-    console.log(
-      "[Canvas Process - VC] Significant band keys (pre-validation):",
-      significantBandKeys
-    );
-
     // 7. Vertical Validation Filter
     const validatedBands: EpcBandInfo[] = significantBandKeys
       .map((bandKey) => {
@@ -522,11 +511,6 @@ export const processEpcImageDataUrl = async (
         }
       })
       .filter((bandInfo): bandInfo is EpcBandInfo => bandInfo !== null);
-
-    console.log(
-      "[Canvas Process - VC] Validated significant bands:",
-      validatedBands.map((b) => b.letter)
-    );
 
     // --- NEW Step 7.5: Sample Combined Chevron Region Color ---
     // Use the existing rightAnalysisRegion, sample densely

@@ -8,7 +8,7 @@ const VESTA_PULL_TAB_ID = "vesta-pull-tab";
 const VESTA_PULL_TAB_LOGO_ID = "vesta-pull-tab-logo";
 const VESTA_BOOKMARK_SPINE_ID = "vesta-bookmark-spine";
 const VESTA_DYNAMIC_BACKGROUND_ID = "vesta-dynamic-background-fill";
-const PULL_TAB_ACTIVE_CLASS = "vesta-pull-tab--panel-open"; // For styling when panel is open
+const PULL_TAB_ACTIVE_CLASS = "vesta-pull-tab--panel-open";
 
 interface PullTabStyles {
   pullTab: string;
@@ -238,7 +238,6 @@ export const createAndInjectPullTab = (): void => {
   logo.style.cssText = pullTabStyles.logo;
   pullTab.appendChild(logo);
 
-  // Apply styles not in the CSS template
   pullTab.style.transition = "transform 0.2s ease-out, background-color 0.2s";
 
   // Add elements to DOM

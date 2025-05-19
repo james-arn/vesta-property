@@ -11,13 +11,13 @@ const authConfigs = {
     AUTH_CLIENT_ID: "785152h8gp3l66m43abhh66vs3",
     AUTH_COGNITO_DOMAIN: "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com",
     AUTH_USER_POOL_ID: "eu-west-2_eHh7H32th",
-    AUTH_PRICING_URL: "https://vestapropertychecker.com/pricing",
+    AUTH_PRICING_URL: "https://vestapropertychecker.com/#pricing",
   },
   production: {
     AUTH_CLIENT_ID: "5n2gk5qj1cclclfj4pl1v4f4qt", // Production Cognito Client ID
     AUTH_COGNITO_DOMAIN: "https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com",
     AUTH_USER_POOL_ID: "eu-west-2_JnzrCsnYE", // Production Cognito User Pool ID
-    AUTH_PRICING_URL: "https://vestapropertychecker.com/pricing",
+    AUTH_PRICING_URL: "https://vestapropertychecker.com/#pricing",
   },
 };
 

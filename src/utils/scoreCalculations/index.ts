@@ -37,7 +37,7 @@ export const calculateDashboardScores = (
   // Calculate score for each category
   const runningCostsData = calculateCostEfficiencyScore(items, preprocessedData);
   if (runningCostsData) {
-    categoryScores[DashboardScoreCategory.COST_EFFICIENCY] = runningCostsData;
+    categoryScores[DashboardScoreCategory.RUNNING_COSTS] = runningCostsData;
   }
 
   const investmentData = calculateInvestmentValueScore(items, preprocessedData);

@@ -21,10 +21,12 @@ const nodeModulesPath = path.resolve(__dirname, "node_modules");
 
 module.exports = {
   mode: env,
+  target: "webworker",
   entry: {
     sidepanel: "./src/sidepanel/index.tsx",
-    background: "./src/background.ts",
     contentScript: "./src/contentScript/contentScript.ts",
+    background: "./src/background.ts",
+    offscreen: "./src/offscreen/offscreen.ts",
     sandbox: "./src/sandbox/sandbox.ts",
   },
   output: {
@@ -63,6 +65,11 @@ module.exports = {
       template: "./src/sidepanel/index.html",
       filename: "sidepanel.html",
       chunks: ["sidepanel"],
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/offscreen/offscreen.html",
+      filename: "offscreen.html",
+      chunks: ["offscreen"],
     }),
     new CopyWebpackPlugin({
       patterns: [

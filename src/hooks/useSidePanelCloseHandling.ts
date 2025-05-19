@@ -66,7 +66,7 @@ export const useSidePanelCloseHandling = (): void => {
         // This is a fire-and-forget message. The browser might close the window before a response is received.
         chrome.runtime.sendMessage({
           action: ActionEvents.SIDE_PANEL_IS_NOW_CLOSING,
-          tabId: ownTabId,
+          data: { tabId: ownTabId },
         });
       } else {
         // Attempt to get tabId via active query as a last resort, though less reliable for unload.
@@ -75,7 +75,13 @@ export const useSidePanelCloseHandling = (): void => {
             const activeTabId = tabs[0].id;
             chrome.runtime.sendMessage({
               action: ActionEvents.SIDE_PANEL_IS_NOW_CLOSING,
-              tabId: activeTabId,
+              data: { tabId: activeTabId },
+            });
+          } else {
+            // If still no tabId, send without it explicitly in data.
+            chrome.runtime.sendMessage({
+              action: ActionEvents.SIDE_PANEL_IS_NOW_CLOSING,
+              data: { tabId: undefined },
             });
           }
         });

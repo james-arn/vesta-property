@@ -2,15 +2,8 @@ import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PriceDiscrepancyReason, PropertyGroups } from "@/constants/propertyConsts";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { ProcessedPremiumDataStatus, RestrictiveCovenant } from "@/types/premiumStreetData";
-import {
-  Confidence,
-  ConfidenceLevels,
-  DataStatus,
-  EpcData,
-  PropertyDataListItem,
-} from "@/types/property";
+import { ConfidenceLevels, DataStatus, EpcData, PropertyDataListItem } from "@/types/property";
 import { formatTimeInYearsMonthsWeeksDays } from "../../utils/dates";
 
 export function getYesNoOrMissingStatus(value: string | null): DataStatus {
@@ -182,74 +175,131 @@ export function getCAGRStatus(cagr: number | null): DataStatus {
   return cagr < 0.03 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 }
 
-export const determineEpcChecklistItemDetails = (
-  propertyEpcData: EpcData,
-  epcProcessingResult: EpcProcessorResult
-): PropertyDataListItem => {
-  const { isLoading, error, value: processedValue, confidence, source } = epcProcessingResult;
-  const userProvidedValue = propertyEpcData.value;
-  const userProvidedConfidence = propertyEpcData.confidence;
+// Assuming ConfidenceLevels is a const object like:
+// export const ConfidenceLevels = { HIGH: "High", NONE: "None", ... } as const;
+// We derive a union type of its values for type annotations.
+export type ConfidenceLevelsValues = (typeof ConfidenceLevels)[keyof typeof ConfidenceLevels];
 
+// Helper to map string confidence to ConfidenceLevelsValues type
+const mapStringToConfidenceLevel = (
+  confidenceStr: string | null | undefined
+): ConfidenceLevelsValues => {
+  if (!confidenceStr) return ConfidenceLevels.NONE;
+  const upperConfidenceStr = confidenceStr.toUpperCase().replace(/\s+/g, "");
+
+  switch (upperConfidenceStr) {
+    case "HIGH":
+      return ConfidenceLevels.HIGH;
+    case "MEDIUM":
+      return ConfidenceLevels.MEDIUM;
+    case "CONFIRMEDBYGOVEPC":
+      return ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED;
+    case "USERPROVIDED":
+      return ConfidenceLevels.USER_PROVIDED;
+    default:
+      // Check if the original string matches one of the object's values
+      const confidenceValue = Object.values(ConfidenceLevels).find((val) => val === confidenceStr);
+      if (confidenceValue) {
+        return confidenceValue as ConfidenceLevelsValues;
+      }
+      // Fallback: Check if normalized string matches an uppercased value
+      const matchedNormalizedValue = Object.values(ConfidenceLevels).find(
+        (val) => val.toUpperCase().replace(/\s+/g, "") === upperConfidenceStr
+      );
+      if (matchedNormalizedValue) {
+        return matchedNormalizedValue as ConfidenceLevelsValues;
+      }
+      console.warn("Unhandled confidence string: " + confidenceStr + ", defaulting to NONE");
+      return ConfidenceLevels.NONE;
+  }
+};
+
+export const generateEpcChecklistItem = (
+  propertyEpcData: EpcData | undefined | null,
+  isPreprocessedDataLoading: boolean,
+  preprocessedDataError: Error | null,
+  finalEpcValue: string | null | undefined,
+  finalEpcConfidence: ConfidenceLevelsValues | null | undefined, // Use the derived type
+  finalEpcSource: string | null | undefined,
+  finalEpcBandData: any | null | undefined
+): PropertyDataListItem => {
   const baseEpcItem = {
     label: "EPC Rating",
     key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
-    dashboardGroup: DashboardScoreCategory.COST_EFFICIENCY,
+    dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
     isExpectedInListing: true,
+    epcBandData: finalEpcBandData ?? null,
+    epcImageUrl: propertyEpcData?.displayUrl || propertyEpcData?.url || null,
+    confidence: ConfidenceLevels.NONE, // Default confidence
   };
 
-  // --- Loading State ---
-  if (isLoading) {
+  if (isPreprocessedDataLoading) {
     return {
       ...baseEpcItem,
       value: "Loading...",
       status: DataStatus.IS_LOADING,
-      askAgentMessage: "Processing EPC...",
-      toolTipExplainer: "Attempting to determine EPC rating.",
+      askAgentMessage: "Processing EPC/Premium Data...",
+      toolTipExplainer: "Attempting to determine EPC rating and other data.",
+      // confidence already set in baseEpcItem
     };
   }
 
-  // --- Error State ---
-  if (error) {
+  if (preprocessedDataError) {
+    const errorMsg = preprocessedDataError.message || "Processing failed";
     return {
       ...baseEpcItem,
-      value: `Error: ${error}`,
-      confidence: ConfidenceLevels.NONE,
+      value: "Error: " + errorMsg,
       status: DataStatus.ASK_AGENT,
-      askAgentMessage: `Error processing EPC (${error}). Ask Agent?`,
-      toolTipExplainer: `EPC processing failed: ${error}`,
+      askAgentMessage: "Error processing data (" + errorMsg + "). Ask Agent?",
+      toolTipExplainer: "Data processing failed: " + errorMsg,
+      // confidence already set in baseEpcItem
     };
   }
 
-  const shouldUseUserValue =
-    (userProvidedConfidence === ConfidenceLevels.USER_PROVIDED && userProvidedValue) ||
-    (confidence !== ConfidenceLevels.HIGH && userProvidedValue);
-
-  const finalValue: string | null | undefined = shouldUseUserValue
-    ? userProvidedValue
-    : processedValue;
-
-  const finalConfidence: Confidence | null = shouldUseUserValue
-    ? ConfidenceLevels.USER_PROVIDED
-    : confidence;
-
-  if (finalValue) {
+  if (finalEpcValue) {
     return {
       ...baseEpcItem,
-      value: `${finalValue}`.trim(),
-      confidence: finalConfidence,
+      value: finalEpcValue,
       status: DataStatus.FOUND_POSITIVE,
-      askAgentMessage: "Please can you confirm the EPC rating?",
-      toolTipExplainer: `EPC Rating: ${finalValue}. Confidence: ${finalConfidence || "N/A"}. Source: ${source || "N/A"}.`,
+      confidence: finalEpcConfidence ?? ConfidenceLevels.NONE,
+      askAgentMessage: "",
+      toolTipExplainer:
+        "EPC Rating determined as " +
+        finalEpcValue +
+        ". Confidence: " +
+        (finalEpcConfidence || "N/A") +
+        ". Source: " +
+        (finalEpcSource || "N/A") +
+        ".",
     };
   }
 
+  if (propertyEpcData?.value) {
+    const determinedConfidence = mapStringToConfidenceLevel(propertyEpcData.confidence);
+    return {
+      ...baseEpcItem,
+      value: propertyEpcData.value,
+      status: DataStatus.FOUND_POSITIVE,
+      confidence: determinedConfidence,
+      askAgentMessage: "Please verify this EPC rating with the agent.",
+      toolTipExplainer:
+        "EPC Rating: " +
+        propertyEpcData.value +
+        ". Confidence: " +
+        (determinedConfidence || "N/A") +
+        ". Source: " +
+        (propertyEpcData.source || "Scraped from page") +
+        ".",
+    };
+  }
+
+  // Default if no EPC data is found, confidence is already NONE from baseEpcItem
   return {
     ...baseEpcItem,
-    value: CHECKLIST_NO_VALUE.NOT_FOUND,
-    confidence: null,
+    value: CHECKLIST_NO_VALUE.NOT_AVAILABLE,
     status: DataStatus.ASK_AGENT,
     askAgentMessage: "Could not determine EPC. Ask Agent?",
     toolTipExplainer: "Could not determine the EPC rating from available data.",

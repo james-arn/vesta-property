@@ -1,78 +1,122 @@
 (function () {
-  const checkInterval = 200; // Check every 200ms
-  const maxAttempts = 50; // Try for up to 10 seconds (50 * 200ms)
-  let attempts = 0;
-  let intervalId = null;
-  let startTime = performance.now();
-  console.log(
-    `[Vesta Inject Script] Initializing at ${new Date().toISOString()} for URL: ${window.location.href}`
-  );
+  const CHECK_INTERVAL_MS = 250;
+  const MAX_ATTEMPTS = 40; // ~10 seconds
 
-  const cleanup = () => {
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
-      console.log("[Vesta Inject Script] Polling stopped.");
+  let checkAttempts = 0;
+  let checkIntervalId = null;
+  let lastFoundModelId = null;
+  let checkStartTime = 0;
+  let observer = null; // MutationObserver instance
+
+  const cleanupCheckInterval = () => {
+    if (checkIntervalId) {
+      clearInterval(checkIntervalId);
+      checkIntervalId = null;
     }
-    // Note: This script is no longer removed by the content script on load.
-    // It will remain in the DOM unless it removes itself.
-    // Example: document.currentScript.remove(); (but be careful with timing if async operations like postMessage are still pending)
   };
 
+  // --- Core Logic --- Function to check for PAGE_MODEL ---
   const checkForPageModel = () => {
-    attempts++;
-    if (window.PAGE_MODEL) {
-      const modelFoundTime = performance.now();
-      console.log(
-        `[Vesta Inject Script] Found window.PAGE_MODEL (attempt ${attempts}) after ${((modelFoundTime - startTime) / 1000).toFixed(2)}s.`
-      );
-      try {
-        // Ensure PAGE_MODEL is not too large or circular if cloning issues arise with postMessage
-        // For complex objects, consider sending only necessary parts or a flag.
-        window.postMessage({ type: "pageModelAvailable", pageModel: window.PAGE_MODEL }, "*");
-        console.log("[Vesta Inject Script] Successfully posted pageModelAvailable.");
-      } catch (e) {
-        console.error("[Vesta Inject Script] Error posting message (pageModelAvailable):", e);
+    checkAttempts++;
+    const currentPageModel = window.PAGE_MODEL;
+
+    if (currentPageModel && currentPageModel.propertyData?.id) {
+      if (currentPageModel.propertyData.id !== lastFoundModelId) {
+        try {
+          window.postMessage({ type: "pageModelAvailable", pageModel: currentPageModel }, "*");
+          lastFoundModelId = currentPageModel.propertyData.id;
+        } catch (e) {
+          console.error("[Vesta Inject Script] Error posting message (pageModelAvailable):", e);
+          lastFoundModelId = null;
+        }
+        cleanupCheckInterval();
+      } else {
+        cleanupCheckInterval();
       }
-      cleanup();
-    } else if (attempts >= maxAttempts) {
+    } else if (checkAttempts >= MAX_ATTEMPTS) {
       const timeoutTime = performance.now();
       console.warn(
-        `[Vesta Inject Script] Max attempts reached on URL: ${window.location.href}. window.PAGE_MODEL not found after ${attempts} attempts over ${((timeoutTime - startTime) / 1000).toFixed(2)}s.`
+        `[Vesta Inject Script] Max attempts reached for URL: ${window.location.href}. window.PAGE_MODEL not found after ${checkAttempts} attempts over ${((timeoutTime - checkStartTime) / 1000).toFixed(2)}s.`
       );
       try {
-        window.postMessage({ type: "pageModelTimeout", url: window.location.href }, "*");
-        console.log("[Vesta Inject Script] Successfully posted pageModelTimeout.");
+        // Only send timeout if we haven't found *any* model for this ID check cycle
+        if (lastFoundModelId !== window.PAGE_MODEL?.propertyData?.id) {
+          window.postMessage({ type: "pageModelTimeout", url: window.location.href }, "*");
+        }
       } catch (e) {
         console.error("[Vesta Inject Script] Error posting message (pageModelTimeout):", e);
       }
-      cleanup();
-    } else {
-      if (attempts % 5 === 0) {
-        console.log(
-          `[Vesta Inject Script] window.PAGE_MODEL not found. Attempt: ${attempts}. Elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`
-        );
-      }
+      cleanupCheckInterval();
     }
   };
 
-  // Check immediately in case it's already there
-  if (window.PAGE_MODEL) {
-    const initialFoundTime = performance.now();
-    console.log(
-      `[Vesta Inject Script] Found window.PAGE_MODEL on initial synchronous check after ${((initialFoundTime - startTime) / 1000).toFixed(2)}s.`
-    );
-    try {
-      window.postMessage({ type: "pageModelAvailable", pageModel: window.PAGE_MODEL }, "*");
-      console.log("[Vesta Inject Script] Successfully posted pageModelAvailable (initial check).");
-    } catch (e) {
-      console.error("[Vesta Inject Script] Error posting message (initial check):", e);
+  // --- Trigger Function --- Starts the check process ---
+  const startCheckingForPageModel = () => {
+    // Avoid starting check if one is already running for the same model ID attempt
+    if (checkIntervalId) {
+      return;
     }
-    // No need to call cleanup() here as polling interval won't be set.
-  } else {
-    console.log(
-      `[Vesta Inject Script] window.PAGE_MODEL not found on initial check (${((performance.now() - startTime) / 1000).toFixed(2)}s). Starting polling.`
-    );
-    intervalId = setInterval(checkForPageModel, checkInterval);
+
+    cleanupCheckInterval();
+    checkAttempts = 0;
+    checkStartTime = performance.now();
+    // Check immediately
+    const initialModel = window.PAGE_MODEL;
+    if (
+      initialModel &&
+      initialModel.propertyData?.id &&
+      initialModel.propertyData.id !== lastFoundModelId
+    ) {
+      const initialFoundTime = performance.now();
+      console.log(
+        `[Vesta Inject Script] Found NEW window.PAGE_MODEL (id: ${initialModel.propertyData.id}) on initial check after ${((initialFoundTime - checkStartTime) / 1000).toFixed(2)}s.`
+      );
+      try {
+        window.postMessage({ type: "pageModelAvailable", pageModel: initialModel }, "*");
+        console.log(
+          "[Vesta Inject Script] Successfully posted pageModelAvailable (initial check)."
+        );
+        lastFoundModelId = initialModel.propertyData.id;
+      } catch (e) {
+        console.error("[Vesta Inject Script] Error posting message (initial check):", e);
+        lastFoundModelId = null;
+      }
+      // Don't start interval if found immediately
+    } else {
+      checkIntervalId = setInterval(checkForPageModel, CHECK_INTERVAL_MS);
+    }
+  };
+
+  // --- MutationObserver Callback --- Reacts to DOM changes ---
+  const handleMutation = (mutationsList, observer) => {
+    // We don't need to inspect mutationsList in detail for this strategy.
+    // Any significant DOM change might indicate navigation.
+
+    // Check if the URL looks like a property page AFTER the mutation
+    if (window.location.href.includes("/properties/")) {
+      startCheckingForPageModel();
+    } else {
+      // Navigated away from a property page
+      cleanupCheckInterval();
+      lastFoundModelId = null;
+    }
+  };
+
+  // --- Initialization ---
+  // Initial check for the first page load
+  if (window.location.href.includes("/properties/")) {
+    startCheckingForPageModel();
   }
+
+  // Setup and start the MutationObserver
+  observer = new MutationObserver(handleMutation);
+  const config = { childList: true, subtree: true };
+
+  // Start observing the body for configured mutations
+  // We might need a slight delay for the initial body content to be there reliably
+  setTimeout(() => {
+    if (document.body) {
+      observer.observe(document.body, config);
+    }
+  }, 100); // 100ms delay before starting observer
 })();

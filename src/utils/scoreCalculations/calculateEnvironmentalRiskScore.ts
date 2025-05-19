@@ -40,9 +40,21 @@ export const calculateEnvironmentalRiskScore = (
   preprocessedData: PreprocessedData
 ): CategoryScoreData => {
   const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.ENVIRONMENT_RISK] || [];
-  const contributingItems = items.filter((item) =>
+  // Filter items first
+  const filteredItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
   );
+
+  // Then sort the filtered items based on the order in contributingFactorKeys
+  const contributingItems = filteredItems.sort((a, b) => {
+    const indexA = (contributingFactorKeys as string[]).indexOf(a.key);
+    const indexB = (contributingFactorKeys as string[]).indexOf(b.key);
+    // Handle cases where a key might not be in contributingFactorKeys (should not happen if logic is correct)
+    if (indexA === -1 && indexB === -1) return 0; // both not found, treat as equal
+    if (indexA === -1) return 1; // a not found, sort a after b
+    if (indexB === -1) return -1; // b not found, sort a before b
+    return indexA - indexB;
+  });
 
   const crimeItem = findItemByKey(items, CHECKLIST_KEYS.CRIME_SCORE);
   const floodDefencesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_DEFENCES);

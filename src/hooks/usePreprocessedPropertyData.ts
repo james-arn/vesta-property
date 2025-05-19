@@ -1,14 +1,13 @@
 import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
 import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
+import { EpcBandResult } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
 import { calculateListingHistoryDetails } from "@/sidepanel/propertychecklist/helpers";
-import { EpcBandResult } from "@/types/epc";
 import {
   GetPremiumStreetDataResponse,
   ProcessedPremiumDataStatus,
   ProcessedPremiumStreetData,
 } from "@/types/premiumStreetData";
 import {
-  Confidence,
   ConfidenceLevels,
   DataStatus,
   EpcData,
@@ -24,30 +23,19 @@ import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import { processRestrictiveCovenants } from "./helpers/preProcessedDataHelpers";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
-import { useProcessedEpcData } from "./useProcessedEpcData";
 
 type UsePreprocessedPropertyDataArgs = {
   propertyData: UseChecklistAndDashboardDataArgs["propertyData"];
   premiumStreetDataQuery: UseQueryResult<GetPremiumStreetDataResponse | null, Error> | undefined;
-  epcDebugCanvasRef: UseChecklistAndDashboardDataArgs["epcDebugCanvasRef"];
-  isEpcDebugModeOn: UseChecklistAndDashboardDataArgs["isEpcDebugModeOn"];
+  isParentDataLoading: boolean;
 };
 
 export const usePreprocessedPropertyData = ({
   propertyData,
   premiumStreetDataQuery,
-  epcDebugCanvasRef,
-  isEpcDebugModeOn,
+  isParentDataLoading,
 }: UsePreprocessedPropertyDataArgs): PreprocessedData => {
   const initialEpcData: EpcData | null | undefined = propertyData?.epc;
-  const epcUrl: string | null | undefined = initialEpcData?.url;
-
-  const { processedEpcResult, isEpcProcessing, isEpcError, epcError } = useProcessedEpcData({
-    initialEpcData,
-    epcUrl,
-    epcDebugCanvasRef,
-    isEpcDebugModeOn,
-  });
 
   const askingPrice = useMemo(() => {
     return parseCurrency(propertyData?.salePrice ?? null);
@@ -80,45 +68,17 @@ export const usePreprocessedPropertyData = ({
   const premiumError =
     premiumStreetDataQuery?.error instanceof Error ? premiumStreetDataQuery.error : null;
 
-  const isPreprocessedDataLoading = isEpcProcessing || isPremiumLoading;
-  const preprocessedDataError = (epcError as Error | null) || premiumError;
+  const isPreprocessedDataLoading = isParentDataLoading || isPremiumLoading;
+  const epcErrorFromInitialData = initialEpcData?.error
+    ? new Error(String(initialEpcData.error))
+    : null;
+  const preprocessedDataError = epcErrorFromInitialData || premiumError;
 
   // --- Determine Final EPC Values ---
-  const initialEpcValue = propertyData?.epc?.value;
-  const initialEpcConfidence = propertyData?.epc?.confidence;
-  const initialEpcSource = propertyData?.epc?.source;
-
   const { finalEpcValue, finalEpcConfidence, finalEpcSource, epcScoreForCalculation } =
     useMemo(() => {
-      // If user has made a specific EPC rating override, use that as prioirty.
-      if (initialEpcConfidence === ConfidenceLevels.USER_PROVIDED && initialEpcValue) {
-        const score = mapGradeToScore(initialEpcValue);
-        return {
-          finalEpcValue: initialEpcValue,
-          finalEpcConfidence: ConfidenceLevels.USER_PROVIDED,
-          finalEpcSource: EpcDataSourceType.USER_PROVIDED,
-          epcScoreForCalculation: score,
-        };
-      }
-
-      // --- Prioritize High Confidence from Initial Scrape ---
-      // If we already have high confidence from the listing scrape, trust it
-      // and don't let potential errors in automated processing override it.
-      if (initialEpcConfidence === ConfidenceLevels.HIGH && initialEpcValue) {
-        const score = mapGradeToScore(initialEpcValue);
-        return {
-          finalEpcValue: initialEpcValue,
-          finalEpcConfidence: ConfidenceLevels.HIGH,
-          finalEpcSource: EpcDataSourceType.LISTING,
-          epcScoreForCalculation: score,
-        };
-      }
-
-      // --- If no user override OR low confidence initial scrape, proceed with automated processing result ---
-      const automatedResult = processedEpcResult;
-
-      // --- Handle Loading State for Automated Processing ---
-      if (isEpcProcessing || !automatedResult) {
+      // Combined loading check for parent data or premium data query
+      if (isParentDataLoading) {
         return {
           finalEpcValue: null,
           finalEpcConfidence: ConfidenceLevels.NONE,
@@ -127,59 +87,98 @@ export const usePreprocessedPropertyData = ({
         };
       }
 
-      // --- Handle Error State ---
-      if (isEpcError || automatedResult.error) {
-        return {
-          finalEpcValue: null,
-          finalEpcConfidence: ConfidenceLevels.NONE,
-          finalEpcSource: null,
-          epcScoreForCalculation: null,
-        };
-      }
+      const premiumEnergyPerformance =
+        premiumStreetDataQuery?.data?.premiumData?.data?.attributes?.energy_performance;
 
-      // --- Process Successful Automated Result ---
-      const value: string | null = automatedResult?.value ?? null;
-      const confidence: Confidence = automatedResult?.confidence ?? ConfidenceLevels.NONE;
-      const source: EpcDataSourceType | null = automatedResult?.source ?? null;
-
-      // Determine the score, preferring the score calculated during processing if available
-      let score: number | null = null;
-      if (
-        automatedResult?.automatedProcessingResult &&
-        "currentBand" in automatedResult.automatedProcessingResult
-      ) {
-        const bandResult = automatedResult.automatedProcessingResult as EpcBandResult;
-        score = bandResult.currentBand?.score ?? null;
-        if (score === null) {
-          console.warn(
-            "EPC BandResult found, but currentBand.score was null. Falling back to grade mapping for:",
-            value
-          );
-          score = mapGradeToScore(value);
+      // PRIORITY 1: Premium Data EPC
+      if (premiumEnergyPerformance?.energy_efficiency?.current_rating) {
+        const premiumEpcValue = premiumEnergyPerformance.energy_efficiency.current_rating;
+        let premiumConfidence: (typeof ConfidenceLevels)[keyof typeof ConfidenceLevels] =
+          ConfidenceLevels.MEDIUM;
+        if (premiumEnergyPerformance.meta?.data_type === "actual") {
+          premiumConfidence = ConfidenceLevels.HIGH;
         }
-      } else if (
-        automatedResult?.automatedProcessingResult &&
-        "currentEpcRating" in automatedResult.automatedProcessingResult
-      ) {
-        const extractedResult = automatedResult.automatedProcessingResult;
-        score = mapGradeToScore(extractedResult.currentEpcRating);
-      } else {
-        score = mapGradeToScore(value);
+        // Ensure the value is a valid EPC rating (single uppercase letter A-G)
+        if (premiumEpcValue && /^[A-G]$/.test(premiumEpcValue.toUpperCase())) {
+          console.log(
+            "[usePreprocessedPropertyData] Using Premium EPC data:",
+            premiumEnergyPerformance
+          );
+          const score = mapGradeToScore(premiumEpcValue.toUpperCase());
+          return {
+            finalEpcValue: premiumEpcValue.toUpperCase(),
+            finalEpcConfidence: premiumConfidence,
+            finalEpcSource: EpcDataSourceType.PREMIUM_API,
+            epcScoreForCalculation: score,
+          };
+        }
       }
 
+      // PRIORITY 2: User-Provided EPC (from initialEpcData, which is propertyData.epc)
+      if (
+        initialEpcData?.confidence === ConfidenceLevels.USER_PROVIDED &&
+        initialEpcData?.value &&
+        !initialEpcData.error
+      ) {
+        console.log("[usePreprocessedPropertyData] Using User Provided EPC data:", initialEpcData);
+        const score = mapGradeToScore(initialEpcData.value);
+        return {
+          finalEpcValue: initialEpcData.value,
+          finalEpcConfidence: initialEpcData.confidence,
+          finalEpcSource: initialEpcData.source, // Should be EpcDataSourceType.USER_PROVIDED
+          epcScoreForCalculation: score,
+        };
+      }
+
+      // PRIORITY 3: Background Processed EPC (from initialEpcData, after UI/Premium checks)
+      // Handle error from initialEpcData (background processing error)
+      if (initialEpcData?.error) {
+        console.warn(
+          "[usePreprocessedPropertyData] Error in initialEpcData (background processed): ",
+          initialEpcData.error
+        );
+        return {
+          finalEpcValue: null,
+          finalEpcConfidence: initialEpcData.confidence || ConfidenceLevels.NONE, // Keep confidence if available
+          finalEpcSource: initialEpcData.source || null, // Keep source if available
+          epcScoreForCalculation: null,
+        };
+      }
+
+      // Use other initialEpcData if value and confidence are good (e.g., GOV_EPC_CONFIRMED, OCR result, HIGH from scrape)
+      if (initialEpcData?.value && initialEpcData.confidence !== ConfidenceLevels.NONE) {
+        console.log(
+          "[usePreprocessedPropertyData] Using background processed/scraped EPC data:",
+          initialEpcData
+        );
+        const score = mapGradeToScore(initialEpcData.value);
+        return {
+          finalEpcValue: initialEpcData.value,
+          finalEpcConfidence: initialEpcData.confidence,
+          finalEpcSource: initialEpcData.source,
+          epcScoreForCalculation: score,
+        };
+      }
+
+      // Default/Fallback: No definitive EPC data, or low confidence scrape
+      console.log(
+        "[usePreprocessedPropertyData] No definitive EPC. Using fallback based on initialEpcData:",
+        initialEpcData
+      );
       return {
-        finalEpcValue: value,
-        finalEpcConfidence: confidence,
-        finalEpcSource: source,
-        epcScoreForCalculation: score,
+        finalEpcValue: initialEpcData?.value || null,
+        finalEpcConfidence: initialEpcData?.confidence || ConfidenceLevels.NONE,
+        finalEpcSource: initialEpcData?.source || null,
+        epcScoreForCalculation: initialEpcData?.value
+          ? mapGradeToScore(initialEpcData.value)
+          : null,
       };
     }, [
-      initialEpcValue,
-      initialEpcConfidence,
-      initialEpcSource,
-      processedEpcResult,
-      isEpcProcessing,
-      isEpcError,
+      initialEpcData,
+      isParentDataLoading,
+      processedPremiumDataResult, // Still a dependency, in case other parts of it are used or premium EPC is re-added
+      premiumStreetDataQuery?.status,
+      premiumStreetDataQuery?.data?.premiumData?.data?.attributes?.energy_performance, // Corrected path
     ]);
 
   const nearbySchoolsScoreValue = useMemo(() => {
@@ -256,10 +255,16 @@ export const usePreprocessedPropertyData = ({
       propertyData?.restrictions
     );
 
+    const automatedProcessingResultFromInitial = initialEpcData?.automatedProcessingResult;
+    const derivedFinalEpcBandData =
+      automatedProcessingResultFromInitial && "currentBand" in automatedProcessingResultFromInitial
+        ? (automatedProcessingResultFromInitial as EpcBandResult)
+        : undefined;
+
     return {
       isPreprocessedDataLoading,
       preprocessedDataError,
-      processedEpcResult: processedEpcResult ?? null,
+      finalEpcBandData: derivedFinalEpcBandData,
       processedPremiumData: processedPremiumDataResult,
       finalEpcValue,
       finalEpcConfidence,
@@ -279,11 +284,11 @@ export const usePreprocessedPropertyData = ({
       listingDaysOnMarket,
       listedProperty,
       restrictiveCovenants,
+      initialEpcData,
     };
   }, [
     isPreprocessedDataLoading,
     preprocessedDataError,
-    processedEpcResult,
     processedPremiumDataResult,
     finalEpcValue,
     finalEpcConfidence,
@@ -305,6 +310,7 @@ export const usePreprocessedPropertyData = ({
     propertyData?.restrictions,
     premiumStreetDataQuery?.status,
     processedPremiumDataResult?.restrictiveCovenants,
+    initialEpcData,
   ]);
 
   return preprocessedData;

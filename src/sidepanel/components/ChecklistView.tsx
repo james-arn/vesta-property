@@ -1,7 +1,7 @@
 import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
+import { EpcBandResult } from "@/types/epc";
 import { PropertyDataListItem } from "@/types/property";
 import { UseQueryResult } from "@tanstack/react-query";
 import React, { lazy, RefObject, Suspense } from "react";
@@ -24,7 +24,7 @@ export interface ChecklistViewProps {
     togglePlanningPermissionCard: () => void;
     toggleNearbyPlanningPermissionCard: () => void;
     isPremiumDataFetched: boolean;
-    processedEpcResult: EpcProcessorResult | null | undefined;
+    epcBandData?: EpcBandResult | undefined;
     handleEpcValueChange: (newValue: string) => void;
     isEpcDebugModeOn: boolean;
     epcDebugCanvasRef: RefObject<HTMLCanvasElement | null>;
@@ -55,7 +55,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     togglePlanningPermissionCard,
     toggleNearbyPlanningPermissionCard,
     isPremiumDataFetched,
-    processedEpcResult,
+    epcBandData,
     handleEpcValueChange,
     isEpcDebugModeOn,
     epcDebugCanvasRef,
@@ -98,7 +98,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                     lastGroup = currentGroup;
                 }
 
-                const isVisible = openGroups[currentGroup] ?? true; // Default to visible if group state not tracked
+                const isVisible = openGroups[currentGroup] ?? true;
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>
@@ -115,7 +115,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                         toggleNearbyPlanningPermissionCard
                                     )}
                                     isPremiumDataFetched={isPremiumDataFetched}
-                                    epcData={item.key === CHECKLIST_KEYS.EPC ? (processedEpcResult ?? undefined) : undefined}
+                                    epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
                                     onEpcChange={item.key === CHECKLIST_KEYS.EPC ? handleEpcValueChange : undefined}
                                     epcDebugCanvasRef={item.key === CHECKLIST_KEYS.EPC && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
                                     isEpcDebugModeOn={isEpcDebugModeOn}

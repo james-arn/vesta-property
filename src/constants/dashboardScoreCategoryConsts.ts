@@ -1,6 +1,6 @@
 // Define enum for categories for type safety and mapping
 export enum DashboardScoreCategory {
-  COST_EFFICIENCY = "COST_EFFICIENCY",
+  RUNNING_COSTS = "RUNNING_COSTS",
   INVESTMENT_VALUE = "INVESTMENT_VALUE",
   CONNECTIVITY = "CONNECTIVITY",
   CONDITION = "CONDITION",
@@ -12,7 +12,7 @@ export enum DashboardScoreCategory {
 // Map categories to the *keys* of checklist items contributing to them
 // **CRUCIAL**: Update these keys to match your actual PropertyDataList keys
 export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } = {
-  [DashboardScoreCategory.COST_EFFICIENCY]: [
+  [DashboardScoreCategory.RUNNING_COSTS]: [
     "councilTax",
     "epc", // Efficiency impacts cost
     "heatingType", // Fuel type/efficiency impacts cost
@@ -70,8 +70,6 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     "coastalErosion",
     "miningImpact",
     "airportNoiseAssessment",
-    "nationalParkProximity",
-    "conservationArea",
   ],
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: [
     "tenure",
@@ -88,7 +86,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
 
 // User-friendly display names for categories
 export const DASHBOARD_CATEGORY_DISPLAY_NAMES: Record<DashboardScoreCategory, string> = {
-  [DashboardScoreCategory.COST_EFFICIENCY]: "Cost Efficiency",
+  [DashboardScoreCategory.RUNNING_COSTS]: "Running Costs",
   [DashboardScoreCategory.INVESTMENT_VALUE]: "Investment Value",
   [DashboardScoreCategory.CONNECTIVITY]: "Connectivity",
   [DashboardScoreCategory.CONDITION]: "Condition",

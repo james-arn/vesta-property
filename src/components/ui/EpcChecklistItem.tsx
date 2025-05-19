@@ -1,22 +1,16 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Confidence, ConfidenceLevels } from "@/types/property";
+import { confidenceIcons } from "@/constants/uiConstants";
+import { Confidence, ConfidenceLevels, EpcDataSourceType } from "@/types/property";
 import React from 'react';
-import { FaExclamationTriangle, FaThumbsUp, FaUserEdit } from "react-icons/fa";
+import { getEpcConfidenceTooltipText } from "../../sidepanel/components/Epc/epcConfidenceHelpers";
 
 const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
-
-// Confidence Icons (Copied from ChecklistItem initially, can be moved to a shared location later if needed)
-const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceLevels], React.ElementType | null> = {
-    [ConfidenceLevels.HIGH]: FaThumbsUp,
-    [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
-    [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-    [ConfidenceLevels.NONE]: null,
-};
 
 interface EpcChecklistItemProps {
     value: string | null | undefined;
     confidence: Confidence | null | undefined;
+    epcSource: EpcDataSourceType | null | undefined;
     onEpcChange?: (newValue: string) => void;
     isImageSourceWithUrl: boolean;
 }
@@ -24,8 +18,8 @@ interface EpcChecklistItemProps {
 export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
     value,
     confidence,
+    epcSource,
     onEpcChange,
-    isImageSourceWithUrl
 }) => {
 
     const renderConfidenceIcon = () => {
@@ -34,16 +28,11 @@ export const EpcChecklistItem: React.FC<EpcChecklistItemProps> = ({
         }
         const ConfidenceIcon = confidenceIcons[confidence];
         let iconColor = 'text-gray-400';
-        if (confidence === ConfidenceLevels.HIGH) iconColor = 'text-green-500';
+        if (confidence === ConfidenceLevels.HIGH || confidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED) iconColor = 'text-green-500';
         if (confidence === ConfidenceLevels.MEDIUM) iconColor = 'text-yellow-500';
         if (confidence === ConfidenceLevels.USER_PROVIDED) iconColor = 'text-blue-500';
 
-        const tooltipText = `Confidence: ${confidence}${(confidence !== ConfidenceLevels.HIGH &&
-            confidence !== ConfidenceLevels.USER_PROVIDED &&
-            isImageSourceWithUrl)
-            ? '. Please double check against the EPC image and correct if necessary'
-            : ''
-            }`;
+        const tooltipText = getEpcConfidenceTooltipText(confidence, epcSource);
 
         return ConfidenceIcon ? (
             <TooltipProvider>

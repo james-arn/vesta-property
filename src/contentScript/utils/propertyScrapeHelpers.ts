@@ -486,7 +486,7 @@ export const getBroadbandData = async (): Promise<string> => {
     broadbandButton.click();
 
     // Wait for the main broadband widget to appear using its data-testid
-    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 1500);
+    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 3000);
 
     if (!broadbandWidget) {
       console.warn("Broadband widget did not appear after clicking button.");

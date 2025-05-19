@@ -48,7 +48,7 @@ export const calculateCostEfficiencyScore = (
   items: PropertyDataListItem[],
   preprocessedData: PreprocessedData
 ): CategoryScoreData => {
-  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.COST_EFFICIENCY] || [];
+  const contributingFactorKeys = CATEGORY_ITEM_MAP[DashboardScoreCategory.RUNNING_COSTS] || [];
   const contributingItems = items.filter((item) =>
     (contributingFactorKeys as string[]).includes(item.key)
   );
@@ -133,11 +133,11 @@ export const calculateCostEfficiencyScore = (
 
   // Adjust label generation to reflect efficiency based on the inverted score
   const getCostEfficiencyScoreLabel = (efficiencyScore: number): string => {
-    if (efficiencyScore >= 75) return "High Efficiency"; // Corresponds to Low Cost
-    if (efficiencyScore >= 60) return "Good Efficiency"; // Corresponds to Low-Medium Cost
-    if (efficiencyScore >= 45) return "Average Efficiency"; // Corresponds to Medium Cost
-    if (efficiencyScore >= 30) return "Poor Efficiency"; // Corresponds to High Cost
-    return "Very Poor Efficiency"; // Corresponds to Very High Cost
+    if (efficiencyScore >= 75) return "Very low cost";
+    if (efficiencyScore >= 60) return "Low cost";
+    if (efficiencyScore >= 45) return "Average cost";
+    if (efficiencyScore >= 30) return "High cost";
+    return "Very high cost";
   };
   const scoreLabel = getCostEfficiencyScoreLabel(finalScoreValue);
 

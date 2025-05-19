@@ -1,3 +1,4 @@
+import { AddressLookupPayload } from "@/background/addressLookupHelper";
 import { ActionEvents } from "../constants/actionEvents";
 
 export interface MessageRequest {
@@ -26,4 +27,17 @@ export interface NavigatedUrlOrTabChangedOrExtensionOpenedMessage extends Messag
 
 export interface ResponseType {
   status: string;
+}
+
+// --- Address Lookup Message Types ---
+export interface RequestAddressLookupMessage {
+  type: typeof ActionEvents.REQUEST_ADDRESS_LOOKUP;
+  payload: AddressLookupPayload;
+}
+
+export interface AddressLookupResultMessage {
+  type: typeof ActionEvents.ADDRESS_LOOKUP_RESULT;
+  payload: {
+    fullAddress: string | null;
+  };
 }

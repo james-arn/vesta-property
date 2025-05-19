@@ -2,12 +2,10 @@ import FloodRiskDisplay from "@/components/ui/Premium/FloodRiskDisplay";
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { PropertyGroups } from "@/constants/propertyConsts";
 import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
-import { EpcBandResult } from "@/types/epc";
 import { formatCurrencyGBP, formatPercentage } from "@/utils/formatting";
 import { getStatusFromString } from "@/utils/statusHelpers";
 import { capitaliseFirstLetterAndCleanString } from "@/utils/text";
@@ -22,6 +20,7 @@ import {
   PropertyDataListItem
 } from "../../types/property";
 import {
+  generateEpcChecklistItem,
   getCAGRStatus,
   getRestrictiveCovenantMessages,
   getRestrictiveCovenantsStatus,
@@ -47,7 +46,7 @@ export function generatePropertyChecklist(
     isPreprocessedDataLoading,
     preprocessedDataError,
     processedPremiumData,
-    processedEpcResult,
+    finalEpcBandData,
     finalEpcValue,
     finalEpcConfidence,
     finalEpcSource,
@@ -81,51 +80,15 @@ export function generatePropertyChecklist(
   const isCrimeScoreLoading = crimeScoreQuery?.isLoading ?? false;
   const crimeScoreError = crimeScoreQuery?.error instanceof Error ? crimeScoreQuery.error : null;
 
-  const baseEpcItem = {
-    label: "EPC Rating",
-    key: CHECKLIST_KEYS.EPC,
-    checklistGroup: PropertyGroups.UTILITIES,
-    dashboardGroup: DashboardScoreCategory.COST_EFFICIENCY,
-    isUnlockedWithPremium: false,
-    isBoostedWithPremium: true,
-    isExpectedInListing: true,
-    epcBandData:
-      processedEpcResult?.automatedProcessingResult && 'currentBand' in processedEpcResult.automatedProcessingResult
-        ? processedEpcResult.automatedProcessingResult as EpcBandResult
-        : undefined,
-  };
-  let epcChecklistItem: PropertyDataListItem;
-  if (isPreprocessedDataLoading) {
-    epcChecklistItem = {
-      ...baseEpcItem,
-      value: "Loading...",
-      status: DataStatus.IS_LOADING,
-      askAgentMessage: "Processing EPC/Premium Data...",
-      toolTipExplainer: "Attempting to determine EPC rating and other data.",
-      confidence: ConfidenceLevels.NONE,
-    };
-  } else if (preprocessedDataError) {
-    const errorMsg = preprocessedDataError.message || "Processing failed";
-    epcChecklistItem = {
-      ...baseEpcItem,
-      value: `Error: ${errorMsg}`,
-      status: DataStatus.ASK_AGENT,
-      askAgentMessage: `Error processing data (${errorMsg}). Ask Agent?`,
-      toolTipExplainer: `Data processing failed: ${errorMsg}`,
-      confidence: ConfidenceLevels.NONE,
-    };
-  } else {
-    epcChecklistItem = {
-      ...baseEpcItem,
-      value: finalEpcValue ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      status: finalEpcValue ? DataStatus.FOUND_POSITIVE : DataStatus.ASK_AGENT,
-      confidence: finalEpcConfidence ?? ConfidenceLevels.NONE,
-      askAgentMessage: finalEpcValue ? "" : "Could not determine EPC. Ask Agent?",
-      toolTipExplainer: finalEpcValue
-        ? `EPC Rating determined as ${finalEpcValue}. Confidence: ${finalEpcConfidence}, Source: ${finalEpcSource}`
-        : "Could not determine the EPC rating from available data.",
-    };
-  }
+  const epcChecklistItem = generateEpcChecklistItem(
+    propertyData.epc,
+    isPreprocessedDataLoading,
+    preprocessedDataError,
+    finalEpcValue,
+    finalEpcConfidence,
+    finalEpcSource,
+    finalEpcBandData
+  );
 
   // --- Generate Lease Term Checklist Item --- (Directly)
   const baseLeaseItem = {

@@ -163,73 +163,81 @@ This extension leverages React Query (TanStack Query) for efficient data fetchin
 
 The core data flow operates as follows:
 
-1.  **Property Identification:**
+**Phase 1: Initial Scrape (Content Script Focus)**
 
-    - The background script (`background.ts`) monitors navigation to supported property listing pages (e.g., Rightmove).
-    - Upon detecting a property page, it scrapes the initial data using the content script (`contentScript.ts`).
-    - The background script determines the unique `propertyId` for the current page.
+1.  **Navigation Detection (Background Script -> Content Script Trigger):**
 
-2.  **Data Propagation to UI:**
+    - The background script (`background.ts`) monitors browser navigation.
+    - Upon detecting a Rightmove property page, it signals the content script to begin scraping.
 
-    - The `useBackgroundMessageHandler` hook in `App.tsx` listens for messages from the background script.
-    - It receives the `currentPropertyId` and updates the React Query client when new property data is scraped and sent from the background. The background script directly populates the cache for the relevant `propertyId` using `queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], scrapedData)`.
+2.  \*\*Data Extraction (Content Script - `contentScript.ts`):
 
-3.  **React Query Data Hooks in `App.tsx`:**
+    - The content script (e.g., `propertyDataExtractor.ts`) activates on the live Rightmove property page.
+    - It scrapes the page's DOM and `window.PAGE_MODEL` for raw data: `propertyId`, text details, media URLs, and inputs for background processing (like `nearbySoldPropertiesPath`, sales history, bedrooms).
+    - This data is compiled into an `ExtractedPropertyScrapingData` object.
 
-    - **Base Property Data:** `App.tsx` uses `useQuery` with the key `[REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId]` to retrieve the cached property data. This data includes scraped information and user confirmations (like address). React Query automatically provides the cached data if available, preventing unnecessary re-fetching or re-scraping when revisiting a property page within the cache's lifetime.
-      User inputs handled in the UI, such as manual EPC value entry or address confirmation (via the structured address modal), directly update this base property data cache using `queryClient.setQueryData`. This ensures the primary data object immediately reflects user overrides before being passed to processing hooks.
-    - **Supplementary Data:** Other hooks fetch additional data, managed internally by React Query for caching:
-      - `usePremiumStreetData`: Fetches premium data (e.g., planning permissions) when activated via the flow described below. Results are cached via React Query using the key `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]`.
-      - `useCrimeScore`: Fetches crime scores based on coordinates, results are cached.
-      - `useReverseGeocode`: Fetches address details based on listing coordinates. **Note:** This result is _not_ used to update the main property data cache automatically (as coordinates can be imprecise). Instead, it's passed as an informational hint to the address confirmation modal.
-      - _(Note: EPC processing is also handled separately, potentially caching results based on the EPC document URL)._
+3.  \*\*Data Handoff (Content Script -> Background Script):
+    - The content script sends the `ExtractedPropertyScrapingData` object to the background script (`background.ts`) via a Chrome runtime message.
 
-4.  **Premium Feature Activation & Persistence Flow:** This flow ensures premium data is fetched, paid for, persisted, and restored correctly.
+**Phase 2: Data Enrichment and Processing (Background Script Focus - `background.ts`)**
 
-    - **Trigger:** The user clicks an "Unlock Premium Data" (or similar) button, likely managed within the `usePremiumFlow` hook or `App.tsx`.
-    - **Pre-checks:** The flow checks authentication (`isAuthenticated`). If not authenticated, an `UpsellModal` is shown. If authenticated, it proceeds. It then checks if the address needs confirmation (`propertyData.address.isAddressConfirmedByUser`) and shows the `BuildingConfirmationDialog` if needed, updating the `PROPERTY_DATA` cache on confirmation.
-    - **Confirmation:** If authenticated and address is confirmed, the `PremiumConfirmationModal` is shown.
-    - **Frontend Request (on User Confirmation):**
-      - The frontend gathers the current user-modified context data (confirmed address, user-provided EPC, etc. from the `PROPERTY_DATA` cache) along with the primary `propertyId`.
-      - This information is packaged into a `PremiumFetchContext` object.
-      - A `POST` request (likely triggered by a React Query `useMutation` hook) is sent to the `/getPremiumStreetData` backend endpoint with the `PremiumFetchContext` in the request body.
-    - **Backend Lambda (`/getPremiumStreetData`):**
-      - Receives the request, extracting `userId` (from authorizer), `propertyId`, and `currentContext` (containing `SnapshotContextData`).
-      - **Cache Check:** Queries the `UserPropertySnapshots` DynamoDB table using `userId` (PK) and `propertyId` (SK).
-      - **Cache Hit:** If a record exists:
-        - Retrieves the stored `snapshotData` (the user context at the time of the original fetch) and `premiumData` (the result from the external API).
-        - Returns `{ premiumData: ..., snapshotData: ... }` to the frontend. No external API call or token charge occurs.
-      - **Cache Miss:** If no record exists:
-        - Verifies the user has enough tokens/credits. Fails if insufficient.
-        - Calls the **external premium data API** using the `confirmedAddress` from the request's `currentContext`. Fails if the API call is unsuccessful.
-        - Decrements the user's token count. Fails if the update is unsuccessful.
-        - Saves a new item to `UserPropertySnapshots` containing:
-          - `userId`
-          - `propertyId`
-          - `snapshotData`: Populated directly from the `currentContext` received in the request.
-          - `premiumData`: The raw JSON response from the external API call.
-          - `fetchedAt`: Timestamp.
-        - Returns only the newly fetched data: `{ premiumData: ... }` to the frontend.
-    - **Frontend State Update (React Query Mutation `onSuccess`):**
-      - The mutation handling the `POST` request receives the response from the backend (`GetPremiumStreetDataResponse`).
-      - It **always** updates the React Query cache for `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]` with the received `response.premiumData`.
-      - **If `response.snapshotData` exists** (meaning it was a cache hit on the backend):
-        - It updates the React Query cache for `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]` with `response.snapshotData`. This restores the user's previous modifications (address, EPC) to ensure consistency with the loaded premium data.
-      - If `response.snapshotData` does _not_ exist (cache miss), the `PROPERTY_DATA` cache is _not_ overwritten, as it already contains the latest user edits that were just sent to the backend.
+4.  \*\*Receipt and Initial Setup (Background Script - `handlePropertyDataExtraction`):
 
-5.  **Data Aggregation and Processing (`useChecklistAndDashboardData`):**
+    - The background script receives `ExtractedPropertyScrapingData`.
+    - It loads any cached "authoritative" data for the `propertyId` from `chrome.storage.local`.
+    - The fresh scrape is merged with cached data to form the initial `currentPropertyData` object.
 
-    - This crucial custom hook (`src/hooks/useChecklistAndDashboardData.ts`) receives the query results for `propertyData` (from `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]`) and `premiumStreetDataQuery` (from `[REACT_QUERY_KEYS.PREMIUM_DATA, propertyId]`), and potentially `crimeScoreQuery` as inputs.
-    - **Data Combination:** It intelligently combines these data sources. Premium data (`premiumStreetDataQuery.data`), if available, takes precedence over basic scraped data (`propertyData`) for relevant fields.
-    - **Checklist Generation:** It calls `generatePropertyChecklist` (`src/sidepanel/propertychecklist/propertyChecklist.ts`) to transform the combined data into the `PropertyDataListItem[]` array required for the checklist UI.
-    - **Calculation Data Preparation:** It prepares a `calculationData` object with specifically formatted values needed for scoring calculations.
-    - **Score Calculation:** It invokes `calculateDashboardScores` (`src/utils/scoreCalculations.ts`).
-    - **Return Value:** The hook returns the `propertyChecklistData`, `categoryScores`, `overallScore`, etc.
+5.  \*\*Sequential Enrichment Steps (Background Script - within `handlePropertyDataExtraction`):
+    The background script attempts a series of lookups/processing steps on `currentPropertyData`:
 
-6.  **Rendering (`App.tsx`):**
-    - `App.tsx` takes the processed data from `useChecklistAndDashboardData`.
-    - It passes `propertyChecklistData` to the `ChecklistView` component.
-    - It passes the calculated dashboard scores and `propertyChecklistData` to the `DashboardView` component.
+    - **(A) House Prices Page Address Lookup (Primary Address Validation - `background.ts`):**
+
+      - Here we are trying to confirm the precise location as it is never present in the listing (e.g. no building number).
+        The most reliable method is this - comparing the sales history if present scraped from contentscript to the previous sold listing page on rightmove.
+      - **Condition:** Always attempted if necessary inputs are present.
+      - **Action (Background):** Calls `lookupAddressFromHousePricesPage` which `fetch`es and parses another Rightmove page's `PAGE_MODEL` for sales history comparison.
+      - **Outcome:** If a match is found, `currentPropertyData.address` is updated with high confidence (`ConfidenceLevels.HIGH`, `AddressSourceType.HOUSE_PRICES_PAGE_MATCH`).
+
+    - **(B) GOV.UK EPC Validation - `background.ts`:**
+    - If we can use our address (precise or not) to check what the EPC is for the property based on the gov uk's epc site.
+
+      - **Condition:** Proceeds if address from (A) is not high confidence OR EPC data is not yet high confidence.
+      - **Action (Background):** Fetches from GOV.UK EPC register by postcode. Seeks strong or plausible matches.
+      - **Outcome:** Updates `currentPropertyData.address` and `.epc` on strong match (e.g., `ConfidenceLevels.CONFIRMED_BY_GOV_EPC`, `AddressSourceType.GOV_EPC_CONFIRMED`). Stores plausible matches.
+
+    - **(C) File EPC OCR (PDF or Image - `background.ts` => `contentScript.ts` => `background.ts`):**
+
+      - **Condition:** Triggered if an EPC file URL (PDF or Image) exists in `currentPropertyData.epc.url` and the EPC confidence is still low after previous steps.
+      - **Action Flow:**
+        1. **Request (Background Script -> Content Script):** `background.ts` sends a message (`BACKGROUND_REQUESTS_CLIENT_PDF_OCR` for PDFs or `BACKGROUND_REQUESTS_CLIENT_IMAGE_OCR` for images) to `contentScript.ts` with the file URL and a unique request ID.
+        2. **Processing (Content Script, using `src/lib/epcProcessing.ts`):**
+           - `contentScript.ts` receives the request.
+           - It invokes `processEpcData(fileUrl)` from `src/lib/epcProcessing.ts`.
+           - For image URLs, `processImageUrl` (within `epcProcessing.ts`) sends a `FETCH_IMAGE_FOR_CANVAS` message back to `background.ts`. `background.ts` fetches the image (handling potential CORS issues) and returns it as a `dataUrl` to the content script.
+           - `epcProcessing.ts` (still executing in the content script's context) then performs the actual OCR on the PDF data (using libraries like PDF.js) or on the image `dataUrl` (e.g., using Tesseract.js).
+        3. **Result (Content Script -> Background Script):** `contentScript.ts` sends the structured `EpcProcessorResult` (containing the extracted EPC rating, any relevant text like an address from the document, confidence, etc.) back to `background.ts` using a `CLIENT_PDF_OCR_RESULT` message (this message type is currently reused for results from both PDF and image OCR).
+      - **Outcome (Background Script):** `background.ts` receives the `EpcProcessorResult`. If successful, it merges the OCR-derived data (like EPC rating, and potentially address if found and of reasonable quality) into `currentPropertyData.epc` and `currentPropertyData.address`. It updates confidence levels (e.g., to `ConfidenceLevels.MEDIUM`) and sets the source (e.g., `EpcDataSourceType.PDF` or `EpcDataSourceType.IMAGE`).
+
+    - **(D) Re-evaluation of GOV Suggestions & Auto-Confirmation:**
+      - **Condition:** If plausible `govEpcRegisterSuggestions` exist and new EPC data from (C) is available.
+      - **Action (Background):** Re-evaluates GOV suggestions against new file-derived EPC rating.
+      - **Outcome:** Auto-confirms address/EPC if a unique match occurs (`EpcDataSourceType.GOV_EPC_AND_FILE_EPC_MATCH`). Updates `govEpcRegisterSuggestions`.
+
+**Phase 3: Data Propagation to UI and React Query Integration (Background Script -> UI)**
+
+6.  \*\*Final Data Packet to UI (`background.ts` -> UI - `App.tsx`):
+
+    - After all background processing, the finalized `currentPropertyData` is sent to the UI (`App.tsx`) via a `PROPERTY_PAGE_OPENED` message.
+
+7.  \*\*React Query Update and UI Render (UI - `App.tsx` & Components):
+    - `App.tsx` (`useBackgroundMessageHandler`) receives the message.
+    - It updates React Query cache for `[REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]` with `currentPropertyData`.
+    - React Query triggers UI re-renders. Components like `PropertyAddressDisplay.tsx` display the new data and confidence levels. User interactions (e.g., confirming an address) further update the cache via `queryClient.setQueryData`.
+
+**Supplementary Data Fetches (UI-Initiated, React Query Managed):**
+
+8.  The UI may trigger additional data fetches (e.g., `usePremiumStreetData`, `useCrimeScore`) managed by React Query. These results are combined with the main `propertyData` by hooks like `useChecklistAndDashboardData`.
+9.  The premium data is a paid for servcie - usePremiumStreetData - this isn't cached clietn side as too large, but we do cache it on the database.
 
 **Benefits of this React Query Approach:**
 

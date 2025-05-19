@@ -1,14 +1,9 @@
-import React, { Suspense, useState } from 'react';
-// Correct import path and type
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import {
-    TooltipProvider,
-} from "@/components/ui/tooltip";
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
+import { EpcBandResult } from "@/types/epc";
 import {
     GetPremiumStreetDataResponse
 } from "@/types/premiumStreetData";
@@ -22,6 +17,7 @@ import {
     ShieldAlert,
     TrendingUp
 } from 'lucide-react';
+import React, { Suspense, useState } from 'react';
 import { DashboardScoreItem } from './DashboardScoreItem';
 import { DashboardTile } from './DashboardTile';
 
@@ -45,7 +41,7 @@ interface DashboardViewProps {
     togglePlanningPermissionCard: (expand?: boolean) => void;
     toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
     isPremiumDataFetched: boolean;
-    processedEpcResult: EpcProcessorResult | null | undefined;
+    epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     handleEpcValueChange: (newValue: string) => void;
@@ -69,7 +65,7 @@ interface DashboardViewProps {
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
-    [DashboardScoreCategory.COST_EFFICIENCY]: PoundSterling,
+    [DashboardScoreCategory.RUNNING_COSTS]: PoundSterling,
     [DashboardScoreCategory.INVESTMENT_VALUE]: TrendingUp,
     [DashboardScoreCategory.CONNECTIVITY]: Network,
     [DashboardScoreCategory.CONDITION]: Home,
@@ -101,7 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow,
     isPremiumDataFetched,
-    processedEpcResult,
+    epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     handleEpcValueChange
@@ -127,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const dataCoverageScoreValue = dataCoverageScoreData?.score?.scoreValue ?? null;
 
     const categoryOrder: DashboardScoreCategory[] = [
-        DashboardScoreCategory.COST_EFFICIENCY,
+        DashboardScoreCategory.RUNNING_COSTS,
         DashboardScoreCategory.INVESTMENT_VALUE,
         DashboardScoreCategory.CONNECTIVITY,
         DashboardScoreCategory.CONDITION,
@@ -146,82 +142,77 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </>
     );
 
-    const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
-    const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
-
     return (
-        <TooltipProvider delayDuration={300}>
-            <div className="dashboard-view space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                    <DashboardTile
-                        title="Overall Score"
-                        scoreValue={overallScore}
-                        tooltipContent={overallScoreTooltip}
-                    />
-                    <DashboardTile
-                        title="Data Coverage"
-                        scoreValue={dataCoverageScoreValue}
-                        tooltipContent={dataCoverageTooltip}
-                    />
-                </div>
-
-                <div>
-                    {categoryOrder.map((category) => {
-                        const categoryScoreData = categoryScores[category];
-                        if (!categoryScoreData) {
-                            console.warn(`DashboardView: Missing score data for category: ${category}`);
-                            return null;
-                        }
-                        if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
-                            return null;
-                        }
-                        const title = getCategoryDisplayName(category);
-                        const IconComponent = categoryIcons[category];
-                        const isExpanded = expandedCategory === category;
-
-                        return (
-                            <Suspense fallback={<LoadingSpinner />} key={category}>
-                                <DashboardScoreItem
-                                    category={category}
-                                    isExpanded={isExpanded}
-                                    onToggleExpand={handleToggleExpand}
-                                    title={title}
-                                    categoryScoreData={categoryScoreData}
-                                    icon={IconComponent}
-                                    getValueClickHandler={getValueClickHandler}
-                                    openNewTab={openNewTab}
-                                    toggleCrimeChart={toggleCrimeChart}
-                                    togglePlanningPermissionCard={togglePlanningPermissionCard}
-                                    toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                                    isPremiumDataFetched={isPremiumDataFetched}
-                                    upgradeUrl={upgradeUrl}
-                                    crimeQuery={crimeQuery}
-                                    premiumStreetDataQuery={premiumStreetDataQuery}
-                                    crimeChartExpanded={crimeChartExpanded}
-                                    crimeContentRef={crimeContentRef}
-                                    crimeContentHeight={crimeContentHeight}
-                                    planningPermissionCardExpanded={planningPermissionCardExpanded}
-                                    planningPermissionContentRef={planningPermissionContentRef}
-                                    planningPermissionContentHeight={planningPermissionContentHeight}
-                                    nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                                    nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                                    nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                                    onOpenUpsellModal={onTriggerPremiumFlow}
-                                    handleEpcValueChange={handleEpcValueChange}
-                                    epcData={processedEpcResult ?? undefined}
-                                    epcDebugCanvasRef={epcDebugCanvasRef}
-                                    isEpcDebugModeOn={isEpcDebugModeOn}
-                                    invertColorScale={false}
-                                />
-                            </Suspense>
-                        );
-                    })}
-                </div>
-
-                {Object.keys(categoryScores).length === 0 && checklistsData && (
-                    <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
-                )}
+        <div className="dashboard-view space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <DashboardTile
+                    title="Overall Score"
+                    scoreValue={overallScore}
+                    tooltipContent={overallScoreTooltip}
+                />
+                <DashboardTile
+                    title="Data Coverage"
+                    scoreValue={dataCoverageScoreValue}
+                    tooltipContent={dataCoverageTooltip}
+                />
             </div>
-        </TooltipProvider>
+
+            <div>
+                {categoryOrder.map((category) => {
+                    const categoryScoreData = categoryScores[category];
+                    if (!categoryScoreData) {
+                        console.warn(`DashboardView: Missing score data for category: ${category}`);
+                        return null;
+                    }
+                    if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
+                        return null;
+                    }
+                    const title = getCategoryDisplayName(category);
+                    const IconComponent = categoryIcons[category];
+                    const isExpanded = expandedCategory === category;
+
+                    return (
+                        <Suspense fallback={<LoadingSpinner />} key={category}>
+                            <DashboardScoreItem
+                                category={category}
+                                isExpanded={isExpanded}
+                                onToggleExpand={handleToggleExpand}
+                                title={title}
+                                categoryScoreData={categoryScoreData}
+                                icon={IconComponent}
+                                getValueClickHandler={getValueClickHandler}
+                                openNewTab={openNewTab}
+                                toggleCrimeChart={toggleCrimeChart}
+                                togglePlanningPermissionCard={togglePlanningPermissionCard}
+                                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                                isPremiumDataFetched={isPremiumDataFetched}
+                                upgradeUrl={upgradeUrl}
+                                crimeQuery={crimeQuery}
+                                premiumStreetDataQuery={premiumStreetDataQuery}
+                                crimeChartExpanded={crimeChartExpanded}
+                                crimeContentRef={crimeContentRef}
+                                crimeContentHeight={crimeContentHeight}
+                                planningPermissionCardExpanded={planningPermissionCardExpanded}
+                                planningPermissionContentRef={planningPermissionContentRef}
+                                planningPermissionContentHeight={planningPermissionContentHeight}
+                                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+                                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+                                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                                onOpenUpsellModal={onTriggerPremiumFlow}
+                                handleEpcValueChange={handleEpcValueChange}
+                                epcBandData={epcBandData}
+                                epcDebugCanvasRef={epcDebugCanvasRef}
+                                isEpcDebugModeOn={isEpcDebugModeOn}
+                                invertColorScale={false}
+                            />
+                        </Suspense>
+                    );
+                })}
+            </div>
+
+            {Object.keys(categoryScores).length === 0 && checklistsData && (
+                <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
+            )}
+        </div>
     );
 }; 

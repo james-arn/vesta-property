@@ -1,6 +1,8 @@
 import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { createChromeStoragePersister } from '@/lib/chromeStoragePersister';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -33,9 +35,12 @@ root.render(
             />
         }
     >
-        <QueryClientProvider client={queryClient}>
-            <App />
-            <Toaster />
-        </QueryClientProvider>
+        <TooltipProvider delayDuration={0} skipDelayDuration={0}>
+            <QueryClientProvider client={queryClient}>
+                <App />
+                <Toaster />
+                <ReactQueryDevtools initialIsOpen={false} />
+            </QueryClientProvider>
+        </TooltipProvider>
     </ErrorBoundary>
 );

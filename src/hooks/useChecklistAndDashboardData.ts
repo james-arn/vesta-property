@@ -65,8 +65,7 @@ export const useChecklistAndDashboardData = ({
   const preprocessedData = usePreprocessedPropertyData({
     propertyData,
     premiumStreetDataQuery: premiumDataQuery,
-    epcDebugCanvasRef,
-    isEpcDebugModeOn,
+    isParentDataLoading: !propertyData,
   });
 
   const propertyChecklistData = useMemo(() => {

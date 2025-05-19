@@ -2,11 +2,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
-import { EpcProcessorResult } from "@/lib/epcProcessing";
 import { checkIfClickableItemKey } from "@/types/clickableChecklist";
-import { ConfidenceLevels, DataStatus, PropertyDataListItem } from "@/types/property";
-import React, { useState } from 'react';
-import { FaCheckCircle, FaClock, FaExclamationTriangle, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaThumbsUp, FaTimesCircle, FaUnlock, FaUserEdit } from "react-icons/fa";
+import { EpcBandResult } from "@/types/epc";
+import { DataStatus, PropertyDataListItem } from "@/types/property";
+import React, { useEffect, useState } from 'react';
+import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaTimesCircle, FaUnlock } from "react-icons/fa";
 import { EpcChecklistItem } from "./EpcChecklistItem";
 
 export interface ChecklistItemProps {
@@ -14,14 +14,13 @@ export interface ChecklistItemProps {
     onItemClick?: () => void;
     onValueClick?: () => void;
     isPremiumDataFetched: boolean;
-    epcData?: EpcProcessorResult;
+    epcBandData?: EpcBandResult | undefined;
     onEpcChange?: (newValue: string) => void;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     onOpenUpsellModal?: () => void;
 }
 
-// Mapping DataStatus to styling and icons
 const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string }> = {
     [DataStatus.FOUND_POSITIVE]: { icon: FaCheckCircle, color: 'text-green-500' },
     [DataStatus.FOUND_NEGATIVE]: { icon: FaTimesCircle, color: 'text-red-500' },
@@ -30,15 +29,6 @@ const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string 
     [DataStatus.IS_LOADING]: { icon: FaClock, color: 'text-blue-500' },
 };
 
-// Confidence Icons
-const confidenceIcons: Record<(typeof ConfidenceLevels)[keyof typeof ConfidenceLevels], React.ElementType | null> = {
-    [ConfidenceLevels.HIGH]: FaThumbsUp,
-    [ConfidenceLevels.MEDIUM]: FaExclamationTriangle,
-    [ConfidenceLevels.USER_PROVIDED]: FaUserEdit,
-    [ConfidenceLevels.NONE]: null,
-};
-
-const EPC_RATINGS = ["A", "B", "C", "D", "E", "F", "G"];
 const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 
 export const ChecklistItem: React.FC<ChecklistItemProps> = ({
@@ -46,13 +36,13 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     onItemClick,
     onValueClick,
     isPremiumDataFetched,
-    epcData,
+    epcBandData,
     onEpcChange,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     onOpenUpsellModal,
 }) => {
-    const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium } = item;
+    const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium, epcImageUrl } = item;
     const [isLockHovered, setIsLockHovered] = useState(false);
 
     const isEpcItem = key === CHECKLIST_KEYS.EPC;
@@ -65,16 +55,49 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless && !isPremiumDataFetched;
     const canUpgrade = !isPremiumDataFetched;
 
-    // Check if the URL ends with a known image extension
+    // Check if the URL is a data URL or ends with a known image extension
     const isImageSourceWithUrl =
         isEpcItem &&
-        !!epcData?.url &&
-        IMAGE_EXTENSIONS.some(ext => epcData.url!.toLowerCase().endsWith(ext));
+        !!epcImageUrl &&
+        (epcImageUrl.toLowerCase().startsWith("data:image/") ||
+            IMAGE_EXTENSIONS.some(ext => epcImageUrl.toLowerCase().endsWith(ext)));
 
     // --- Determine Display Status and Icon ---
     const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
     const isWarning = displayStatus === DataStatus.ASK_AGENT && !isPremiumLocked;
+
+    useEffect(() => {
+        const canvas = epcDebugCanvasRef?.current;
+        const bands = epcBandData;
+        const imageUrlToDraw = epcImageUrl;
+
+        if (isEpcItem && isEpcDebugModeOn && canvas && imageUrlToDraw && bands) {
+            console.log("[ChecklistItem.tsx] Debug EPC: Drawing to canvas.");
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = "12px Arial";
+                ctx.fillStyle = "black";
+                ctx.fillText(`Img: ${imageUrlToDraw.substring(0, 30)}...`, 10, 20);
+                ctx.fillText(`Current: ${bands.currentBand?.letter}, Score: ${bands.currentBand?.score}`, 10, 40);
+                ctx.fillText(`Potential: ${bands.potentialBand?.letter}, Score: ${bands.potentialBand?.score}`, 10, 60);
+                if (bands.error) {
+                    ctx.fillStyle = "red";
+                    ctx.fillText(`Error: ${bands.error}`, 10, 80);
+                }
+            }
+        } else if (isEpcItem && isEpcDebugModeOn && canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.font = "12px Arial";
+                ctx.fillStyle = "orange";
+                if (!imageUrlToDraw) ctx.fillText("EPC Debug: No image URL for canvas.", 10, 20);
+                else if (!bands) ctx.fillText("EPC Debug: No band data for canvas.", 10, 20);
+            }
+        }
+    }, [isEpcItem, isEpcDebugModeOn, epcDebugCanvasRef, epcImageUrl, epcBandData]);
 
     const renderValue = () => {
         const isClickableItemKey = checkIfClickableItemKey(key)
@@ -174,6 +197,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 <EpcChecklistItem
                     value={value as string | null | undefined}
                     confidence={item.confidence}
+                    epcSource={item.epcSource}
                     onEpcChange={onEpcChange}
                     isImageSourceWithUrl={isImageSourceWithUrl}
                 />
@@ -311,10 +335,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             )}
 
             {/* Image Graph - Render based only on isImageSourceWithUrl */}
-            {isImageSourceWithUrl && epcData?.displayUrl && (
+            {isImageSourceWithUrl && epcImageUrl && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px dashed blue', padding: '5px' }}>
                     <img
-                        src={epcData.displayUrl}
+                        src={epcImageUrl}
                         alt="EPC Graph"
                         style={{ maxWidth: '100%', display: 'block' }}
                         onError={(e) => (e.currentTarget.alt = 'Could not display fetched EPC graph image')}
