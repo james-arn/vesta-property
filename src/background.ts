@@ -3,6 +3,7 @@ import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers
 import { convertEpcUrlToDataUrlIfHttp } from "./background/epcBackgroundHelpers";
 import { fetchGovEpcCertificatesByPostcode } from "./background/govEpcService/govEpcFetcher";
 import {
+  findBestAddressMatchInGovCertificates,
   findBestGovEpcMatch,
   getPlausibleGovEpcMatches,
 } from "./background/govEpcService/govEpcMatcher";
@@ -857,46 +858,98 @@ async function handlePropertyDataExtraction(
         }
 
         if (govEPCs && govEPCs.length > 0) {
-          const plausibleMatches = getPlausibleGovEpcMatches(govEPCs, currentPropertyData);
+          // --- Attempt to find a definitive EPC based on a strong address match first ---\
+          // If we have high confidence in the property's address, and we can find a single,
+          // strong match in the GOV.UK data for that address, we will use the EPC details
+          // from that GOV.UK record, overriding any EPC info from the listing.
+          let definitiveGovEpcMatchFound = false;
+          if (
+            currentPropertyData.address?.displayAddress &&
+            (currentPropertyData.address.addressConfidence === ConfidenceLevels.HIGH ||
+              currentPropertyData.address.addressConfidence ===
+                ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED ||
+              currentPropertyData.address.addressConfidence === ConfidenceLevels.USER_PROVIDED)
+          ) {
+            const bestAddressMatchCert = findBestAddressMatchInGovCertificates(
+              govEPCs,
+              currentPropertyData.address.displayAddress
+            );
 
-          if (plausibleMatches.length > 0) {
-            currentPropertyData.address.govEpcRegisterSuggestions = plausibleMatches;
-            const bestMatch = findBestGovEpcMatch(plausibleMatches, currentPropertyData);
-
-            if (bestMatch && bestMatch.retrievedAddress) {
-              currentPropertyData.address = {
-                ...currentPropertyData.address,
-                displayAddress: bestMatch.retrievedAddress,
-                addressConfidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
-                source: AddressSourceType.GOV_FIND_EPC_SERVICE_CONFIRMED,
-              };
-              addressIsNowHighlyConfident = true;
-
+            if (bestAddressMatchCert) {
+              console.log(
+                `[BG EPC Validation] Found definitive GOV.UK EPC record for ${propertyId} based on strong address match:`,
+                bestAddressMatchCert.retrievedRating,
+                "Certificate:",
+                bestAddressMatchCert.certificateUrl
+              );
               currentPropertyData.epc = {
                 ...currentPropertyData.epc,
-                value: bestMatch.retrievedRating,
-                validUntil: bestMatch.validUntil,
+                value: bestAddressMatchCert.retrievedRating,
+                validUntil: bestAddressMatchCert.validUntil,
+                certificateUrl: bestAddressMatchCert.certificateUrl,
+                isExpired: bestAddressMatchCert.isExpired,
                 source: EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS,
                 confidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
               };
               epcIsNowHighlyConfident = true;
-              console.log(
-                `[BG EPC Validation] Confirmed EPC for ${propertyId}:`,
-                currentPropertyData.epc.value
-              );
+              definitiveGovEpcMatchFound = true;
+            }
+          }
+
+          // --- If no definitive override, proceed with existing plausible/best match logic ---\
+          if (!definitiveGovEpcMatchFound) {
+            const plausibleMatches = getPlausibleGovEpcMatches(govEPCs, currentPropertyData);
+
+            if (plausibleMatches.length > 0) {
+              currentPropertyData.address.govEpcRegisterSuggestions = plausibleMatches;
+              // Existing logic: findBestGovEpcMatch tries to validate currentPropertyData.epc.value
+              const bestMatch = findBestGovEpcMatch(plausibleMatches, currentPropertyData);
+
+              if (bestMatch && bestMatch.retrievedAddress) {
+                // This path is taken if findBestGovEpcMatch found a good candidate,
+                // which implies the EPC from the listing was consistent with a gov record
+                // or the address match was strong enough to confirm the listing's EPC.
+                currentPropertyData.address = {
+                  ...currentPropertyData.address,
+                  displayAddress: bestMatch.retrievedAddress,
+                  addressConfidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
+                  source: AddressSourceType.GOV_FIND_EPC_SERVICE_CONFIRMED,
+                };
+                addressIsNowHighlyConfident = true;
+
+                currentPropertyData.epc = {
+                  ...currentPropertyData.epc,
+                  value: bestMatch.retrievedRating,
+                  validUntil: bestMatch.validUntil,
+                  certificateUrl: bestMatch.certificateUrl,
+                  isExpired: bestMatch.isExpired,
+                  source: EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS,
+                  confidence: ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED,
+                };
+                epcIsNowHighlyConfident = true;
+                console.log(
+                  `[BG EPC Validation] Confirmed EPC for ${propertyId} via findBestGovEpcMatch:`,
+                  currentPropertyData.epc.value
+                );
+              } else {
+                // No single "best" match according to findBestGovEpcMatch (e.g., listing EPC differs from GOV EPC for matched address)
+                console.log(
+                  `[BG EPC Validation] Plausible GOV matches found for ${propertyId} but no single best match via findBestGovEpcMatch. Count: ${plausibleMatches.length}`
+                );
+                // Set source and confidence to reflect that GOV service was checked but didn't yield a confident *validation* of the listing's EPC.
+                currentPropertyData.epc.source =
+                  EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS;
+                currentPropertyData.epc.confidence = ConfidenceLevels.NONE; // Confidence in the *listing's EPC* is None after this check
+              }
             } else {
+              // No plausible matches found by getPlausibleGovEpcMatches
               console.log(
-                `[BG EPC Validation] Plausible matches found for ${propertyId} but no single best match. Count: ${plausibleMatches.length}`
+                `[BG EPC Validation] No plausible EPC matches found for ${propertyId} via getPlausibleGovEpcMatches.`
               );
               currentPropertyData.epc.source =
                 EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS;
               currentPropertyData.epc.confidence = ConfidenceLevels.NONE;
             }
-          } else {
-            console.log(`[BG EPC Validation] No plausible EPC matches found for ${propertyId}.`);
-            currentPropertyData.epc.source =
-              EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS;
-            currentPropertyData.epc.confidence = ConfidenceLevels.NONE;
           }
         } else {
           console.log(

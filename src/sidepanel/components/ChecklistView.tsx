@@ -98,7 +98,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                     lastGroup = currentGroup;
                 }
 
-                const isVisible = openGroups[currentGroup] ?? true; // Default to visible if group state not tracked
+                const isVisible = openGroups[currentGroup] ?? true;
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>

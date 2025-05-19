@@ -186,7 +186,6 @@ const getPropertySalesInsights = async (currentListingPrice: string | null) => {
       type: "noHistoryText",
       payload: element,
     })),
-    // new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), SALE_HISTORY_OUTCOME_TIMEOUT_MS)) // Alternative timeout
   ]);
 
   let saleHistory: SaleHistoryEntry[] = [];
@@ -271,10 +270,9 @@ function calculateVolatility(history: SaleHistoryEntry[]): { volatility: string;
   }
   // Simplified placeholder - real calculation involves standard deviation of percentage changes
   console.warn("Using placeholder calculateVolatility function");
-  return { volatility: "Calculated Volatility Placeholder" };
+  return { volatility: "N/A" };
 }
 
-// Placeholder for checkPriceDiscrepancy
 function checkPriceDiscrepancy(
   latestPrice: number,
   previousPrice: number,
@@ -291,7 +289,6 @@ function checkPriceDiscrepancy(
       priceDiscrepancyReason: PriceDiscrepancyReason.PRICE_DROP,
     };
   }
-  // Simplified placeholder logic
   if (historicalCAGR !== null) {
     const currentAnnualGrowth = Math.pow(latestPrice / previousPrice, 1 / timeGap) - 1;
     if (currentAnnualGrowth > historicalCAGR * multiplierCAGRThreshold) {
@@ -306,5 +303,3 @@ function checkPriceDiscrepancy(
     priceDiscrepancyReason: PriceDiscrepancyReason.PRICE_GAP_WITHIN_EXPECTED_RANGE,
   };
 }
-
-// ... (Potentially other helper functions) ...

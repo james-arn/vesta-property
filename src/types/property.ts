@@ -76,22 +76,17 @@ export enum AddressSourceType {
 }
 
 export interface EpcData {
-  url: string | null;
+  value: string | null;
+  confidence: Confidence | null;
+  url?: string | null;
   displayUrl?: string | null;
-  /**
-   * Stores the detailed results from the automated EPC detection process
-   * (e.g., from image analysis or PDF extraction). This is the raw output
-   * and might include extracted ratings, confidence from that process, etc.
-   * It is preserved even if the user manually overrides the `value`.
-   */
+  validUntil?: string | null;
+  certificateUrl?: string | null;
+  isExpired?: boolean | null;
+  error?: string | null;
   automatedProcessingResult: EpcBandResult | ExtractedEpcData | null;
-  value: string | null; // The final EPC rating (A-G), potentially user-provided
-  confidence: Confidence;
   source: EpcDataSourceType;
   dataSourceType?: EpcDataSourceType | null;
-  error?: string | null;
-  validUntil?: string | null;
-  isExpired?: boolean | null;
 }
 
 export interface NearbySchool {
