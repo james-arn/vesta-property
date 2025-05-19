@@ -1,7 +1,4 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import {
-    TooltipProvider,
-} from "@/components/ui/tooltip";
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
@@ -146,78 +143,76 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
 
     return (
-        <TooltipProvider delayDuration={300}>
-            <div className="dashboard-view space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                    <DashboardTile
-                        title="Overall Score"
-                        scoreValue={overallScore}
-                        tooltipContent={overallScoreTooltip}
-                    />
-                    <DashboardTile
-                        title="Data Coverage"
-                        scoreValue={dataCoverageScoreValue}
-                        tooltipContent={dataCoverageTooltip}
-                    />
-                </div>
-
-                <div>
-                    {categoryOrder.map((category) => {
-                        const categoryScoreData = categoryScores[category];
-                        if (!categoryScoreData) {
-                            console.warn(`DashboardView: Missing score data for category: ${category}`);
-                            return null;
-                        }
-                        if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
-                            return null;
-                        }
-                        const title = getCategoryDisplayName(category);
-                        const IconComponent = categoryIcons[category];
-                        const isExpanded = expandedCategory === category;
-
-                        return (
-                            <Suspense fallback={<LoadingSpinner />} key={category}>
-                                <DashboardScoreItem
-                                    category={category}
-                                    isExpanded={isExpanded}
-                                    onToggleExpand={handleToggleExpand}
-                                    title={title}
-                                    categoryScoreData={categoryScoreData}
-                                    icon={IconComponent}
-                                    getValueClickHandler={getValueClickHandler}
-                                    openNewTab={openNewTab}
-                                    toggleCrimeChart={toggleCrimeChart}
-                                    togglePlanningPermissionCard={togglePlanningPermissionCard}
-                                    toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-                                    isPremiumDataFetched={isPremiumDataFetched}
-                                    upgradeUrl={upgradeUrl}
-                                    crimeQuery={crimeQuery}
-                                    premiumStreetDataQuery={premiumStreetDataQuery}
-                                    crimeChartExpanded={crimeChartExpanded}
-                                    crimeContentRef={crimeContentRef}
-                                    crimeContentHeight={crimeContentHeight}
-                                    planningPermissionCardExpanded={planningPermissionCardExpanded}
-                                    planningPermissionContentRef={planningPermissionContentRef}
-                                    planningPermissionContentHeight={planningPermissionContentHeight}
-                                    nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                                    nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                                    nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-                                    onOpenUpsellModal={onTriggerPremiumFlow}
-                                    handleEpcValueChange={handleEpcValueChange}
-                                    epcBandData={epcBandData}
-                                    epcDebugCanvasRef={epcDebugCanvasRef}
-                                    isEpcDebugModeOn={isEpcDebugModeOn}
-                                    invertColorScale={false}
-                                />
-                            </Suspense>
-                        );
-                    })}
-                </div>
-
-                {Object.keys(categoryScores).length === 0 && checklistsData && (
-                    <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
-                )}
+        <div className="dashboard-view space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+                <DashboardTile
+                    title="Overall Score"
+                    scoreValue={overallScore}
+                    tooltipContent={overallScoreTooltip}
+                />
+                <DashboardTile
+                    title="Data Coverage"
+                    scoreValue={dataCoverageScoreValue}
+                    tooltipContent={dataCoverageTooltip}
+                />
             </div>
-        </TooltipProvider>
+
+            <div>
+                {categoryOrder.map((category) => {
+                    const categoryScoreData = categoryScores[category];
+                    if (!categoryScoreData) {
+                        console.warn(`DashboardView: Missing score data for category: ${category}`);
+                        return null;
+                    }
+                    if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
+                        return null;
+                    }
+                    const title = getCategoryDisplayName(category);
+                    const IconComponent = categoryIcons[category];
+                    const isExpanded = expandedCategory === category;
+
+                    return (
+                        <Suspense fallback={<LoadingSpinner />} key={category}>
+                            <DashboardScoreItem
+                                category={category}
+                                isExpanded={isExpanded}
+                                onToggleExpand={handleToggleExpand}
+                                title={title}
+                                categoryScoreData={categoryScoreData}
+                                icon={IconComponent}
+                                getValueClickHandler={getValueClickHandler}
+                                openNewTab={openNewTab}
+                                toggleCrimeChart={toggleCrimeChart}
+                                togglePlanningPermissionCard={togglePlanningPermissionCard}
+                                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                                isPremiumDataFetched={isPremiumDataFetched}
+                                upgradeUrl={upgradeUrl}
+                                crimeQuery={crimeQuery}
+                                premiumStreetDataQuery={premiumStreetDataQuery}
+                                crimeChartExpanded={crimeChartExpanded}
+                                crimeContentRef={crimeContentRef}
+                                crimeContentHeight={crimeContentHeight}
+                                planningPermissionCardExpanded={planningPermissionCardExpanded}
+                                planningPermissionContentRef={planningPermissionContentRef}
+                                planningPermissionContentHeight={planningPermissionContentHeight}
+                                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
+                                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
+                                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                                onOpenUpsellModal={onTriggerPremiumFlow}
+                                handleEpcValueChange={handleEpcValueChange}
+                                epcBandData={epcBandData}
+                                epcDebugCanvasRef={epcDebugCanvasRef}
+                                isEpcDebugModeOn={isEpcDebugModeOn}
+                                invertColorScale={false}
+                            />
+                        </Suspense>
+                    );
+                })}
+            </div>
+
+            {Object.keys(categoryScores).length === 0 && checklistsData && (
+                <p className="text-center text-muted-foreground">Could not calculate dashboard scores.</p>
+            )}
+        </div>
     );
 }; 

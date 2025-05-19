@@ -11,12 +11,12 @@ export const getEpcConfidenceTooltipText = (
   switch (confidence) {
     case ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED:
       if (epcSource === EpcDataSourceType.GOV_FIND_EPC_SERVICE_BASED_ON_ADDRESS) {
-        return "Found directly with the GOV.UK energy register finder based on address match.";
+        return "Found EPC directly with the GOV.UK energy register finder based on address match.";
       } else if (epcSource === EpcDataSourceType.GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH) {
-        return "Found by matching property document EPC with the official GOV.UK energy register. Review EPC image if available";
+        return "Found by matching property EPC document provided by the agent with the official GOV.UK energy register. Review EPC image if available";
       }
       // Fallback if the source doesn't give more specific context for this confidence level
-      return "Found with official GOV.UK energy register. Review EPC image if available.";
+      return "Found EPC directly with the GOV.UK energy register finder. Review EPC image if available.";
 
     case ConfidenceLevels.USER_PROVIDED:
       return "EPC rating provided by user.";

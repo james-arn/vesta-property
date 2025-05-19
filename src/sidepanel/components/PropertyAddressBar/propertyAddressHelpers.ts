@@ -1,6 +1,6 @@
 import { Confidence, ConfidenceLevels, EpcDataSourceType } from "@/types/property";
 
-export const getHighConfidenceTooltipText = (
+export const getHighConfidenceAddressTooltipText = (
   confidence: Confidence,
   epcSource?: EpcDataSourceType | null
 ): string => {
@@ -8,10 +8,10 @@ export const getHighConfidenceTooltipText = (
     case ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED:
       // This covers scenarios where the address was confirmed directly on the GOV register
       // OR where a file EPC match with the GOV register confirmed the address.
-      return "Address confirmed: Verified with the official GOV.UK energy register.";
+      return "Address verified with the GOV.UK find my EPC service.";
     case ConfidenceLevels.HIGH:
       if (epcSource === EpcDataSourceType.GOV_EPC_SERVICE_AND_OCR_FILE_EPC_MATCH) {
-        return "Address highly accurate: Verified by matching property document EPC with the official GOV.UK energy register.";
+        return "Address verified by matching the property EPC against the GOV.UK EPC find my EPC service.";
       }
       // Consider passing addressSource if you want to be more specific here, e.g., if HIGH is due to HOUSE_PRICES_PAGE_MATCH
       return "Address confidence is high based on available data.";
@@ -22,7 +22,9 @@ export const getHighConfidenceTooltipText = (
   }
 };
 
-export const getMediumConfidenceTooltipUpdate = (epcSource?: EpcDataSourceType | null): string => {
+export const getMediumConfidenceAddressTooltipUpdate = (
+  epcSource?: EpcDataSourceType | null
+): string => {
   if (!epcSource) return "";
 
   switch (epcSource) {

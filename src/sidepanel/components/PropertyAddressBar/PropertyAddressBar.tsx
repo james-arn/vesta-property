@@ -37,6 +37,7 @@ const PropertyAddressBar: React.FC<PropertyAddressDisplayProps> = ({
                 epcSource={epcSource}
                 onOpenAddressConfirmation={onOpenAddressConfirmation}
             />
+            {/* TODO: needs to be consolidated to just show as high confidence in addressdetailsdisplay */}
             {isSingleAutoConfirmedGovMatch && (
                 <div className="mt-1 pt-1 border-t border-border">
                     <h4 className="text-xs font-semibold text-muted-foreground mb-0.5">

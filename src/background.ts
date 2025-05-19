@@ -796,7 +796,7 @@ async function handlePropertyDataExtraction(
           currentPropertyData.address = {
             ...currentPropertyData.address,
             displayAddress: housePricesAddressString,
-            addressConfidence: ConfidenceLevels.MEDIUM,
+            addressConfidence: ConfidenceLevels.HIGH,
             source: AddressSourceType.HOUSE_PRICES_PAGE_MATCH,
           };
           addressIsNowHighlyConfident =

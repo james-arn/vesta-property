@@ -20,15 +20,12 @@ import {
 } from "../types/property";
 
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
+import { toast } from '@/hooks/use-toast';
 import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
 import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import { usePremiumFlow } from '@/hooks/usePremiumFlow';
 import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
-import {
-  PremiumFetchContext,
-  SnapshotContextData
-} from '@/types/premiumStreetData';
 import PropertyAddressBar from './components/PropertyAddressBar/PropertyAddressBar';
 import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
@@ -50,12 +47,10 @@ const LazyPremiumConfirmationModal = lazy(() =>
 );
 
 const App: React.FC = () => {
-  console.log("[App.tsx] TOP OF FUNCTIONAL COMPONENT - render pass starting.");
-
   const queryClient = useQueryClient();
 
   const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler();
-  const { isAuthenticated, isCheckingAuth, signInRedirect } = useSecureAuthentication();
+  const { isAuthenticated, signInRedirect } = useSecureAuthentication();
 
   const {
     data: propertyData,
@@ -88,13 +83,8 @@ const App: React.FC = () => {
   const [nearbyPlanningPermissionCardExpanded, setNearbyPlanningPermissionCardExpanded] = useState(false);
   const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
   const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
-  const [showBuildingValidationModal, setShowBuildingValidationModal] = useState(false);
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
-
-  const openBuildingValidationModal = useCallback(() => {
-    setShowBuildingValidationModal(true);
-  }, [setShowBuildingValidationModal]);
 
   const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
     if (!currentPropertyId) {
@@ -129,7 +119,6 @@ const App: React.FC = () => {
             error: null,
           },
         };
-        console.log("[App.tsx] Updated property data with selected GOV EPC suggestion:", newData);
         return newData;
       }
     );
@@ -138,42 +127,22 @@ const App: React.FC = () => {
   const { activatePremiumSearch, isActivatingPremiumSearch } =
     usePersistentPremiumData();
 
-  const handleConfirmAndActivate = useCallback(() => {
-    if (!currentPropertyId || !propertyData?.address || !propertyData?.epc) {
-      console.error("Missing data needed to activate premium search.");
-      return;
-    }
-
-    const snapshotContext: SnapshotContextData = {
-      confirmedAddress: propertyData.address,
-      epc: propertyData.epc,
-    };
-
-    const fetchContext: PremiumFetchContext = {
-      propertyId: currentPropertyId,
-      currentContext: snapshotContext,
-    };
-
-    activatePremiumSearch(fetchContext);
-
-  }, [currentPropertyId, propertyData, activatePremiumSearch]);
-
   const {
-    triggerPremiumFlow,
     showUpsellModal,
     setShowUpsellModal,
     showPremiumConfirmationModal,
     setShowPremiumConfirmationModal,
     premiumConfirmationHandler,
-    notifyAddressConfirmed,
+    initiatePremiumActivationFlow,
+    showBuildingValidationModal,
+    setShowBuildingValidationModal,
+    handleBuildingModalConfirmation,
   } = usePremiumFlow({
     isAuthenticated,
-    isAddressConfirmed: propertyData?.address?.isAddressConfirmedByUser ?? false,
-    addressConfidence: propertyData?.address?.addressConfidence,
-    openAddressConfirmationModal: openBuildingValidationModal,
-    onConfirmAndActivate: handleConfirmAndActivate,
     currentPropertyId: currentPropertyId,
-    propertyAddress: propertyData?.address,
+    propertyDataSource: propertyData,
+    activatePremiumSearchFunction: activatePremiumSearch,
+    showToast: toast,
   });
 
   const lat = propertyData?.locationCoordinates?.lat;
@@ -262,7 +231,7 @@ const App: React.FC = () => {
           sendMessageWithTabId(activeTabId);
         } else {
           console.error("[App.tsx] Could not determine active tabId when not found in URL.");
-          sendMessageWithTabId(undefined); // Send with undefined tabId as a fallback
+          sendMessageWithTabId(undefined);
         }
       });
     }
@@ -285,56 +254,6 @@ const App: React.FC = () => {
       setNearbyPlanningPermissionContentHeight(nearbyPlanningPermissionContentRef.current.scrollHeight);
     }
   }, [nearbyPlanningPermissionCardExpanded, preprocessedData]);
-
-  const handleBuildingNameOrNumberConfirmation = (
-    confirmedAddress: Pick<
-      Address,
-      "confirmedBuilding" | "confirmedStreet" | "confirmedTown" | "confirmedPostcode"
-    >
-  ) => {
-    if (currentPropertyId && propertyData) {
-      const buildingAndStreet = [
-        confirmedAddress.confirmedBuilding,
-        confirmedAddress.confirmedStreet,
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      const newDisplayAddress = [
-        buildingAndStreet,
-        confirmedAddress.confirmedTown,
-        confirmedAddress.confirmedPostcode,
-      ]
-        .filter(Boolean)
-        .join(", ");
-
-      queryClient.setQueryData<ExtractedPropertyScrapingData | undefined>(
-        [REACT_QUERY_KEYS.PROPERTY_DATA, currentPropertyId],
-        (oldData) => {
-          if (!oldData) return undefined;
-          return {
-            ...oldData,
-            address: {
-              ...(oldData.address as Address),
-              displayAddress: newDisplayAddress,
-              isAddressConfirmedByUser: true,
-              confirmedBuilding: confirmedAddress.confirmedBuilding,
-              confirmedStreet: confirmedAddress.confirmedStreet,
-              confirmedTown: confirmedAddress.confirmedTown,
-              confirmedPostcode: confirmedAddress.confirmedPostcode,
-              addressConfidence: ConfidenceLevels.USER_PROVIDED,
-            },
-          };
-        }
-      );
-    } else {
-      console.warn(
-        "Cannot update RQ cache for building confirmation: currentPropertyId or propertyData missing."
-      );
-    }
-    setShowBuildingValidationModal(false);
-    notifyAddressConfirmed();
-  };
 
   const handleEpcValueChange = useCallback((newValue: string) => {
     if (currentPropertyId && propertyData) {
@@ -393,14 +312,14 @@ const App: React.FC = () => {
         toggleFilter={toggleFilter}
         agentDetails={propertyData.agent}
         onGenerateMessageClick={handleGenerateMessageClick}
-        onPremiumSearchClick={triggerPremiumFlow}
+        onPremiumSearchClick={initiatePremiumActivationFlow}
       />
 
       {propertyData?.address && (
         <PropertyAddressBar
           address={propertyData.address}
           reverseGeocodedAddress={reverseGeocodeQuery.data?.address}
-          onOpenAddressConfirmation={openBuildingValidationModal}
+          onOpenAddressConfirmation={() => setShowBuildingValidationModal(true)}
           onSelectGovEpcSuggestion={handleSelectGovEpcSuggestion}
         />
       )}
@@ -432,7 +351,7 @@ const App: React.FC = () => {
               nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
               nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
               nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-              onTriggerPremiumFlow={triggerPremiumFlow}
+              onTriggerPremiumFlow={initiatePremiumActivationFlow}
               premiumStreetDataQuery={premiumDataQuery}
             />
           </Suspense>
@@ -458,7 +377,7 @@ const App: React.FC = () => {
             toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
             nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
             nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
-            onTriggerPremiumFlow={triggerPremiumFlow}
+            onTriggerPremiumFlow={initiatePremiumActivationFlow}
             isPremiumDataFetched={premiumDataQuery.isFetched}
             epcBandData={preprocessedData.finalEpcBandData}
             epcDebugCanvasRef={epcDebugCanvasRef}
@@ -477,7 +396,7 @@ const App: React.FC = () => {
             open={showBuildingValidationModal}
             onOpenChange={setShowBuildingValidationModal}
             addressData={propertyData?.address ?? null}
-            handleConfirm={handleBuildingNameOrNumberConfirmation}
+            handleConfirm={handleBuildingModalConfirmation}
             reverseGeocodedAddress={reverseGeocodeQuery.data?.address ?? null}
             currentEpcRating={propertyData?.epc?.value ?? null}
           />

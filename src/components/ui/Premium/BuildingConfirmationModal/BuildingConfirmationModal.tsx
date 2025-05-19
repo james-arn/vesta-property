@@ -44,25 +44,60 @@ export function BuildingConfirmationDialog({
     reverseGeocodedAddress,
     currentEpcRating,
 }: BuildingConfirmationDialogProps) {
-    const initialParsedAddress = useMemo(
-        () => parseDisplayAddress(addressData?.displayAddress ?? null, addressData?.postcode ?? null),
-        [addressData]
-    );
+    const [building, setBuilding] = useState("");
+    const [street, setStreet] = useState("");
+    const [town, setTown] = useState("");
+    const [postcode, setPostcode] = useState("");
 
-    const [building, setBuilding] = useState(initialParsedAddress.buildingGuess);
-    const [street, setStreet] = useState(initialParsedAddress.streetGuess);
-    const [town, setTown] = useState(initialParsedAddress.townGuess);
-    const [postcode, setPostcode] = useState(initialParsedAddress.postcodeGuess);
+    useEffect(function parseDisplayAddressIntoAddressFields() {
+        if (!addressData) {
+            setBuilding("");
+            setStreet("");
+            setTown("");
+            setPostcode("");
+            return;
+        }
 
-    useEffect(() => {
         const parsed = parseDisplayAddress(
-            addressData?.displayAddress ?? null,
-            addressData?.postcode ?? null
+            addressData.displayAddress ?? null,
+            addressData.postcode ?? null
         );
-        setBuilding(parsed.buildingGuess);
-        setStreet(parsed.streetGuess);
-        setTown(parsed.townGuess);
-        setPostcode(parsed.postcodeGuess);
+
+        const addressConfidence = addressData.addressConfidence;
+        const isAddressConfrimedByUser = addressData.isAddressConfirmedByUser;
+
+        // Case 1: User has confirmed, or confidence is high/gov-confirmed.
+        // Prioritize already confirmed fields, then the main postcode, then parsed values.
+        if (
+            isAddressConfrimedByUser
+            || addressConfidence === ConfidenceLevels.HIGH
+            || addressConfidence === ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED
+        ) {
+            setBuilding(addressData.confirmedBuilding ?? parsed.buildingGuess);
+            setStreet(addressData.confirmedStreet ?? parsed.streetGuess);
+            setTown(addressData.confirmedTown ?? parsed.townGuess);
+            setPostcode(addressData.postcode ?? addressData.confirmedPostcode ?? parsed.postcodeGuess);
+        }
+        // Case 2: Low/Medium confidence and NOT user confirmed.
+        // This is where the "shift" logic applies: building is empty,
+        // street takes what parseDisplayAddress put in buildingGuess,
+        // town takes what parseDisplayAddress put in streetGuess.
+        else if (
+            addressConfidence === ConfidenceLevels.NONE
+            || addressConfidence === ConfidenceLevels.MEDIUM
+        ) {
+            setBuilding(""); // Explicitly empty building
+            setStreet(parsed.buildingGuess); // Assumes displayAddress's first part (the "shifted" street) is in buildingGuess
+            setTown(parsed.streetGuess);     // Assumes displayAddress's second part (the "shifted" town) is in streetGuess
+            setPostcode(addressData.postcode ?? parsed.postcodeGuess); // Prioritize main postcode field
+        }
+        // Case 3: Default fallback (e.g., confidence is undefined, or other unhandled states)
+        else {
+            setBuilding(parsed.buildingGuess);
+            setStreet(parsed.streetGuess);
+            setTown(parsed.townGuess);
+            setPostcode(addressData.postcode ?? parsed.postcodeGuess);
+        }
     }, [addressData]);
 
     const isFormValid = street.trim() && town.trim() && postcode.trim();
@@ -76,7 +111,6 @@ export function BuildingConfirmationDialog({
             confirmedTown: town.trim(),
             confirmedPostcode: postcode.trim(),
         });
-        onOpenChange(false);
     };
 
     const handleDialogClose = (newOpenState: boolean) => {
@@ -102,15 +136,14 @@ export function BuildingConfirmationDialog({
     const [showHelpSection, setShowHelpSection] = useState(false);
     const shouldOfferHelp = addressData?.addressConfidence !== ConfidenceLevels.HIGH && addressData?.addressConfidence !== ConfidenceLevels.GOV_FIND_EPC_SERVICE_CONFIRMED;
 
-    // Reset showHelpSection when dialog is closed or addressData changes
-    useEffect(() => {
+    useEffect(function resetHelpSectionOnDialogCloseOrAddressDataChanges() {
         if (!open) {
             setShowHelpSection(false);
         }
     }, [open]);
 
-    useEffect(() => {
-        setShowHelpSection(false); // Reset if address data changes, implying a new context
+    useEffect(function resetHelpSectionOnAddressDataChanges() {
+        setShowHelpSection(false);
     }, [addressData]);
 
     return (
@@ -204,7 +237,7 @@ export function BuildingConfirmationDialog({
                                                     <h4 className="font-semibold text-gray-800 dark:text-gray-200">Agent's Location Pin:</h4>
                                                     <div className="text-muted-foreground pl-2">
                                                         {reverseGeocodedAddress} ({DISCLAIMER_TEXT}).
-                                                        <span className="block mt-0.5"><span className="font-semibold">Verify carefully:</span> agent pins can be approximate.</span>
+                                                        <span className="block mt-0.5"><span className="font-semibold">Check carefully:</span> agent pins are approximate.</span>
                                                     </div>
                                                 </li>
                                             )}
