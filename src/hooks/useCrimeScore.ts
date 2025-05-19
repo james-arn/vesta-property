@@ -33,13 +33,16 @@ export function getCrimeScoreValue(
   crimeScoreData?: CrimeScoreData,
   crimeScoreError?: Error | null
 ): string {
+  if (crimeScoreData?.crimeRating) {
+    return crimeScoreData.crimeRating;
+  }
   if (isCrimeScoreLoading) {
     return "Calculating...";
   }
   if (crimeScoreError) {
     return "Unable to find, check with agent";
   }
-  return crimeScoreData?.crimeRating ?? "Unable to find, check with agent";
+  return "Unable to find, check with agent";
 }
 
 const fetchCrimeScore = async (lat: string, lng: string): Promise<CrimeScoreResponse> => {

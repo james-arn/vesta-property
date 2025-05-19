@@ -65,7 +65,7 @@ interface DashboardViewProps {
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
-    [DashboardScoreCategory.COST_EFFICIENCY]: PoundSterling,
+    [DashboardScoreCategory.RUNNING_COSTS]: PoundSterling,
     [DashboardScoreCategory.INVESTMENT_VALUE]: TrendingUp,
     [DashboardScoreCategory.CONNECTIVITY]: Network,
     [DashboardScoreCategory.CONDITION]: Home,
@@ -123,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const dataCoverageScoreValue = dataCoverageScoreData?.score?.scoreValue ?? null;
 
     const categoryOrder: DashboardScoreCategory[] = [
-        DashboardScoreCategory.COST_EFFICIENCY,
+        DashboardScoreCategory.RUNNING_COSTS,
         DashboardScoreCategory.INVESTMENT_VALUE,
         DashboardScoreCategory.CONNECTIVITY,
         DashboardScoreCategory.CONDITION,

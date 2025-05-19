@@ -8,7 +8,7 @@ import { ChecklistItem } from '@/components/ui/ChecklistItem';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
-import { CALCULATED_STATUS, DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
+import { CALCULATED_STATUS, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcBandResult } from "@/types/epc";
 import {
@@ -183,70 +183,69 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                     toggleNearbyPlanningPermissionCard
                                 );
                                 return (
-                                    <ChecklistItem
-                                        key={item.key}
-                                        item={item}
-                                        isPremiumDataFetched={isPremiumDataFetched}
-                                        epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
-                                        epcDebugCanvasRef={epcDebugCanvasRef}
-                                        isEpcDebugModeOn={isEpcDebugModeOn}
-                                        onValueClick={handleClick}
-                                        onEpcChange={handleEpcValueChange}
-                                        onOpenUpsellModal={onOpenUpsellModal}
-                                    />
+                                    <React.Fragment key={item.key}>
+                                        <ChecklistItem
+                                            item={item}
+                                            isPremiumDataFetched={isPremiumDataFetched}
+                                            epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
+                                            epcDebugCanvasRef={epcDebugCanvasRef}
+                                            isEpcDebugModeOn={isEpcDebugModeOn}
+                                            onValueClick={handleClick}
+                                            onEpcChange={handleEpcValueChange}
+                                            onOpenUpsellModal={onOpenUpsellModal}
+                                        />
+                                        {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeChartExpanded && crimeQuery.data && (
+                                            <div
+                                                ref={crimeContentRef}
+                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                                style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0px" }}
+                                            >
+                                                <Suspense fallback={<LoadingSpinner />}>
+                                                    <LazyCrimePieChart
+                                                        crimeSummary={crimeQuery.data.crimeSummary}
+                                                        totalCrimes={crimeQuery.data.totalCrimes}
+                                                        trendingPercentageOver6Months={crimeQuery.data.trendingPercentageOver6Months}
+                                                    />
+                                                </Suspense>
+                                            </div>
+                                        )}
+                                        {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningPermissionCardExpanded && (
+                                            <div
+                                                ref={planningPermissionContentRef}
+                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                                style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0px" }}
+                                            >
+                                                <Suspense fallback={<LoadingSpinner />}>
+                                                    <LazyPlanningPermissionCard
+                                                        planningPermissionData={planningApplications}
+                                                        isLoading={premiumStreetDataQuery.isLoading}
+                                                        displayMode="property"
+                                                    />
+                                                </Suspense>
+                                            </div>
+                                        )}
+                                        {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningPermissionCardExpanded && (
+                                            <div
+                                                ref={nearbyPlanningPermissionContentRef}
+                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                                style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0px" }}
+                                            >
+                                                <Suspense fallback={<LoadingSpinner />}>
+                                                    <LazyPlanningPermissionCard
+                                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                                        isLoading={premiumStreetDataQuery.isLoading}
+                                                        displayMode="nearby"
+                                                    />
+                                                </Suspense>
+                                            </div>
+                                        )}
+                                    </React.Fragment>
                                 );
                             })}
                         </ul>
                     ) : (
-                        <p className="text-sm text-muted-foreground">
-                            {title === DASHBOARD_CATEGORY_DISPLAY_NAMES[DashboardScoreCategory.LISTING_COMPLETENESS]
-                                ? "All expected listing information appears present."
-                                : "No specific contributing factors identified."}
-                        </p>
+                        <p className="text-sm text-muted-foreground py-2">No contributing items for this category.</p>
                     )}
-
-                    {contributingItems.some(item => item.key === CHECKLIST_KEYS.CRIME_SCORE) && crimeQuery.data && (
-                        <Suspense fallback={<LoadingSpinner />}>
-                            <div className="overflow-hidden transition-max-height duration-500 ease-in-out pt-2" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
-                                <div ref={crimeContentRef}>
-                                    <LazyCrimePieChart
-                                        crimeSummary={crimeQuery.data.crimeSummary}
-                                        totalCrimes={crimeQuery.data.totalCrimes}
-                                        trendingPercentageOver6Months={crimeQuery.data.trendingPercentageOver6Months}
-                                    />
-                                </div>
-                            </div>
-                        </Suspense>
-                    )}
-
-                    {/* Render Property Planning Expansion (if item exists and data available) */}
-                    {hasPropertyPlanningItem && planningApplications && planningApplications.length > 0 && planningPermissionCardExpanded && (
-                        <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
-                            <div ref={planningPermissionContentRef} className="pt-2">
-                                <LazyPlanningPermissionCard
-                                    planningPermissionData={planningApplications}
-                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                    isLoading={premiumStreetDataQuery.isLoading}
-                                    displayMode="property"
-                                />
-                            </div>
-                        </Suspense>
-                    )}
-
-                    {/* Render Nearby Planning Expansion (if item exists and data available) */}
-                    {hasNearbyPlanningItem && nearbyPlanningApplications && nearbyPlanningApplications.length > 0 && nearbyPlanningPermissionCardExpanded && (
-                        <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
-                            <div ref={nearbyPlanningPermissionContentRef} className="pt-2">
-                                <LazyPlanningPermissionCard
-                                    planningPermissionData={planningApplications}
-                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                    isLoading={premiumStreetDataQuery.isLoading}
-                                    displayMode="nearby"
-                                />
-                            </div>
-                        </Suspense>
-                    )}
-
                 </AccordionContent>
             </AccordionItem>
         </Accordion>

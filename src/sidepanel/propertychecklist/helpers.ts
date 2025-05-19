@@ -227,7 +227,7 @@ export const generateEpcChecklistItem = (
     label: "EPC Rating",
     key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
-    dashboardGroup: DashboardScoreCategory.COST_EFFICIENCY,
+    dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
     isUnlockedWithPremium: false,
     isBoostedWithPremium: true,
     isExpectedInListing: true,
