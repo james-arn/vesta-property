@@ -11,7 +11,7 @@ const authConfigs = {
     AUTH_CLIENT_ID: "785152h8gp3l66m43abhh66vs3",
     AUTH_COGNITO_DOMAIN: "https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com",
     AUTH_USER_POOL_ID: "eu-west-2_eHh7H32th",
-    AUTH_PRICING_URL: "https://vestapropertychecker.com/#pricing",
+    AUTH_PRICING_URL: "http://127.0.0.1:8080/#pricing",
   },
   production: {
     AUTH_CLIENT_ID: "5n2gk5qj1cclclfj4pl1v4f4qt", // Production Cognito Client ID
@@ -46,6 +46,7 @@ const apiConfig = {
   MEASUREMENT_ID: process.env.MEASUREMENT_ID,
   API_SECRET: process.env.API_SECRET,
   GA_ENDPOINT: process.env.GA_ENDPOINT,
+  GA_DEBUG_MODE: process.env.GA_DEBUG_MODE === "true",
   VESTA_PROPERTY_DATA_ENDPOINT: process.env.VESTA_PROPERTY_DATA_ENDPOINT,
   VESTA_USER_ENDPOINT: process.env.VESTA_USER_ENDPOINT,
   USE_PREMIUM_DATA_MOCK_ON_FRONTEND: process.env.USE_PREMIUM_DATA_MOCK_ON_FRONTEND === "true",

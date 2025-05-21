@@ -7,25 +7,33 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { ENV_CONFIG } from '@/constants/environmentConfig';
+import { GA_UPGRADE_BUTTON_LOCATIONS } from '@/utils/GoogleAnalytics/googleAnalyticsConsts';
+import { trackGA4UpgradeButtonClicked } from '@/utils/GoogleAnalytics/googleAnalyticsEvents';
+import { navigateToPricingPageWithGaParams } from "@/utils/GoogleAnalytics/googleAnalyticsHelpers";
 import React from 'react';
 
 interface UpsellModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSignInClick?: () => void;
+    propertyId?: string;
 }
 
 export const UpsellModal: React.FC<UpsellModalProps> = ({
     open,
     onOpenChange,
-    onSignInClick
+    onSignInClick,
+    propertyId
 }) => {
 
-    const handleUpgradeClick = () => {
-        // Open the pricing page in a new tab
-        chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
-        onOpenChange(false); // Close the modal
+    const handleUpgradeClick = async () => {
+        trackGA4UpgradeButtonClicked({
+            button_location: GA_UPGRADE_BUTTON_LOCATIONS.UPSELL_MODAL_UPGRADE_NOW,
+            ...(propertyId && { property_id: propertyId })
+        });
+
+        await navigateToPricingPageWithGaParams();
+        onOpenChange(false);
     };
 
     const handleSignInClick = () => {

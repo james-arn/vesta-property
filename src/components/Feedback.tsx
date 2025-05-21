@@ -1,5 +1,5 @@
 import { CHROME_EXTENSION_STORE_REVIEW_URL } from "@/constants/urls";
-import { sendGA4Event } from "@/contentScript/utils/googleAnalytics";
+import { trackGA4FeedbackSelected } from "@/utils/GoogleAnalytics/googleAnalyticsEvents";
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 
@@ -8,14 +8,8 @@ const Feedback: React.FC = () => {
     const [writtenFeedback, setWrittenFeedback] = useState("");
     const [hoverRating, setHoverRating] = useState(0);
 
-    const trackFeedbackAnalytics = (type: "happy" | "medium" | "sad") => {
-        sendGA4Event("feedback_selected", {
-            feedback_type: type,
-        });
-    };
-
     const handleFeedbackSelection = (type: "happy" | "medium" | "sad") => {
-        trackFeedbackAnalytics(type);
+        trackGA4FeedbackSelected({ type });
         setFeedback(type);
     };
 

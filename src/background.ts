@@ -25,7 +25,14 @@ import {
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
 } from "./types/property";
+import { trackGA4ExtensionInstall } from "./utils/GoogleAnalytics/googleAnalyticsEvents";
+import { handleTrackPropertyAnalysisForGA } from "./utils/GoogleAnalytics/googleAnalyticsHandlers";
 import { logErrorToSentry } from "./utils/sentry";
+
+// Background.ts is the central hub
+// Listens for messages from the sidebar or content script.
+// Sends commands to the content script to scrape data.
+// Relays data between the content script and sidebar.
 
 // Session cache for GOV EPC postcode lookups
 const govEpcPostcodeCache = new Map<string, GovEpcCertificate[] | null>();
@@ -59,20 +66,16 @@ function configureSidePanel() {
   }
 }
 
-// Configure on installation
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   console.log("[background.ts] Extension installed or updated:", details.reason);
   configureSidePanel();
-  // Perform any other first-time setup or migration tasks here
+  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+    await trackGA4ExtensionInstall();
+  }
 });
 
 // Also configure on startup to ensure it's always set
 configureSidePanel();
-
-// Background.ts is the central hub
-// Listens for messages from the sidebar or content script.
-// Sends commands to the content script to scrape data.
-// Relays data between the content script and sidebar.
 
 // Removed sentry for MVP, reduce permissions required by extension
 // initSentry();
@@ -618,8 +621,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // Async fetch
   }
 
+  if (
+    message.action === ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED &&
+    message.data?.propertyId &&
+    message.data?.address?.displayAddress
+  ) {
+    handleTrackPropertyAnalysisForGA(message.data.propertyId, message.data.address.displayAddress);
+  }
+
   if (message.action === ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED) {
-    // Pass to the async handler function. Return true to indicate async response.
     handlePropertyDataExtraction(
       message.data as ExtractedPropertyScrapingData,
       sendResponse,

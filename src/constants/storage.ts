@@ -22,4 +22,7 @@ export const StorageKeys = {
   AUTH_LOGOUT_START_TIME: "vesta_auth_logout_start_time",
 
   PROPERTY_DATA_CACHE_PREFIX: "vesta_prop_cache_",
+
+  // GOOGLE ANALYTICS KEYS
+  VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION: "vesta_ga_analysed_property_ids_session",
 } as const;

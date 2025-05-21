@@ -7,6 +7,7 @@ import {
   PremiumFetchContext,
 } from "@/types/premiumStreetData";
 import { ExtractedPropertyScrapingData } from "@/types/property";
+import { trackGA4TokenUsed } from "@/utils/GoogleAnalytics/googleAnalyticsEvents";
 import { UseMutateFunction, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface UseActivatePremiumSearchReturn {
@@ -97,6 +98,12 @@ export function usePersistentPremiumData(): UseActivatePremiumSearchReturn {
 
       // --- Invalidate so new token count is fetched in profile ---
       queryClient.invalidateQueries({ queryKey: [REACT_QUERY_KEYS.USER_PROFILE] });
+
+      if (data.dataSource === "api") {
+        trackGA4TokenUsed({
+          property_id: activatedPropertyId,
+        });
+      }
 
       const toastTitle = data.snapshotData
         ? "Premium Search Reloaded - No Tokens Used"

@@ -9,12 +9,14 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { useToast } from "@/hooks/use-toast";
 import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatUnixTimestampToDateString } from "@/utils/dates";
+import { GA_UPGRADE_BUTTON_LOCATIONS } from '@/utils/GoogleAnalytics/googleAnalyticsConsts';
+import { trackGA4UpgradeButtonClicked } from '@/utils/GoogleAnalytics/googleAnalyticsEvents';
+import { navigateToPricingPageWithGaParams } from '@/utils/GoogleAnalytics/googleAnalyticsHelpers';
 import React from "react";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { GoCreditCard } from "react-icons/go";
@@ -46,7 +48,6 @@ const SettingsControls = () => {
         signOut
     } = useSecureAuthentication();
 
-    // Handle feedback function
     const handleFeedback = () => {
         toast({
             description: <Feedback />,
@@ -55,8 +56,11 @@ const SettingsControls = () => {
         });
     };
 
-    const handleUpgrade = () => {
-        chrome.tabs.create({ url: ENV_CONFIG.AUTH_PRICING_URL });
+    const handleUpgrade = async () => {
+        trackGA4UpgradeButtonClicked({
+            button_location: GA_UPGRADE_BUTTON_LOCATIONS.SETTINGS_MENU_UPGRADE
+        });
+        await navigateToPricingPageWithGaParams();
     };
 
     const handleManageSubscription = async () => {
@@ -104,7 +108,9 @@ const SettingsControls = () => {
                                         <RiCoinLine className="mr-2 mt-1 flex-shrink-0" />
                                         <div className="flex flex-col">
                                             <span>Tokens: {tokensRemaining}</span>
-                                            <span>Refreshing: {formatUnixTimestampToDateString(tokenRefreshTimestamp)}</span>
+                                            {tokenRefreshTimestamp && (
+                                                <span>Refreshing: {formatUnixTimestampToDateString(tokenRefreshTimestamp)}</span>
+                                            )}
                                         </div>
                                     </DropdownMenuItem>
                                 )}
