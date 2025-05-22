@@ -26,7 +26,6 @@ import {
   ExtractedPropertyScrapingData,
 } from "./types/property";
 import { trackGA4ExtensionInstall } from "./utils/GoogleAnalytics/googleAnalyticsEvents";
-import { handleTrackPropertyAnalysisForGA } from "./utils/GoogleAnalytics/googleAnalyticsHandlers";
 import { logErrorToSentry } from "./utils/sentry";
 
 // Background.ts is the central hub
@@ -619,14 +618,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: false, error: errorMsg });
       });
     return true; // Async fetch
-  }
-
-  if (
-    message.action === ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED &&
-    message.data?.propertyId &&
-    message.data?.address?.displayAddress
-  ) {
-    handleTrackPropertyAnalysisForGA(message.data.propertyId, message.data.address.displayAddress);
   }
 
   if (message.action === ActionEvents.CONTENT_SCRIPT_PROPERTY_DATA_EXTRACTED) {

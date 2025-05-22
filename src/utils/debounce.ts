@@ -2,7 +2,7 @@ type DebouncedFunction<T extends (...args: any[]) => void> = (...args: Parameter
 
 export function debounce<T extends (...args: any[]) => void>(
   func: T,
-  wait = 500
+  wait = 2000
 ): DebouncedFunction<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   return (...args: Parameters<T>) => {

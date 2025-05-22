@@ -2,6 +2,7 @@ import { ActionEvents } from "@/constants/actionEvents";
 import REACT_QUERY_KEYS from "@/constants/ReactQueryKeys";
 import { extractPropertyIdFromUrl } from "@/sidepanel/helpers";
 import { ConfidenceLevels, ExtractedPropertyScrapingData } from "@/types/property";
+import { handleTrackPropertyAnalysisForGA } from "@/utils/GoogleAnalytics/googleAnalyticsHandlers";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { checkAndTriggerPremiumSearchOnPropertyIdMatch } from "./helpers/backgroundMessageToUiHelpers";
@@ -34,7 +35,7 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
   useEffect(() => {
     // This function captures the current state of all dependencies on each render
     // and is stored in the ref.
-    latestMessageHandlerRef.current = (
+    latestMessageHandlerRef.current = async (
       message: { action: string; data?: any },
       sender: chrome.runtime.MessageSender,
       sendResponse: (response: any) => void
@@ -155,6 +156,9 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
           propertyId,
           dataToUpdate
         );
+        if (propertyId && incomingData?.address?.displayAddress) {
+          handleTrackPropertyAnalysisForGA(propertyId, incomingData.address.displayAddress);
+        }
       } else if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
         console.log("[Background Handler Hook] Handling TAB_CHANGED_OR_EXTENSION_OPENED");
         if (!propertyId) {

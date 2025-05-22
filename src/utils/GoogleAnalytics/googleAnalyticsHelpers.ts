@@ -1,7 +1,6 @@
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { QUERY_PARAM_KEYS } from "@/constants/queryParamKeys";
 import { StorageKeys } from "../../constants/storage";
-import { logErrorToSentry } from "../sentry";
 import {
   DEFAULT_ENGAGEMENT_TIME_IN_MSEC,
   SESSION_EXPIRATION_IN_MIN,
@@ -80,6 +79,33 @@ export async function sendGA4Event(eventName: string, params: Record<string, any
     if (!params.engagement_time_msec) {
       params.engagement_time_msec = DEFAULT_ENGAGEMENT_TIME_IN_MSEC;
     }
+    const context = (() => {
+      if (typeof chrome !== "undefined" && chrome.runtime) {
+        try {
+          // Try to call getContexts - only works in service worker
+          chrome.runtime.getContexts?.({});
+          return "service-worker";
+        } catch {
+          // If it fails, we're in a different context
+          if (chrome.tabs) return "extension-sidebar-or-popup";
+          return "content-script";
+        }
+      }
+      return "webpage";
+    })();
+
+    const now = new Date();
+    const ukTime =
+      now.toLocaleDateString("en-GB", {
+        timeZone: "Europe/London",
+      }) +
+      " " +
+      now.toLocaleTimeString("en-GB", {
+        timeZone: "Europe/London",
+        hour12: false,
+      }) +
+      "." +
+      now.getMilliseconds().toString().padStart(3, "0");
 
     const payload = {
       client_id: clientId,
@@ -92,6 +118,8 @@ export async function sendGA4Event(eventName: string, params: Record<string, any
             session_id: params.session_id,
             engagement_time_msec: params.engagement_time_msec,
             debug_mode: ENV_CONFIG.GA_DEBUG_MODE,
+            debug_uk_time: ukTime,
+            debug_context: context,
           },
         },
       ],
@@ -120,42 +148,19 @@ export async function isNewPropertyAnalysisThisSession(propertyId: string): Prom
     chrome.storage.session.get(
       [StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION],
       async (result) => {
-        if (chrome.runtime.lastError) {
-          logErrorToSentry(
-            `Error getting ${StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION} from chrome.storage.session:`,
-            "error"
-          );
-          resolve(true);
-          return;
-        }
-
         const analysedPropertyIds: string[] =
           result[StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION] || [];
-
         if (analysedPropertyIds.includes(propertyId)) {
-          console.log(`Property already analyzed in this session: ${propertyId}`);
           resolve(false);
         } else {
-          console.log(`New property analysis this session: ${propertyId}`);
+          // Atomically add and check
           const updatedIds = [...analysedPropertyIds, propertyId];
-
-          // Use await to ensure the storage is updated before resolving
-          await new Promise<void>((setResolve) => {
-            chrome.storage.session.set(
-              { [StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION]: updatedIds },
-              () => {
-                if (chrome.runtime.lastError) {
-                  logErrorToSentry(
-                    `Error setting ${StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION} in chrome.storage.session:`,
-                    "error"
-                  );
-                }
-                setResolve();
-              }
-            );
-          });
-
-          resolve(true);
+          chrome.storage.session.set(
+            { [StorageKeys.VESTA_GA_ANALYSED_PROPERTY_IDS_SESSION]: updatedIds },
+            () => {
+              resolve(true);
+            }
+          );
         }
       }
     );
