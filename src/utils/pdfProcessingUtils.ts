@@ -1,3 +1,4 @@
+import { EPC_CURRENT_RATING_REGEX, EPC_POTENTIAL_RATING_REGEX } from "@/constants/regex";
 import * as pdfjsLib from "pdfjs-dist";
 
 // --- PDF.js Configuration ---
@@ -98,8 +99,7 @@ export const extractAddressAndPdfDataFromText = (
 
   // --- Current EPC Rating Extraction ---
   // Looks for "This property's energy rating is X." where X is a letter A-G.
-  const currentRatingRegex = /property's energy rating is ([A-G])\./i;
-  const currentRatingMatch = text.match(currentRatingRegex);
+  const currentRatingMatch = text.match(EPC_CURRENT_RATING_REGEX);
 
   if (currentRatingMatch && currentRatingMatch[1]) {
     extractedData.currentEpcRating = currentRatingMatch[1].toUpperCase();
@@ -110,8 +110,7 @@ export const extractAddressAndPdfDataFromText = (
 
   // --- Potential EPC Rating Extraction ---
   // Looks for "potential to be X." where X is a letter A-G.
-  const potentialRatingRegex = /potential to be ([A-G])\./i;
-  const potentialRatingMatch = text.match(potentialRatingRegex);
+  const potentialRatingMatch = text.match(EPC_POTENTIAL_RATING_REGEX);
 
   if (potentialRatingMatch && potentialRatingMatch[1]) {
     extractedData.potentialEpcRating = potentialRatingMatch[1].toUpperCase();

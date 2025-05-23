@@ -1142,7 +1142,7 @@ async function handlePropertyDataExtraction(
         chrome.tabs.sendMessage(tabId, {
           action: ActionEvents.BACKGROUND_REQUESTS_CLIENT_PDF_OCR,
           payload: {
-            fileUrl: pdfUrlForOcr,
+            pdfUrl: pdfUrlForOcr,
             requestId,
           },
         });
