@@ -25,10 +25,12 @@ export async function handleTrackPropertyAnalysisForGA(
         `GA Event: Property ID ${propertyId} already analysed this session. Not re-tracking.`
       );
     }
+    return Promise.resolve();
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     // Consider if Sentry logging is appropriate here or if console.error is sufficient
     // for a non-critical analytics event pathway.
     console.error("Error processing property analysed GA event:", errorMsg);
+    return Promise.reject(error);
   }
 }

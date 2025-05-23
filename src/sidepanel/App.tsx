@@ -26,6 +26,7 @@ import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardDa
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
 import { usePremiumFlow } from '@/hooks/usePremiumFlow';
 import { useSecureAuthentication } from '@/hooks/useSecureAuthentication';
+import { handleTrackPropertyAnalysisForGA } from '@/utils/GoogleAnalytics/googleAnalyticsHandlers';
 import PropertyAddressBar from './components/PropertyAddressBar/PropertyAddressBar';
 import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
@@ -236,6 +237,16 @@ const App: React.FC = () => {
       });
     }
   }, [])
+
+  useEffect(() => {
+    const handleTrackPropertyAnalysis = async () => {
+      if (currentPropertyId && propertyData?.address?.displayAddress) {
+        await handleTrackPropertyAnalysisForGA(currentPropertyId, propertyData.address.displayAddress);
+      }
+    };
+
+    handleTrackPropertyAnalysis();
+  }, [currentPropertyId, propertyData?.address?.displayAddress]);
 
   useEffect(function updateCrimeContentHeight() {
     if (crimeContentRef.current) {
