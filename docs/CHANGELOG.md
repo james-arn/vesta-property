@@ -1,3 +1,5 @@
+28 May - **Explainer video addition**
+
 20 May 2025 - GA Integration & Enhancements - Version 2.0.4
 
 - **Google Analytics (GA4) Integration:**

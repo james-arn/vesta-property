@@ -1,6 +1,6 @@
 {
   "name": "vestapropertyinspector",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Chrome extension that scores Rightmove listings in England and Wales",
   "main": "index.js",
   "scripts": {

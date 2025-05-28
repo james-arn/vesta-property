@@ -16,3 +16,5 @@ export const confidenceIcons: Record<
 export const DISCLAIMER_TEXT = "Exact address based on agent's geolocation coordinates.";
 export const EPC_SEARCH_BASE_URL =
   "https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=";
+
+export const YOUTUBE_EXPLAINER_VIDEO_URL = "https://youtu.be/ixULj0-f6pU";
