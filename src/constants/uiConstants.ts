@@ -18,3 +18,6 @@ export const EPC_SEARCH_BASE_URL =
   "https://find-energy-certificate.service.gov.uk/find-a-certificate/search-by-postcode?postcode=";
 
 export const YOUTUBE_EXPLAINER_VIDEO_URL = "https://youtu.be/ixULj0-f6pU";
+
+export const UNINSTALL_SURVEY_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSehDQZsICWQAS53uo7HGJIYh7w_NT9ex-TaIisdEOFnblLyyg/viewform?usp=header";

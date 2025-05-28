@@ -11,6 +11,7 @@ import { ActionEvents } from "./constants/actionEvents";
 import { ENV_CONFIG } from "./constants/environmentConfig";
 import { RIGHTMOVE_PROPERTY_PAGE_REGEX } from "./constants/regex";
 import { StorageKeys } from "./constants/storage";
+import { UNINSTALL_SURVEY_URL } from "./constants/uiConstants";
 import { type EpcProcessorResult } from "./lib/epcProcessing";
 import { GovEpcCertificate, GovEpcValidationMatch } from "./types/govEpcCertificate";
 import {
@@ -65,12 +66,21 @@ function configureSidePanel() {
   }
 }
 
+const WELCOME_URL = chrome.runtime.getURL("welcome.html");
+
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log("[background.ts] Extension installed or updated:", details.reason);
   configureSidePanel();
   if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+    chrome.tabs.create({ url: WELCOME_URL });
     await trackGA4ExtensionInstall();
   }
+  // Set uninstall URL in all cases (install or update) to ensure it's always set.
+  chrome.runtime.setUninstallURL(UNINSTALL_SURVEY_URL, () => {
+    if (chrome.runtime.lastError) {
+      console.error("Error setting uninstall URL:", chrome.runtime.lastError.message);
+    }
+  });
 });
 
 // Also configure on startup to ensure it's always set
