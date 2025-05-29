@@ -9,6 +9,7 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { YOUTUBE_EXPLAINER_VIDEO_URL } from "@/constants/uiConstants";
 import { useToast } from "@/hooks/use-toast";
 import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
 import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
@@ -18,6 +19,7 @@ import { GA_UPGRADE_BUTTON_LOCATIONS } from '@/utils/GoogleAnalytics/googleAnaly
 import { trackGA4UpgradeButtonClicked } from '@/utils/GoogleAnalytics/googleAnalyticsEvents';
 import { navigateToPricingPageWithGaParams } from '@/utils/GoogleAnalytics/googleAnalyticsHelpers';
 import React from "react";
+import { BsPlayCircle } from "react-icons/bs";
 import { FiLogIn, FiLogOut } from "react-icons/fi";
 import { GoCreditCard } from "react-icons/go";
 import { IoSettingsOutline } from "react-icons/io5";
@@ -66,6 +68,10 @@ const SettingsControls = () => {
     const handleManageSubscription = async () => {
         // The hook handles error display and tab opening internally
         await createPortalSession();
+    };
+
+    const handleWatchExplainerVideo = () => {
+        window.open(YOUTUBE_EXPLAINER_VIDEO_URL, "_blank", "noopener,noreferrer");
     };
 
     const isLoading = isAuthenticating || isCheckingAuth || isPortalLoading || (isAuthenticated && isLoadingUserProfile);
@@ -132,6 +138,10 @@ const SettingsControls = () => {
                         <DropdownMenuItem onClick={handleFeedback} className="cursor-pointer">
                             <VscFeedback className="mr-2" />
                             <span>Give feedback</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleWatchExplainerVideo} className="cursor-pointer">
+                            <BsPlayCircle className="mr-2" />
+                            <span>Watch explainer video</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled>
                             <span>More features coming soon! 😊</span>

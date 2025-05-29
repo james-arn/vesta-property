@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vesta Property Checklist",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Make better property buying decisions. Get scored Rightmove property listings and helpful checklists with Vesta.",
   "permissions": [
     "activeTab",
@@ -24,7 +24,7 @@
     "https://find-energy-certificate.service.gov.uk/*"
   ],
   "content_security_policy": {
-    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-elem 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://media.rightmove.co.uk https://www.google-analytics.com https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com https://www.rightmove.co.uk https://find-energy-certificate.service.gov.uk; frame-src 'self' https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; img-src 'self' data:;",
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; script-src-elem 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://media.rightmove.co.uk https://www.google-analytics.com https://api.vestapropertychecker.com https://nominatim.openstreetmap.org https://cognito-idp.eu-west-2.amazonaws.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://d84l1y8p4kdic.cloudfront.net https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com https://www.rightmove.co.uk https://find-energy-certificate.service.gov.uk; frame-src 'self' https://www.youtube.com https://eu-west-2ehh7h32th.auth.eu-west-2.amazoncognito.com https://eu-west-2jnzrcsnye.auth.eu-west-2.amazoncognito.com https://vesta-property-checker-prod.auth.eu-west-2.amazoncognito.com; img-src 'self' data:;",
     "sandbox": "sandbox allow-scripts; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:;"
   },
   "sandbox": {
@@ -68,7 +68,8 @@
         "logout-success.html",
         "sandbox.html",
         "images/icon48.png",
-        "images/logo-white-no-text.png"
+        "images/logo-white-no-text.png",
+        "welcome.html"
       ],
       "matches": [
         "https://www.rightmove.co.uk/*",

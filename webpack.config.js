@@ -91,6 +91,7 @@ module.exports = {
         { from: "src/assets/images", to: "images" },
         { from: "src/injectScript.js", to: "injectScript.js" },
         { from: "public/sandbox.html", to: "sandbox.html" },
+        { from: "public/welcome.html", to: "welcome.html" },
         {
           from: path.join(nodeModulesPath, "pdfjs-dist/build/pdf.worker.min.mjs"),
           to: "./",
