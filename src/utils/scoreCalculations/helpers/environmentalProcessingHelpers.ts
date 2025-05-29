@@ -7,7 +7,7 @@ import {
   MAX_SCORE,
 } from "@/constants/scoreConstants";
 import { CrimeRating } from "@/hooks/useCrimeScore"; // Import CrimeRating type
-import { FloodRisk } from "@/types/premiumStreetData"; // Added import
+import { FloodRisk } from "@/types/premiumStreetData";
 import { PropertyDataListItem } from "@/types/property";
 import { parseNumberFromString, parseYesNoUnknown } from "@/utils/parsingHelpers";
 import React from "react"; // Import React for ReactNode checks
@@ -98,10 +98,10 @@ export const calculateCrimeRisk = (
 };
 
 export const calculateFloodRisk = (
-  floodDefencesItem: PropertyDataListItem | undefined,
-  floodSourcesItem: PropertyDataListItem | undefined,
-  floodedLast5YearsItem: PropertyDataListItem | undefined,
-  detailedRiskAssessmentItem: PropertyDataListItem | undefined
+  floodDefences: boolean | null,
+  floodSources: string[] | null,
+  floodedInLastFiveYears: boolean | null,
+  detailedFloodRiskAssessment: FloodRisk | null
 ): FactorProcessingResult => {
   const internalWarnings: string[] = [];
   let hasDetailedAssessmentData = false; // Flag to track if detailed assessment is valid
@@ -110,173 +110,107 @@ export const calculateFloodRisk = (
     last5Years: 50,
     defences: 20,
     sources: 15,
-    assessment: 15,
-  } as const; // Use 'as const' for stricter typing
+    assessment: 15, // This represents the score if detailed assessment is present and positive
+  } as const;
 
   // --- Calculate score for each factor --- //
 
   // 1. Flooded in last 5 years
   const last5YearsResult = (() => {
-    if (floodedLast5YearsItem !== undefined) {
-      const flooded = parseYesNoUnknown(floodedLast5YearsItem.value);
-      const score = flooded === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
-      // Only warn if detailed assessment is NOT available
-      if (flooded === null && !hasDetailedAssessmentData) {
-        internalWarnings.push("Flooded in last 5 years: Status unknown/missing.");
-      }
-      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
-    } else {
-      // Only warn if detailed assessment is NOT available
-      if (!hasDetailedAssessmentData) {
-        internalWarnings.push("Flooded in last 5 years: Data item missing.");
-      }
-      return { score: 0, maxScore: 0 };
+    const score = floodedInLastFiveYears === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
+    if (floodedInLastFiveYears === null && !hasDetailedAssessmentData) {
+      internalWarnings.push("Flooded in last 5 years: Status unknown/missing.");
     }
+    // Max score is always possible as we expect this data (even if null)
+    return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
   })();
 
   // 2. Flood Defences
   const defencesResult = (() => {
-    if (floodDefencesItem !== undefined) {
-      const defencesPresent = parseYesNoUnknown(floodDefencesItem.value);
-      const score = defencesPresent === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
-      // Only warn if detailed assessment is NOT available
-      if (defencesPresent === null && !hasDetailedAssessmentData) {
-        internalWarnings.push("Flood defences: Status unknown/missing.");
-      }
-      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
-    } else {
-      // Only warn if detailed assessment is NOT available
-      if (!hasDetailedAssessmentData) {
-        internalWarnings.push("Flood defences: Data item missing.");
-      }
-      return { score: 0, maxScore: 0 };
+    // Use the direct boolean value
+    // Score if defences are NOT present (true = defences exist, so risk is lower, score contribution is 0)
+    // If defencesPresent is false (no defences), then it contributes to risk score.
+    const score = floodDefences === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
+    if (floodDefences === null && !hasDetailedAssessmentData) {
+      internalWarnings.push("Flood defences: Status unknown/missing.");
     }
+    return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
   })();
 
   // 3. Flood Sources
   const sourcesResult = (() => {
-    if (floodSourcesItem !== undefined) {
-      const sourcesValue = floodSourcesItem.value;
-      let hasSources = false;
-      if (
-        typeof sourcesValue === "string" &&
-        sourcesValue.trim().toLowerCase() !== "none" &&
-        sourcesValue.trim() !== ""
-      ) {
-        hasSources = true;
-      } else if (Array.isArray(sourcesValue) && sourcesValue.length > 0) {
-        hasSources = sourcesValue.some(
-          (source) => typeof source === "string" && source.trim() !== ""
-        );
-      }
-      const score = hasSources ? FLOOD_FACTORS_MAX_SCORE.sources : 0;
-      // Only warn if detailed assessment is NOT available
-      if (
-        (sourcesValue === undefined || sourcesValue === null || sourcesValue === "N/A") &&
-        !hasDetailedAssessmentData
-      ) {
-        internalWarnings.push("Flood sources: Data unknown/missing.");
-      }
-      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
-    } else {
-      // Only warn if detailed assessment is NOT available
-      if (!hasDetailedAssessmentData) {
-        internalWarnings.push("Flood sources: Data item missing.");
-      }
-      return { score: 0, maxScore: 0 };
+    let hasSources = false;
+    if (Array.isArray(floodSources) && floodSources.length > 0) {
+      hasSources = floodSources.some(
+        (source) => typeof source === "string" && source.trim() !== ""
+      );
     }
+    const score = hasSources ? FLOOD_FACTORS_MAX_SCORE.sources : 0;
+    if (floodSources === null && !hasDetailedAssessmentData) {
+      internalWarnings.push("Flood sources: Data unknown/missing.");
+    }
+    return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
   })();
-
-  // Type guard (can be moved outside if preferred)
-  const isFloodRisk = (value: unknown): value is FloodRisk => {
-    if (typeof value !== "object" || value === null || React.isValidElement(value)) {
-      return false;
-    }
-    const obj = value as Record<string, unknown>;
-    const hasRivers =
-      "rivers_and_seas" in obj &&
-      (obj.rivers_and_seas === null || typeof obj.rivers_and_seas === "object");
-    const hasSurface =
-      "surface_water" in obj &&
-      (obj.surface_water === null || typeof obj.surface_water === "object");
-    return hasRivers || hasSurface;
-  };
 
   // 4. Detailed Assessment
   const assessmentResult = (() => {
-    if (detailedRiskAssessmentItem !== undefined) {
-      const assessmentValue = detailedRiskAssessmentItem.value;
-      let score = 0;
+    let score = 0;
+    let maxScoreForAssessment = 0; // Default to 0, becomes active if assessment data is present
 
-      if (isFloodRisk(assessmentValue)) {
-        hasDetailedAssessmentData = true; // Set flag if detailed assessment is valid
-        const floodRiskData = assessmentValue;
-        const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
-          .map((risk) => (risk ? risk.toLowerCase() : undefined))
-          .filter((risk): risk is string => !!risk);
+    if (detailedFloodRiskAssessment) {
+      hasDetailedAssessmentData = true; // Set flag if detailed assessment is valid
+      maxScoreForAssessment = FLOOD_FACTORS_MAX_SCORE.assessment; // Activate max score for this part
+      const floodRiskData = detailedFloodRiskAssessment;
+      const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
+        .map((risk) => (risk ? risk.toLowerCase() : undefined))
+        .filter((risk): risk is string => !!risk);
 
-        if (riskLevels.length > 0) {
-          const highestMultiplier = riskLevels.reduce((maxMultiplier, currentRisk) => {
-            const currentMultiplier = FLOOD_RISK_LEVEL_MULTIPLIERS[currentRisk] ?? -1;
-            if (currentMultiplier === -1) {
-              internalWarnings.push(`Unrecognized flood risk level: '${currentRisk}'.`);
-            }
-            return Math.max(maxMultiplier, currentMultiplier);
-          }, -1);
-
-          if (highestMultiplier >= 0) {
-            score = FLOOD_FACTORS_MAX_SCORE.assessment * highestMultiplier;
-          } else {
-            if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
-              internalWarnings.push("Could not determine flood risk score from assessment levels.");
-            }
+      if (riskLevels.length > 0) {
+        const highestMultiplier = riskLevels.reduce((maxMultiplier, currentRisk) => {
+          const currentMultiplier = FLOOD_RISK_LEVEL_MULTIPLIERS[currentRisk] ?? -1;
+          if (currentMultiplier === -1) {
+            internalWarnings.push(`Unrecognized flood risk level: '${currentRisk}'.`);
           }
+          return Math.max(maxMultiplier, currentMultiplier);
+        }, -1);
+
+        if (highestMultiplier >= 0) {
+          // Score contribution from detailed assessment is based on its own max (e.g., 15 points)
+          score = FLOOD_FACTORS_MAX_SCORE.assessment * highestMultiplier;
         } else {
-          internalWarnings.push("Flood risk assessment present but risk levels missing.");
+          if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
+            internalWarnings.push("Could not determine flood risk score from assessment levels.");
+          }
+          // If levels are unrecognized, it implies higher risk, so no positive score contribution from detailed assessment.
         }
-      } else if (
-        assessmentValue === undefined ||
-        assessmentValue === null ||
-        assessmentValue === "N/A"
-      ) {
-        internalWarnings.push("Detailed flood risk assessment data missing or N/A.");
+      } else {
+        internalWarnings.push("Flood risk assessment present but risk levels missing.");
+        // If present but no levels, imply higher risk, no positive score contribution
       }
-      return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.assessment };
     } else {
-      internalWarnings.push("Detailed flood risk assessment data item missing.");
-      return { score: 0, maxScore: 0 };
+      // No detailed assessment data, so this part contributes 0 to score and 0 to max possible for this sub-factor.
+      // Warnings for missing *detailed* assessment are handled by the presence of `hasDetailedAssessmentData` flag in other sections.
     }
+    return { score, maxScore: maxScoreForAssessment };
   })();
 
-  // --- Aggregate results --- //
+  // --- Consolidate results --- //
   const totalScoreContribution =
-    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score;
+    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score; // Risk score (higher means more risk)
 
-  const totalMaxPossibleScoreContribution =
+  // Max possible score considers if detailed assessment was available to contribute its part
+  const totalMaxPossibleScore =
     last5YearsResult.maxScore +
     defencesResult.maxScore +
     sourcesResult.maxScore +
-    assessmentResult.maxScore;
+    assessmentResult.maxScore; // This will be 0 if detailed assessment was null
 
-  const normalizedScore =
-    totalMaxPossibleScoreContribution > 0
-      ? (totalScoreContribution / totalMaxPossibleScoreContribution) * MAX_SCORE
-      : 0;
-
-  const factorsConsidered = [
-    last5YearsResult,
-    defencesResult,
-    sourcesResult,
-    assessmentResult,
-  ].filter((result) => result.maxScore > 0).length;
+  const finalWarning = internalWarnings.length > 0 ? internalWarnings.join(" ") : undefined;
 
   return {
-    scoreContribution: normalizedScore,
-    maxPossibleScore: factorsConsidered > 0 ? MAX_SCORE : 0,
-    warning:
-      internalWarnings.length > 0
-        ? `Flood Risk Analysis Notes: ${internalWarnings.join("; ")}`
-        : undefined,
+    scoreContribution: totalScoreContribution,
+    maxPossibleScore: totalMaxPossibleScore,
+    warning: finalWarning,
   };
 };
 

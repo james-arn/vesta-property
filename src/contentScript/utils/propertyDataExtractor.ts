@@ -44,7 +44,6 @@ export async function extractPropertyDataFromDOM(
     garden: gardenFromUnstructuredText,
     bathroom: bathroomFromUnstructuredText,
     accessibility: accessibilityFromUnstructuredText,
-    buildingSafety: buildingSafetyResultFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
     miningImpactPropertyItem,
     miningImpactStatus,
@@ -281,7 +280,6 @@ export async function extractPropertyDataFromDOM(
     ),
     restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
     listedProperty: mapScrapedStatusToListedBuildings(listedPropertyFromUnstructuredText),
-    buildingSafety: buildingSafetyResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
     miningImpact: miningImpactPropertyItem || {
       value: CHECKLIST_NO_VALUE.NOT_MENTIONED,

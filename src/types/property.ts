@@ -136,7 +136,6 @@ export interface ExtractedPropertyScrapingData {
   bathrooms: string | null;
   bedrooms: string | null;
   broadband: string | null;
-  buildingSafety: PropertyItem;
   coastalErosion: PropertyItem;
   copyLinkUrl: string | null;
   councilTax: string | null;
@@ -243,4 +242,7 @@ export interface PreprocessedData {
   privateRightOfWayObligation: boolean | null;
   listedProperty: ListedBuilding[] | null;
   restrictiveCovenants: RestrictiveCovenant[] | null;
+  rawFloodDefences: boolean | null;
+  rawFloodSources: string[] | null;
+  rawFloodedInLastFiveYears: boolean | null;
 }

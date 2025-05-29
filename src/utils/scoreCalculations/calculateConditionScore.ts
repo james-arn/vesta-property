@@ -16,7 +16,6 @@ import {
   findItemValue,
   getConditionScoreLabel,
   mapAgeBandToModifier,
-  mapBuildingSafetyToModifier,
   mapEpcRatingToScore,
   mapFloorMaterialToModifier,
   mapHeatingTypeToModifier,
@@ -55,10 +54,6 @@ export const calculateConditionScore = (
   const roofValue = constructionMaterials?.roof;
   const wallValue = constructionMaterials?.walls;
 
-  const buildingSafetyValue = findItemValue<string[]>(
-    relevantItems,
-    CHECKLIST_KEYS.BUILDING_SAFETY
-  );
   const occupancyStatus = findItemValue<Occupancy["occupancy_type"]>(
     relevantItems,
     CHECKLIST_KEYS.OCCUPANCY_STATUS
@@ -172,17 +167,7 @@ export const calculateConditionScore = (
   }
   scoreComponents.push({ value: wallModifier, description: wallDescription });
 
-  // 8. Building Safety Component
-  const buildingSafetyModifier = mapBuildingSafetyToModifier(buildingSafetyValue || []);
-  let buildingSafetyDescription = "";
-  if (buildingSafetyValue && buildingSafetyValue.length > 0) {
-    buildingSafetyDescription = `Building Safety Terms Found (${buildingSafetyValue.length}): Modifier ${buildingSafetyModifier.toFixed(1)}`;
-    scoreComponents.push({ value: buildingSafetyModifier, description: buildingSafetyDescription });
-  } else {
-    warnings.push("There's no building safety terms found in the listing.");
-  }
-
-  // 9. Occupancy Status Component
+  // 8. Occupancy Status Component
   const occupancyModifier = mapOccupancyStatusToModifier(occupancyStatus);
   let occupancyDescription = "";
   if (occupancyStatus) {

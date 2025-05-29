@@ -53,11 +53,6 @@ export const emptyPropertyData: ExtractedPropertyScrapingData = {
     compoundAnnualGrowthRate: null,
     volatility: null,
   },
-  buildingSafety: {
-    value: null,
-    status: null,
-    reason: null,
-  },
   coastalErosion: {
     value: null,
     status: null,

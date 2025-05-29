@@ -47,9 +47,14 @@ export const UpsellModal: React.FC<UpsellModalProps> = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>Unlock Premium Insights</DialogTitle>
-                    <DialogDescription>
-                        Upgrade to deep search on listings. Fill in any missing information and harness the power of AI predictions, such as estimated valuations and propensity to sell - proven to be highly accurate and reliable.
+                    <DialogTitle className="mb-2">Unlock Premium Insights</DialogTitle>
+                    <DialogDescription className="text-left">
+                        <p>
+                            Why waste months and £5,000+ on property buying fees, only to uncover a deal-breaker last minute?
+                            <br />
+                            <br />
+                            Spot them in seconds for less than the cost of a coffee ☕
+                        </p>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-col gap-2">

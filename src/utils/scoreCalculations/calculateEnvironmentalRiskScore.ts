@@ -57,17 +57,16 @@ export const calculateEnvironmentalRiskScore = (
   });
 
   const crimeItem = findItemByKey(items, CHECKLIST_KEYS.CRIME_SCORE);
-  const floodDefencesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_DEFENCES);
-  const floodSourcesItem = findItemByKey(items, CHECKLIST_KEYS.FLOOD_SOURCES);
-  const floodedLast5YearsItem = findItemByKey(items, CHECKLIST_KEYS.FLOODED_IN_LAST_FIVE_YEARS);
-  const detailedFloodRiskAssessmentItem = findItemByKey(
-    items,
-    CHECKLIST_KEYS.DETAILED_FLOOD_RISK_ASSESSMENT
-  );
   const coastalErosionItem = findItemByKey(items, CHECKLIST_KEYS.COASTAL_EROSION);
   const airportNoiseItem = findItemByKey(items, CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT);
   const miningStatus = preprocessedData.miningImpactStatus;
   const conservationAreaDetails = preprocessedData.conservationAreaDetails;
+
+  const rawFloodDefences = preprocessedData.rawFloodDefences;
+  const rawFloodSources = preprocessedData.rawFloodSources;
+  const rawFloodedInLastFiveYears = preprocessedData.rawFloodedInLastFiveYears;
+  const detailedFloodRiskAssessmentData =
+    preprocessedData.processedPremiumData?.detailedFloodRiskAssessment ?? null;
 
   // Calculate raw contributions and gather warnings
   const results = [
@@ -75,10 +74,10 @@ export const calculateEnvironmentalRiskScore = (
     {
       key: "floodRisk",
       result: calculateFloodRisk(
-        floodDefencesItem,
-        floodSourcesItem,
-        floodedLast5YearsItem,
-        detailedFloodRiskAssessmentItem
+        rawFloodDefences,
+        rawFloodSources,
+        rawFloodedInLastFiveYears,
+        detailedFloodRiskAssessmentData
       ),
     },
     { key: "coastalErosion", result: calculateCoastalErosionRisk(coastalErosionItem) },

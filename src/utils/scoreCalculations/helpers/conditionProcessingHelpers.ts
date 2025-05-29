@@ -1,16 +1,6 @@
 import { ChecklistKey } from "@/constants/checklistKeys";
-import {
-  BUILDING_SAFETY_NEGATIVE_MODIFIER,
-  BUILDING_SAFETY_POSITIVE_MODIFIER,
-  BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER,
-  BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS,
-} from "@/constants/scoreConstants";
 import { Occupancy } from "@/types/premiumStreetData";
 import { PropertyDataListItem } from "@/types/property";
-import {
-  buildingSafetyTermsNegative,
-  buildingSafetyTermsPositive,
-} from "../../../constants/keyTerms";
 
 /**
  * Finds the value of a specific checklist item by its key.
@@ -221,38 +211,6 @@ export const mapWallMaterialToModifier = (wallValue: string | undefined): number
   if (lowerCaseValue.includes("single skin")) return -5;
 
   return 0; // Neutral if keywords not matched
-};
-
-/**
- * Calculates a score modifier based on building safety terms.
- * Evaluates an array of terms against predefined lists of positive and negative safety indicators.
- * Severe negative terms (like mould, damp, asbestos) have a larger negative impact.
- * @param terms - Array of building safety terms to evaluate
- * @returns A numerical modifier value (0 if no terms provided)
- */
-export const mapBuildingSafetyToModifier = (terms: string[] | string): number => {
-  if (!terms || (Array.isArray(terms) && terms.length === 0)) {
-    return 0;
-  }
-
-  const termsArray = Array.isArray(terms) ? terms : [terms];
-
-  const modifier = termsArray.reduce((acc, term) => {
-    const lowerCaseTerm = term.toLowerCase();
-
-    if (BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS.includes(lowerCaseTerm)) {
-      return acc + BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER;
-    }
-    if (buildingSafetyTermsNegative.includes(lowerCaseTerm)) {
-      return acc + BUILDING_SAFETY_NEGATIVE_MODIFIER;
-    }
-    if (buildingSafetyTermsPositive.includes(lowerCaseTerm)) {
-      return acc + BUILDING_SAFETY_POSITIVE_MODIFIER;
-    }
-    return acc;
-  }, 0);
-
-  return modifier;
 };
 
 /**

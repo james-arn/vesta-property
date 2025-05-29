@@ -30,7 +30,6 @@ export const accessibilityTerms = [
 ];
 
 export const buildingSafetyTermsPositive = [
-  "building safety",
   "structural integrity",
   "fire safety",
   "safety certificate",

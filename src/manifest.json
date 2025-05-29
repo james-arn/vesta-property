@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Vesta Property Checklist",
-  "version": "2.0.5",
+  "name": "Vesta Property Checker",
+  "version": "2.0.6",
   "description": "Make better property buying decisions. Get scored Rightmove property listings and helpful checklists with Vesta.",
   "permissions": [
     "activeTab",
@@ -43,7 +43,7 @@
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     },
-    "default_title": "Open Vesta Property Checklist"
+    "default_title": "Open Vesta Property Checker"
   },
   "content_scripts": [
     {

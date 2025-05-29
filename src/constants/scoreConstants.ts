@@ -91,15 +91,9 @@ export const OFSTED_RATINGS_SCORES: { [key: string]: number } = {
 
 export const UK_AVERAGE_BROADBAND_MBPS = 75;
 
-export const BUILDING_SAFETY_SEVERE_NEGATIVE_TERMS = ["mould", "damp", "asbestos", "radon"];
-export const BUILDING_SAFETY_POSITIVE_MODIFIER = 0.5;
-export const BUILDING_SAFETY_NEGATIVE_MODIFIER = -1;
-export const BUILDING_SAFETY_SEVERE_NEGATIVE_MODIFIER = -5;
-
 export const ENVIRONMENT_RISK_FACTOR_WEIGHTS: Record<string, number> = {
   crimeScore: 18,
   floodRisk: 27,
-  buildingSafety: 14,
   coastalErosion: 14,
   miningImpact: 9,
   airportNoiseAssessment: 9,

@@ -285,6 +285,9 @@ export const usePreprocessedPropertyData = ({
       listedProperty,
       restrictiveCovenants,
       initialEpcData,
+      rawFloodDefences: propertyData?.floodDefences ?? null,
+      rawFloodSources: propertyData?.floodSources ?? null,
+      rawFloodedInLastFiveYears: propertyData?.floodedInLastFiveYears ?? null,
     };
   }, [
     isPreprocessedDataLoading,
@@ -311,6 +314,9 @@ export const usePreprocessedPropertyData = ({
     premiumStreetDataQuery?.status,
     processedPremiumDataResult?.restrictiveCovenants,
     initialEpcData,
+    propertyData?.floodDefences,
+    propertyData?.floodSources,
+    propertyData?.floodedInLastFiveYears,
   ]);
 
   return preprocessedData;

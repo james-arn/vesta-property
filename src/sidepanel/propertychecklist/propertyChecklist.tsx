@@ -1,4 +1,3 @@
-import FloodRiskDisplay from "@/components/ui/Premium/FloodRiskDisplay";
 import { getNearbyPlanningApplicationsStatus, getNearbyPlanningApplicationsValue, getPropertyPlanningApplicationsStatus, getPropertyPlanningApplicationsValue } from "@/components/ui/Premium/PlanningPermission/helpers";
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
@@ -19,6 +18,7 @@ import {
   PreprocessedData,
   PropertyDataListItem
 } from "../../types/property";
+import { generateConsolidatedFloodRiskItem } from "./floodRiskHelpers";
 import {
   generateEpcChecklistItem,
   getCAGRStatus,
@@ -201,6 +201,14 @@ export function generatePropertyChecklist(
     restrictiveCovenantStatus,
     covenantsWereFound
   );
+
+  // Generate the consolidated flood risk item by calling the helper
+  const consolidatedFloodRiskItem = generateConsolidatedFloodRiskItem({
+    propertyData,
+    preprocessedData,
+    getYesNoOrAskAgentStringFromBoolean,
+    CHECKLIST_NO_VALUE,
+  });
 
   const checklist: (PropertyDataListItem | null)[] = [
     {
@@ -908,22 +916,6 @@ export function generatePropertyChecklist(
     },
     {
       checklistGroup: PropertyGroups.RISKS,
-      label: "Detailed Flood Risk Assessment",
-      key: CHECKLIST_KEYS.DETAILED_FLOOD_RISK_ASSESSMENT,
-      status: getStatusFromPremium(processedPremiumData?.detailedFloodRiskAssessment),
-      value: processedPremiumData?.detailedFloodRiskAssessment ?
-        <FloodRiskDisplay floodRisk={processedPremiumData?.detailedFloodRiskAssessment} />
-        : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer:
-        "A comprehensive report assessing the property's specific flood risk from rivers, sea, surface water, and groundwater.\n\n" +
-        "Provides more detail than basic checks, crucial for insurance and understanding potential mitigation needs.",
-      isUnlockedWithPremium: true,
-      isBoostedWithPremium: false,
-      isExpectedInListing: false,
-    },
-    {
-      checklistGroup: PropertyGroups.RISKS,
       label: "Airport Noise Assessment",
       key: CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT,
       status: hasPremiumDataLoadedSuccessfully
@@ -952,71 +944,7 @@ export function generatePropertyChecklist(
       isBoostedWithPremium: false,
       isExpectedInListing: false,
     },
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Flood Defences",
-      key: CHECKLIST_KEYS.FLOOD_DEFENCES,
-      status: getStatusFromBoolean(propertyData.floodDefences),
-      value: getYesNoOrAskAgentStringFromBoolean(propertyData.floodDefences),
-      askAgentMessage: "Any flood defences?",
-      toolTipExplainer:
-        "Flood defences help protect the property from water damage.\n\n" +
-        "It's important to check if the property is at risk of flooding or has a history of flooding, as this can impact insurance and value.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
-      isExpectedInListing: true,
-    },
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Flood Sources",
-      key: CHECKLIST_KEYS.FLOOD_SOURCES,
-      status:
-        (propertyData.floodSources ?? []).length > 0
-          ? DataStatus.FOUND_POSITIVE
-          : DataStatus.ASK_AGENT,
-      value:
-        (propertyData.floodSources ?? []).length > 0
-          ? (propertyData.floodSources?.join(", ") ?? CHECKLIST_NO_VALUE.NOT_MENTIONED)
-          : CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: "Any flood sources?",
-      toolTipExplainer:
-        "Flood sources are the natural or man-made features that contribute to flooding, such as rivers, streams, dams, or levees.\n\n" +
-        "Understanding the flood sources can help assess the property's risk of flooding and the effectiveness of flood defences.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
-      isExpectedInListing: true,
-    },
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Flooded in last 5 years",
-      key: CHECKLIST_KEYS.FLOODED_IN_LAST_FIVE_YEARS,
-      status: getStatusFromBoolean(propertyData.floodedInLastFiveYears, true),
-      value: getYesNoOrAskAgentStringFromBoolean(
-        propertyData.floodedInLastFiveYears
-      ),
-      askAgentMessage: "Flooded in last 5 years?",
-      toolTipExplainer:
-        "A history of flooding can impact property value and insurance.\n\n" +
-        "Buyers should check for any past flooding incidents and existing flood defences.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
-      isExpectedInListing: true,
-    },
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Building Safety",
-      key: CHECKLIST_KEYS.BUILDING_SAFETY,
-      status: propertyData.buildingSafety.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.buildingSafety.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: propertyData.buildingSafety.reason ?? "",
-      toolTipExplainer:
-        "This item identifies building safety information by scanning for key terms. " +
-        "Positive terms such as 'Fire Alarm System' indicate robust safety measures, while negative terms (e.g. 'Mould') " +
-        "may flag potential concerns. The absence of any mention means further clarification might be needed.",
-      isUnlockedWithPremium: false,
-      isBoostedWithPremium: false,
-      isExpectedInListing: true,
-    },
+    consolidatedFloodRiskItem,
     {
       checklistGroup: PropertyGroups.RISKS,
       label: "Mining Impact",

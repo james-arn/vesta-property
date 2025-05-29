@@ -1,8 +1,6 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import {
   accessibilityTerms,
-  buildingSafetyTermsNegative,
-  buildingSafetyTermsPositive,
   coastalErosionTermsNegative,
   coastalErosionTermsPositive,
   miningImpactTermsNegative,
@@ -206,13 +204,6 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
     ? capitaliseFirstLetterAndCleanString([...new Set(bathroomMatches)].join(", "))
     : null;
 
-  const buildingSafetyResult = extractTermInfo(
-    "Building Safety",
-    combinedTextLower,
-    buildingSafetyTermsPositive,
-    buildingSafetyTermsNegative
-  );
-
   const coastalErosionResult = extractTermInfo(
     "Coastal Erosion",
     combinedTextLower,
@@ -275,11 +266,6 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       : null,
     bathroom: bathroomFormatted,
     listedProperty: listedProperty,
-    buildingSafety: {
-      value: buildingSafetyResult.displayValue,
-      status: buildingSafetyResult.status,
-      reason: buildingSafetyResult.askAgentMessage,
-    },
     coastalErosion: {
       value: coastalErosionResult.displayValue,
       status: coastalErosionResult.status,
