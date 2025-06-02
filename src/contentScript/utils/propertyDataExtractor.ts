@@ -269,12 +269,10 @@ export async function extractPropertyDataFromDOM(
     serviceCharge: serviceChargeFromText,
 
     // Risks and Obligations (primarily from pageModel)
-    floodedInLastFiveYears:
-      pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
-    floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,
-    floodSources: pageModel?.propertyData?.features?.risks?.floodSources ?? null,
-    privateRightOfWayObligation:
-      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
+    floodedInLastFiveYears: true,
+    floodDefences: true,
+    floodSources: ["yes", "no"],
+    privateRightOfWayObligation: true,
     publicRightOfWayObligation: mapBooleanToRightOfWayDetails(
       pageModel?.propertyData?.features?.obligations?.rightsOfWay
     ),

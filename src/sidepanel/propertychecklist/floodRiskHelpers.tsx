@@ -96,7 +96,6 @@ export function generateConsolidatedFloodRiskItem({
         value: (
           <>
             <FloodRiskDisplay floodRisk={processedPremiumData.detailedFloodRiskAssessment} />
-            {freeFloodDataComponent}
           </>
         ),
         askAgentMessage: "",
@@ -125,6 +124,10 @@ export function generateConsolidatedFloodRiskItem({
 
   const { status, value, askAgentMessage } = determineFloodRiskPresentation();
 
+  // If premium data for flood risk is already loaded and present, there's no further premium feature to show.
+  // Otherwise, if it's not loaded, it implies a premium feature is available (to get the detailed assessment).
+  const determinedHasPremiumFeature = !processedPremiumData?.detailedFloodRiskAssessment;
+
   const consolidatedFloodRiskItem: PropertyDataListItem = {
     checklistGroup: PropertyGroups.RISKS,
     label: "Flood Risk",
@@ -135,8 +138,7 @@ export function generateConsolidatedFloodRiskItem({
     toolTipExplainer:
       "Comprehensive assessment of flood risk, combining information from the property listing (defences, sources, recent flooding if available) with a detailed premium analysis (rivers, sea, surface water, groundwater). " +
       "Premium data provides a more in-depth understanding crucial for insurance and mitigation needs.",
-    isUnlockedWithPremium: true,
-    isBoostedWithPremium: true,
+    isExpectedInPremiumSearchData: determinedHasPremiumFeature,
     isExpectedInListing: true,
   };
 

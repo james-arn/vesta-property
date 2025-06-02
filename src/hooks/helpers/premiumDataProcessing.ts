@@ -7,6 +7,7 @@ import {
 } from "@/types/premiumStreetData";
 import { RightOfWayDetails } from "@/types/property";
 import { calculateRemainingLeaseTerm } from "@/utils/dateCalculations";
+import { getBroadbandSpeedLabelFromAttributes } from "./preProcessedDataHelpers";
 
 /**
  * Processes raw premium street data and query status into a structured format.
@@ -65,12 +66,13 @@ export const processPremiumStreetData = (
   };
   const restrictiveCovenants = attributes?.restrictive_covenants ?? [];
   const detailedFloodRiskAssessment = attributes?.flood_risk ?? null;
-  const mobileServiceCoverage = attributes?.mobile_service_coverage ?? null;
+  const mobileServiceCoverage = attributes?.connectivity?.mobile_service_coverage ?? null;
   const transport = attributes?.transport ?? null;
   const schoolProximity = attributes?.education ?? null;
 
   const coastalErosionRisk = attributes?.coastal_erosion ?? null;
   const rawPublicRightOfWay = attributes?.right_of_way ?? null;
+  const propertyType = attributes?.property_type?.value ?? null;
 
   // Map the raw premium RoW data to the RightOfWayDetails structure
   const mappedPublicRoW: RightOfWayDetails | null = (() => {
@@ -102,6 +104,10 @@ export const processPremiumStreetData = (
   }
 
   const listedBuildingsOnPlot = attributes?.listed_buildings_on_plot ?? [];
+
+  const tenure = attributes?.tenure?.tenure_type ?? null;
+
+  const broadbandSpeedLabel = getBroadbandSpeedLabelFromAttributes(attributes);
 
   return {
     status: queryStatus,
@@ -137,5 +143,8 @@ export const processPremiumStreetData = (
     askingVsEstimateAbsolute,
     publicRightOfWayObligation: mappedPublicRoW,
     listedBuildingsOnPlot,
+    tenure,
+    propertyType,
+    broadbandSpeedLabel,
   };
 };

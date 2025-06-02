@@ -9,6 +9,7 @@ import React from "react";
 import { GovEpcValidationMatch } from "./govEpcCertificate";
 import {
   ListedBuilding,
+  ProcessedMobileServiceCoverageWithScoreAndLabel,
   ProcessedPremiumStreetData,
   RestrictiveCovenant,
 } from "./premiumStreetData";
@@ -34,12 +35,13 @@ export interface PropertyDataListItem {
   epcBandData?: EpcBandResult;
   epcImageUrl?: string | null;
   confidence?: Confidence | null;
-  isUnlockedWithPremium: boolean;
-  isBoostedWithPremium: boolean;
+  isExpectedInPremiumSearchData: boolean;
   isExpectedInListing: boolean;
   restrictiveCovenants?: RestrictiveCovenant[] | null;
   publicRightOfWay?: RightOfWayDetails | null;
   epcSource?: EpcDataSourceType | null;
+  hasMoreDetailsInPremiumThanListingValue?: boolean | null;
+  mobileCoverage?: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
 }
 
 export interface AgentDetails {
@@ -245,4 +247,5 @@ export interface PreprocessedData {
   rawFloodDefences: boolean | null;
   rawFloodSources: string[] | null;
   rawFloodedInLastFiveYears: boolean | null;
+  mobileServiceCoverageWithScoreAndLabel: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
 }

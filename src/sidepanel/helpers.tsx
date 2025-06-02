@@ -1,4 +1,5 @@
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { DASHBOARD_CATEGORY_DISPLAY_NAMES, DashboardScoreCategory } from "@/constants/dashboardScoreCategoryConsts";
 import { checkIfClickableItemKey } from "@/types/clickableChecklist";
 import { logErrorToSentry } from "@/utils/sentry";
@@ -78,24 +79,42 @@ export const getValueClickHandler = (
   openNewTab: (url: string) => void,
   toggleCrimeChart: () => void,
   togglePlanningPermissionCard: () => void,
-  toggleNearbyPlanningPermissionCard?: () => void): (() => void) | undefined => {
+  toggleNearbyPlanningPermissionCard: () => void,
+  toggleMobileCoverageCard: () => void
+): void => {
 
   const { key, value } = item;
-  if (!checkIfClickableItemKey(key)) return undefined;
+  if (!checkIfClickableItemKey(key)) {
+    console.warn(`getValueClickHandler: Item key "${key}" is not registered as clickable.`);
+    return;
+  }
 
   switch (key) {
-    case "epc":
-    case "floorPlan":
-      return () => openNewTab(String(value));
-    case "crimeScore":
-      return toggleCrimeChart;
-    case "planningPermissions":
-      return togglePlanningPermissionCard;
-    case "nearbyPlanningPermissions":
-      return toggleNearbyPlanningPermissionCard || (() => console.error("No handler provided for nearbyPlanningPermissions click"));
+    case CHECKLIST_KEYS.EPC:
+    case CHECKLIST_KEYS.FLOOR_PLAN:
+      if (value) {
+        openNewTab(String(value));
+      } else {
+        console.warn(`getValueClickHandler: No URL value provided for clickable item key "${key}".`);
+      }
+      break;
+    case CHECKLIST_KEYS.CRIME_SCORE:
+      toggleCrimeChart();
+      break;
+    case CHECKLIST_KEYS.PLANNING_PERMISSIONS:
+      togglePlanningPermissionCard();
+      break;
+    case CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS:
+      toggleNearbyPlanningPermissionCard();
+      break;
+    case CHECKLIST_KEYS.MOBILE_COVERAGE:
+      toggleMobileCoverageCard();
+      break;
     default:
+      // This case should ideally not be reached if checkIfClickableItemKey is comprehensive
+      // and all clickable keys are handled above.
       console.error(`getValueClickHandler: Clickable key "${key}" is not handled in the switch statement.`);
-      return undefined;
+      break;
   }
 };
 

@@ -228,7 +228,7 @@ export const generateEpcChecklistItem = (
     key: CHECKLIST_KEYS.EPC,
     checklistGroup: PropertyGroups.UTILITIES,
     dashboardGroup: DashboardScoreCategory.RUNNING_COSTS,
-    isUnlockedWithPremium: false,
+    isExpectedInPremiumSearchData: false,
     isBoostedWithPremium: true,
     isExpectedInListing: true,
     epcBandData: finalEpcBandData ?? null,
@@ -303,6 +303,7 @@ export const generateEpcChecklistItem = (
     status: DataStatus.ASK_AGENT,
     askAgentMessage: "Could not determine EPC. Ask Agent?",
     toolTipExplainer: "Could not determine the EPC rating from available data.",
+    isExpectedInPremiumSearchData: true,
   };
 };
 

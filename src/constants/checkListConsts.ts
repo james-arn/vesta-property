@@ -6,4 +6,5 @@ export const CHECKLIST_NO_VALUE = {
   NOT_KNOWN: "Not known",
   NOT_SPECIFIED: "Not specified",
   NONE_FOUND: "None found",
+  NO_SALES_HISTORY: "No sales history",
 } as const;

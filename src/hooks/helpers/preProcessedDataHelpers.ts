@@ -1,4 +1,20 @@
-import { ProcessedPremiumDataStatus, RestrictiveCovenant } from "@/types/premiumStreetData";
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
+import {
+  MobileServiceCoverageItem,
+  ProcessedMobileServiceCoverageWithScoreAndLabel,
+  ProcessedPremiumDataStatus,
+  PropertyAttributes,
+  RestrictiveCovenant,
+} from "@/types/premiumStreetData";
+import { calculateMobileCoverageScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
+
+const MOBILE_COVERAGE_LABELS = [
+  { min: 90, label: "Excellent" },
+  { min: 70, label: "Good" },
+  { min: 50, label: "Fair" },
+  { min: 30, label: "Poor" },
+  { min: 0, label: "Very Poor" },
+];
 
 export const processRestrictiveCovenants = (
   premiumStatus: ProcessedPremiumDataStatus,
@@ -31,3 +47,51 @@ export const processRestrictiveCovenants = (
     return null;
   }
 };
+
+export function getBroadbandSpeedLabelFromAttributes(
+  attributes: PropertyAttributes | undefined
+): string | null {
+  const speedMbps =
+    attributes?.connectivity?.broadband_availability?.find(
+      (type: any) => type.broadband_type === "Overall"
+    )?.maximum_predicted_download_speed ?? null;
+
+  return getBroadbandSpeedLabel(speedMbps);
+}
+
+function getBroadbandSpeedLabel(speedMbps: number | null): string | null {
+  if (!speedMbps) {
+    return null;
+  }
+  if (speedMbps >= 1000) {
+    return `Gigabit ${speedMbps}Mbps`;
+  } else if (speedMbps >= 100) {
+    return `Ultrafast ${speedMbps}Mbps`;
+  } else if (speedMbps >= 30) {
+    return `Superfast ${speedMbps}Mbps`;
+  } else if (speedMbps >= 10) {
+    return `Average ${speedMbps}Mbps`;
+  } else if (speedMbps >= 0) {
+    return `Slow ${speedMbps}Mbps`;
+  }
+  return null;
+}
+
+export function processMobileCoverageForScoreAndLabel(
+  mobileCoverageData: MobileServiceCoverageItem[] | null | undefined
+): ProcessedMobileServiceCoverageWithScoreAndLabel {
+  if (!mobileCoverageData || mobileCoverageData.length === 0) {
+    return {
+      mobileServiceCoverageArray: [],
+      mobileCoverageScore: null,
+      mobileCoverageLabel: CHECKLIST_NO_VALUE.NOT_FOUND,
+    };
+  }
+  const score = calculateMobileCoverageScoreValue(mobileCoverageData);
+  const labelObj = MOBILE_COVERAGE_LABELS.find(({ min }) => score >= min);
+  return {
+    mobileServiceCoverageArray: mobileCoverageData,
+    mobileCoverageScore: score,
+    mobileCoverageLabel: labelObj ? labelObj.label : CHECKLIST_NO_VALUE.NOT_FOUND,
+  };
+}

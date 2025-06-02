@@ -16,11 +16,13 @@ import {
   ConfidenceLevels,
   EpcData,
   EpcDataSourceType,
-  ExtractedPropertyScrapingData
+  ExtractedPropertyScrapingData,
+  PropertyDataListItem
 } from "../types/property";
 
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { toast } from '@/hooks/use-toast';
+import { useAccordion } from '@/hooks/useAccordion';
 import { useBackgroundMessageHandler } from "@/hooks/useBackgroundMessageHandler";
 import { useChecklistAndDashboardData } from "@/hooks/useChecklistAndDashboardData";
 import { useChecklistDisplayLogic } from "@/hooks/useChecklistDisplayLogic";
@@ -75,17 +77,12 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<typeof VIEWS[keyof typeof VIEWS]>(
     VIEWS.DASHBOARD
   );
-  const [crimeChartExpanded, setCrimeChartExpanded] = useState(false);
-  const crimeContentRef = useRef<HTMLDivElement>(null);
-  const [crimeContentHeight, setCrimeContentHeight] = useState(0);
-  const [planningPermissionCardExpanded, setPlanningPermissionCardExpanded] = useState(false);
-  const planningPermissionContentRef = useRef<HTMLDivElement>(null);
-  const [planningPermissionContentHeight, setPlanningPermissionContentHeight] = useState(0);
-  const [nearbyPlanningPermissionCardExpanded, setNearbyPlanningPermissionCardExpanded] = useState(false);
-  const nearbyPlanningPermissionContentRef = useRef<HTMLDivElement>(null);
-  const [nearbyPlanningPermissionContentHeight, setNearbyPlanningPermissionContentHeight] = useState(0);
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
+  const crimeAccordion = useAccordion("crimeAccordion");
+  const planningPermissionAccordion = useAccordion("planningPermissionAccordion");
+  const nearbyPlanningPermissionAccordion = useAccordion("nearbyPlanningPermissionAccordion");
+  const mobileCoverageAccordion = useAccordion("mobileCoverageAccordion");
 
   const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
     if (!currentPropertyId) {
@@ -194,18 +191,6 @@ const App: React.FC = () => {
     chrome.tabs.create({ url });
   };
 
-  const toggleCrimeChart = () => {
-    setCrimeChartExpanded((prev) => !prev);
-  };
-
-  const togglePlanningPermissionCard = (expand?: boolean) => {
-    setPlanningPermissionCardExpanded((prev) => (expand === undefined ? !prev : expand));
-  };
-
-  const toggleNearbyPlanningPermissionCard = (expand?: boolean) => {
-    setNearbyPlanningPermissionCardExpanded((prev) => (expand === undefined ? !prev : expand));
-  };
-
   useSidePanelCloseHandling();
 
   useEffect(function tellBackgroundSideBarOpened() {
@@ -248,24 +233,6 @@ const App: React.FC = () => {
     handleTrackPropertyAnalysis();
   }, [currentPropertyId, propertyData?.address?.displayAddress]);
 
-  useEffect(function updateCrimeContentHeight() {
-    if (crimeContentRef.current) {
-      setCrimeContentHeight(crimeContentRef.current.scrollHeight);
-    }
-  }, [crimeChartExpanded, crimeQuery.data]);
-
-  useEffect(function updatePlanningPermissionContentHeight() {
-    if (planningPermissionContentRef.current) {
-      setPlanningPermissionContentHeight(planningPermissionContentRef.current.scrollHeight);
-    }
-  }, [planningPermissionCardExpanded, preprocessedData]);
-
-  useEffect(function updateNearbyPlanningPermissionContentHeight() {
-    if (nearbyPlanningPermissionContentRef.current) {
-      setNearbyPlanningPermissionContentHeight(nearbyPlanningPermissionContentRef.current.scrollHeight);
-    }
-  }, [nearbyPlanningPermissionCardExpanded, preprocessedData]);
-
   const handleEpcValueChange = useCallback((newValue: string) => {
     if (currentPropertyId && propertyData) {
       const currentEpcData = (propertyData.epc as EpcData) || {};
@@ -294,6 +261,17 @@ const App: React.FC = () => {
     setAgentMessage(message);
     setIsAgentMessageModalOpen(true);
   }, [propertyChecklistData]);
+
+  const handleChecklistItemValueClick = useCallback((item: PropertyDataListItem) => {
+    getValueClickHandler(
+      item,
+      openNewTab,
+      crimeAccordion.toggle,
+      planningPermissionAccordion.toggle,
+      nearbyPlanningPermissionAccordion.toggle,
+      mobileCoverageAccordion.toggle
+    );
+  }, [openNewTab, crimeAccordion.toggle, planningPermissionAccordion.toggle, nearbyPlanningPermissionAccordion.toggle, mobileCoverageAccordion.toggle]);
 
   if (isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
@@ -342,28 +320,26 @@ const App: React.FC = () => {
               filteredChecklistData={filteredChecklistData}
               openGroups={openGroups}
               toggleGroup={toggleGroup}
-              getValueClickHandler={getValueClickHandler}
               openNewTab={openNewTab}
-              toggleCrimeChart={toggleCrimeChart}
-              togglePlanningPermissionCard={togglePlanningPermissionCard}
-              toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+              onItemValueClick={handleChecklistItemValueClick}
               isPremiumDataFetched={premiumDataQuery.isFetched}
               epcBandData={preprocessedData.finalEpcBandData}
               handleEpcValueChange={handleEpcValueChange}
               isEpcDebugModeOn={isEpcDebugModeOn}
               epcDebugCanvasRef={epcDebugCanvasRef}
               crimeQuery={crimeQuery}
-              crimeChartExpanded={crimeChartExpanded}
-              crimeContentRef={crimeContentRef}
-              crimeContentHeight={crimeContentHeight}
-              planningPermissionCardExpanded={planningPermissionCardExpanded}
-              planningPermissionContentRef={planningPermissionContentRef}
-              planningPermissionContentHeight={planningPermissionContentHeight}
-              nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-              nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-              nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+              crimeChartExpanded={crimeAccordion.isExpanded}
+              crimeContentRef={crimeAccordion.contentRef}
+              crimeContentHeight={crimeAccordion.contentHeight}
+              planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
+              planningPermissionContentRef={planningPermissionAccordion.contentRef}
+              planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
+              nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
+              nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
+              nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
               onTriggerPremiumFlow={initiatePremiumActivationFlow}
               premiumStreetDataQuery={premiumDataQuery}
+              mobileCoverageAccordion={mobileCoverageAccordion}
             />
           </Suspense>
         )}
@@ -373,21 +349,18 @@ const App: React.FC = () => {
             checklistsData={propertyChecklistData}
             categoryScores={categoryScores}
             overallScore={overallScore}
-            getValueClickHandler={getValueClickHandler}
+            onItemValueClick={handleChecklistItemValueClick}
             dataCoverageScoreData={dataCoverageScoreData}
             crimeQuery={crimeQuery}
-            crimeChartExpanded={crimeChartExpanded}
-            toggleCrimeChart={toggleCrimeChart}
-            crimeContentRef={crimeContentRef}
-            crimeContentHeight={crimeContentHeight}
-            planningPermissionCardExpanded={planningPermissionCardExpanded}
-            togglePlanningPermissionCard={togglePlanningPermissionCard}
-            planningPermissionContentRef={planningPermissionContentRef}
-            planningPermissionContentHeight={planningPermissionContentHeight}
-            nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-            toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
-            nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-            nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+            crimeChartExpanded={crimeAccordion.isExpanded}
+            crimeContentRef={crimeAccordion.contentRef}
+            crimeContentHeight={crimeAccordion.contentHeight}
+            planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
+            planningPermissionContentRef={planningPermissionAccordion.contentRef}
+            planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
+            nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
+            nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
+            nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
             onTriggerPremiumFlow={initiatePremiumActivationFlow}
             isPremiumDataFetched={premiumDataQuery.isFetched}
             epcBandData={preprocessedData.finalEpcBandData}
@@ -397,6 +370,7 @@ const App: React.FC = () => {
             isLoading={isLoadingQueryPropertyData || premiumDataQuery.isLoading}
             premiumStreetDataQuery={premiumDataQuery}
             openNewTab={openNewTab}
+            mobileCoverageAccordion={mobileCoverageAccordion}
           />
         )}
       </main>

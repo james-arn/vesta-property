@@ -36,6 +36,17 @@ export interface RentalEstimate {
   estimated_annual_rental_yield: number;
 }
 
+export interface BroadbandAvailability {
+  broadband_type: string | null;
+  maximum_predicted_download_speed: number | null;
+  maximum_predicted_upload_speed: number | null;
+}
+
+export interface Connectivity {
+  mobile_service_coverage?: MobileServiceCoverageItem[] | null;
+  broadband_availability?: BroadbandAvailability[] | null;
+}
+
 export interface PropertyAttributes {
   street_group_property_id: string | null;
   address: Address | null;
@@ -59,7 +70,7 @@ export interface PropertyAttributes {
   propensity_to_let_score?: number;
   energy_performance?: EnergyPerformance | null;
   flood_risk?: FloodRisk | null;
-  mobile_service_coverage?: MobileServiceCoverage[] | null;
+  connectivity?: Connectivity | null;
   education?: Education | null;
   transport?: Transport | null;
   restrictive_covenants?: RestrictiveCovenant[] | null;
@@ -365,8 +376,9 @@ export interface FloodRisk {
   surface_water: FloodRiskDetail | null;
 }
 
-export interface MobileServiceCoverage {
+export interface MobileServiceCoverageItem {
   network: string | null;
+  // enum is 0 - 4 - 4 being excellent, 0 being no coverage
   data_indoor_4g: number | null;
   data_outdoor_4g: number | null;
   data_indoor_no_4g: number | null;
@@ -375,6 +387,12 @@ export interface MobileServiceCoverage {
   voice_outdoor_4g: number | null;
   voice_indoor_no_4g: number | null;
   voice_outdoor_no_4g: number | null;
+}
+
+export interface ProcessedMobileServiceCoverageWithScoreAndLabel {
+  mobileServiceCoverageArray: MobileServiceCoverageItem[];
+  mobileCoverageScore: number | null;
+  mobileCoverageLabel: string | null;
 }
 
 export interface EnvironmentalImpact {
@@ -568,11 +586,6 @@ export interface PublicRightOfWayDetails {
 export interface PremiumStreetDataResponse {
   data: AddressMatchData;
   meta: AddressMatchMeta;
-  education?: Education | null;
-  transport?: Transport | null;
-  restrictive_covenants?: RestrictiveCovenant[] | null;
-  coastal_erosion?: CoastalErosion | null;
-  right_of_way?: RightOfWay | null;
 }
 
 /**
@@ -641,7 +654,7 @@ export interface ProcessedPremiumStreetData {
   detailedFloodRiskAssessment: FloodRisk | null;
   airportNoiseAssessment: AirportNoise | null;
   policeForceProximity: string | null;
-  mobileServiceCoverage: MobileServiceCoverage[] | null;
+  mobileServiceCoverage: MobileServiceCoverageItem[] | null;
   propertyPlanningApplications: PlanningApplication[] | null;
   nearbyPlanningApplications: NearbyPlanningApplication[] | null;
   occupancyStatus: string | null;
@@ -658,6 +671,9 @@ export interface ProcessedPremiumStreetData {
   askingVsEstimateAbsolute: number | null;
   publicRightOfWayObligation: RightOfWayDetails | null;
   listedBuildingsOnPlot: ListedBuilding[] | null;
+  tenure: string | null;
+  propertyType: string | null;
+  broadbandSpeedLabel: string | null;
 }
 
 // --- New Plot Types Start ---

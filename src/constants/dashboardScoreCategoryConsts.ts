@@ -27,6 +27,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
   [DashboardScoreCategory.INVESTMENT_VALUE]: [
     CHECKLIST_KEYS.PRICE, // Asking price
     CHECKLIST_KEYS.ASKING_VS_ESTIMATE_COMPARISON, // Asking price vs estimate
+    CHECKLIST_KEYS.PRICE_DISCREPANCY,
     CHECKLIST_KEYS.LISTING_HISTORY, // Price changes, time on market
     CHECKLIST_KEYS.COMPOUND_ANNUAL_GROWTH_RATE, // Historical growth
     CHECKLIST_KEYS.VOLATILITY, // Price stability
@@ -42,7 +43,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     CHECKLIST_KEYS.BROADBAND,
     CHECKLIST_KEYS.NEAREST_STATIONS,
     CHECKLIST_KEYS.POLICE_FORCE_PROXIMITY,
-    // premium has ferry?
+    CHECKLIST_KEYS.MOBILE_COVERAGE,
   ],
   [DashboardScoreCategory.CONDITION]: [
     CHECKLIST_KEYS.PROPERTY_TYPE,

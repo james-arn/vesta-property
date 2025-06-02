@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { CALCULATED_STATUS, DashboardScoreCategory, DISABLED_BAR_BACKGROUND } from "@/constants/dashboardScoreCategoryConsts";
+import { useAccordion } from "@/hooks/useAccordion";
 import { CrimeScoreData } from '@/hooks/useCrimeScore';
 import { EpcBandResult } from "@/types/epc";
 import {
@@ -22,14 +23,9 @@ import { ScoreVisualisation } from './ScoreVisualisation';
 
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
-
-type GetValueClickHandlerType = (
-    item: PropertyDataListItem,
-    openNewTab: (url: string) => void,
-    toggleCrimeChart: () => void,
-    togglePlanningPermissionCard: () => void,
-    toggleNearbyPlanningPermissionCard?: () => void
-) => (() => void) | undefined;
+const LazyMobileCoverageDisplay = lazy(() =>
+    import('@/components/MobileCoverageDisplay').then(module => ({ default: module.MobileCoverageDisplay }))
+);
 
 interface DashboardScoreItemProps {
     title: string;
@@ -44,29 +40,28 @@ interface DashboardScoreItemProps {
     epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
-    getValueClickHandler: GetValueClickHandlerType;
-    openNewTab: (url: string) => void;
-    toggleCrimeChart: () => void;
-    togglePlanningPermissionCard: (expand?: boolean) => void;
-    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
+    onItemValueClick: (item: PropertyDataListItem) => void;
     handleEpcValueChange: (newValue: string) => void;
     onOpenUpsellModal: () => void;
 
     // Expansion state, queries, and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
+    crimeChartExpanded: boolean;
+    crimeContentRef: React.RefObject<HTMLDivElement | null>;
+    crimeContentHeight: number;
+
+    // Expansion state, queries, and refs for PLANNING PERMISSIONS
     premiumStreetDataQuery: UseQueryResult<
         GetPremiumStreetDataResponse | null,
         Error
     >;
-    crimeChartExpanded: boolean;
-    crimeContentRef: React.RefObject<HTMLDivElement | null>;
-    crimeContentHeight: number;
     planningPermissionCardExpanded: boolean;
     planningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
     planningPermissionContentHeight: number;
     nearbyPlanningPermissionCardExpanded: boolean;
     nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
+    mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
 }
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
@@ -81,11 +76,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
-    getValueClickHandler,
-    openNewTab,
-    toggleCrimeChart,
-    togglePlanningPermissionCard,
-    toggleNearbyPlanningPermissionCard,
+    onItemValueClick,
     handleEpcValueChange,
     onOpenUpsellModal,
     crimeQuery,
@@ -98,7 +89,8 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     planningPermissionContentHeight,
     nearbyPlanningPermissionCardExpanded,
     nearbyPlanningPermissionContentRef,
-    nearbyPlanningPermissionContentHeight
+    nearbyPlanningPermissionContentHeight,
+    mobileCoverageAccordion,
 }) => {
     if (!categoryScoreData) {
         return (
@@ -113,15 +105,13 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     }
 
     const { score, contributingItems, warningMessages, calculationStatus } = categoryScoreData;
-
     const hasContributingItems = contributingItems?.length > 0;
 
     const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
     const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
 
-    // Check if planning items are present in contributing items
-    const hasPropertyPlanningItem = contributingItems?.some(item => item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS);
-    const hasNearbyPlanningItem = contributingItems?.some(item => item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS);
+    const mobileCoverageItemData = contributingItems?.find(item => item.key === CHECKLIST_KEYS.MOBILE_COVERAGE);
+    const shouldShowMobileCoverageDetailsSection = mobileCoverageAccordion?.isExpanded && mobileCoverageItemData?.mobileCoverage;
 
     return (
         <Accordion type="single" collapsible value={isExpanded ? category : ""} onValueChange={() => onToggleExpand(category)} className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
@@ -174,77 +164,80 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                 <AccordionContent className="bg-slate-50/50 border-t border-slate-100 pt-0 pb-2 px-3">
                     {hasContributingItems ? (
                         <ul className="list-none p-0 m-0 space-y-1">
-                            {contributingItems.map((item: PropertyDataListItem) => {
-                                const handleClick = getValueClickHandler(
-                                    item,
-                                    openNewTab,
-                                    toggleCrimeChart,
-                                    togglePlanningPermissionCard,
-                                    toggleNearbyPlanningPermissionCard
-                                );
-                                return (
-                                    <React.Fragment key={item.key}>
-                                        <ChecklistItem
-                                            item={item}
-                                            isPremiumDataFetched={isPremiumDataFetched}
-                                            epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
-                                            epcDebugCanvasRef={epcDebugCanvasRef}
-                                            isEpcDebugModeOn={isEpcDebugModeOn}
-                                            onValueClick={handleClick}
-                                            onEpcChange={handleEpcValueChange}
-                                            onOpenUpsellModal={onOpenUpsellModal}
-                                        />
-                                        {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeChartExpanded && crimeQuery.data && (
-                                            <div
-                                                ref={crimeContentRef}
-                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                                style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0px" }}
-                                            >
-                                                <Suspense fallback={<LoadingSpinner />}>
-                                                    <LazyCrimePieChart
-                                                        crimeSummary={crimeQuery.data.crimeSummary}
-                                                        totalCrimes={crimeQuery.data.totalCrimes}
-                                                        trendingPercentageOver6Months={crimeQuery.data.trendingPercentageOver6Months}
-                                                    />
-                                                </Suspense>
-                                            </div>
-                                        )}
-                                        {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningPermissionCardExpanded && (
-                                            <div
-                                                ref={planningPermissionContentRef}
-                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                                style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0px" }}
-                                            >
-                                                <Suspense fallback={<LoadingSpinner />}>
-                                                    <LazyPlanningPermissionCard
-                                                        planningPermissionData={planningApplications}
-                                                        isLoading={premiumStreetDataQuery.isLoading}
-                                                        displayMode="property"
-                                                    />
-                                                </Suspense>
-                                            </div>
-                                        )}
-                                        {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningPermissionCardExpanded && (
-                                            <div
-                                                ref={nearbyPlanningPermissionContentRef}
-                                                className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                                style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0px" }}
-                                            >
-                                                <Suspense fallback={<LoadingSpinner />}>
-                                                    <LazyPlanningPermissionCard
-                                                        nearbyPlanningPermissionData={nearbyPlanningApplications}
-                                                        isLoading={premiumStreetDataQuery.isLoading}
-                                                        displayMode="nearby"
-                                                    />
-                                                </Suspense>
-                                            </div>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
+                            {contributingItems.map((item) => (
+                                <React.Fragment key={item.key}>
+                                    <ChecklistItem
+                                        item={item}
+                                        isPremiumDataFetched={isPremiumDataFetched}
+                                        epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
+                                        epcDebugCanvasRef={epcDebugCanvasRef}
+                                        isEpcDebugModeOn={isEpcDebugModeOn}
+                                        onValueClick={() => onItemValueClick(item)}
+                                        onEpcChange={handleEpcValueChange}
+                                        onOpenUpsellModal={onOpenUpsellModal}
+                                    />
+                                    {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeChartExpanded && crimeQuery.data && (
+                                        <div
+                                            ref={crimeContentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                            style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyCrimePieChart
+                                                    crimeSummary={crimeQuery.data.crimeSummary}
+                                                    totalCrimes={crimeQuery.data.totalCrimes}
+                                                    trendingPercentageOver6Months={crimeQuery.data.trendingPercentageOver6Months}
+                                                />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                    {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningPermissionCardExpanded && planningApplications && (
+                                        <div
+                                            ref={planningPermissionContentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                            style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyPlanningPermissionCard
+                                                    planningPermissionData={planningApplications}
+                                                    isLoading={premiumStreetDataQuery.isLoading}
+                                                    displayMode="property"
+                                                />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                    {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningPermissionCardExpanded && nearbyPlanningApplications && (
+                                        <div
+                                            ref={nearbyPlanningPermissionContentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                            style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyPlanningPermissionCard
+                                                    nearbyPlanningPermissionData={nearbyPlanningApplications}
+                                                    isLoading={premiumStreetDataQuery.isLoading}
+                                                    displayMode="nearby"
+                                                />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                </React.Fragment>
+                            ))}
                         </ul>
                     ) : (
                         <p className="text-sm text-muted-foreground py-2">No contributing items for this category.</p>
+                    )}
+
+                    {shouldShowMobileCoverageDetailsSection && mobileCoverageItemData && mobileCoverageItemData.mobileCoverage && (
+                        <div
+                            ref={mobileCoverageAccordion?.contentRef}
+                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
+                            style={{ maxHeight: mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
+                        >
+                            <Suspense fallback={<LoadingSpinner />}>
+                                <LazyMobileCoverageDisplay mobileCoverage={mobileCoverageItemData.mobileCoverage} />
+                            </Suspense>
+                        </div>
                     )}
                 </AccordionContent>
             </AccordionItem>

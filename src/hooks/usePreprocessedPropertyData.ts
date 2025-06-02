@@ -21,7 +21,10 @@ import { getStatusFromString } from "@/utils/statusHelpers";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
-import { processRestrictiveCovenants } from "./helpers/preProcessedDataHelpers";
+import {
+  processMobileCoverageForScoreAndLabel,
+  processRestrictiveCovenants,
+} from "./helpers/preProcessedDataHelpers";
 import { UseChecklistAndDashboardDataArgs } from "./useChecklistAndDashboardData";
 
 type UsePreprocessedPropertyDataArgs = {
@@ -238,6 +241,10 @@ export const usePreprocessedPropertyData = ({
 
   const miningImpactStatus = propertyData?.miningImpactStatus;
 
+  const mobileServiceCoverageWithScoreAndLabel = useMemo(() => {
+    return processMobileCoverageForScoreAndLabel(processedPremiumDataResult.mobileServiceCoverage);
+  }, [processedPremiumDataResult.mobileServiceCoverage]);
+
   const preprocessedData: PreprocessedData = useMemo(() => {
     const initialPublicRoW = propertyData?.publicRightOfWayObligation ?? null;
     const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
@@ -288,6 +295,7 @@ export const usePreprocessedPropertyData = ({
       rawFloodDefences: propertyData?.floodDefences ?? null,
       rawFloodSources: propertyData?.floodSources ?? null,
       rawFloodedInLastFiveYears: propertyData?.floodedInLastFiveYears ?? null,
+      mobileServiceCoverageWithScoreAndLabel,
     };
   }, [
     isPreprocessedDataLoading,
@@ -317,6 +325,7 @@ export const usePreprocessedPropertyData = ({
     propertyData?.floodDefences,
     propertyData?.floodSources,
     propertyData?.floodedInLastFiveYears,
+    mobileServiceCoverageWithScoreAndLabel,
   ]);
 
   return preprocessedData;

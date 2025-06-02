@@ -2,11 +2,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { PREMIUM_DATA_STATES, PREMIUM_LOCKED_DESCRIPTIONS } from "@/constants/propertyConsts";
+import { useAccordion } from "@/hooks/useAccordion";
 import { checkIfClickableItemKey } from "@/types/clickableChecklist";
 import { EpcBandResult } from "@/types/epc";
 import { DataStatus, PropertyDataListItem } from "@/types/property";
-import React, { useEffect, useState } from 'react';
-import { FaCheckCircle, FaClock, FaInfoCircle, FaLock, FaQuestionCircle, FaSearch, FaTimesCircle, FaUnlock } from "react-icons/fa";
+import React, { useEffect } from 'react';
+import { FaCheckCircle, FaClock, FaInfoCircle, FaQuestionCircle, FaSearch, FaTimesCircle } from "react-icons/fa";
+import { MobileCoverageDisplay } from "../MobileCoverageDisplay";
 import { EpcChecklistItem } from "./EpcChecklistItem";
 
 export interface ChecklistItemProps {
@@ -19,6 +21,7 @@ export interface ChecklistItemProps {
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     onOpenUpsellModal?: () => void;
+    mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
 }
 
 const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string }> = {
@@ -41,31 +44,29 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     onOpenUpsellModal,
+    mobileCoverageAccordion,
 }) => {
-    const { key, label, status, value, toolTipExplainer, isUnlockedWithPremium, isBoostedWithPremium, epcImageUrl } = item;
-    const [isLockHovered, setIsLockHovered] = useState(false);
+    const { key, label, status, value, toolTipExplainer, isExpectedInPremiumSearchData: hasPremiumFeature, epcImageUrl } = item;
 
     const isEpcItem = key === CHECKLIST_KEYS.EPC;
 
-    const isPremiumLocked = isUnlockedWithPremium && !isPremiumDataFetched;
-    // Determine if the initial value is meaningless using the constant
     const valueIsMeaningless = !item.value ||
-        (typeof item.value === 'string' && (Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value));
-    // Show boost only if boostable, not locked, the initial value is meaningless, and the premium data has been fetched
-    const showBoost = isBoostedWithPremium && !isPremiumLocked && valueIsMeaningless && !isPremiumDataFetched;
-    const canUpgrade = !isPremiumDataFetched;
+        (typeof item.value === 'string' &&
+            ((Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value) ||
+                (Object.values(PREMIUM_DATA_STATES) as string[]).includes(item.value)));
 
-    // Check if the URL is a data URL or ends with a known image extension
+    const showPremiumIndicator = !isPremiumDataFetched && hasPremiumFeature;
+
     const isImageSourceWithUrl =
         isEpcItem &&
         !!epcImageUrl &&
         (epcImageUrl.toLowerCase().startsWith("data:image/") ||
             IMAGE_EXTENSIONS.some(ext => epcImageUrl.toLowerCase().endsWith(ext)));
 
-    // --- Determine Display Status and Icon ---
     const displayStatus = status;
     const { icon: IconComponent, color } = statusStyles[displayStatus] || { icon: FaQuestionCircle, color: 'text-gray-400' };
-    const isWarning = displayStatus === DataStatus.ASK_AGENT && !isPremiumLocked;
+    const isEffectivelyLocked = showPremiumIndicator && valueIsMeaningless;
+    const isWarning = displayStatus === DataStatus.ASK_AGENT && !isEffectivelyLocked;
 
     useEffect(() => {
         const canvas = epcDebugCanvasRef?.current;
@@ -104,11 +105,16 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED
             && displayStatus !== DataStatus.IS_LOADING;
 
-        if (isPremiumLocked) {
-            const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `Unlock with Premium`;
+        if (showPremiumIndicator && valueIsMeaningless) {
+            const lockedDescription = PREMIUM_LOCKED_DESCRIPTIONS[key] || `View details with Premium`;
             return (
                 <div className="flex items-center text-gray-500">
-                    <span>{lockedDescription}</span>
+                    <span
+                        onClick={onOpenUpsellModal}
+                        className="cursor-pointer hover:underline"
+                    >
+                        {lockedDescription}
+                    </span>
                 </div>
             );
         }
@@ -123,7 +129,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     details.row_type !== null;
 
                 if (hasDetails) {
-                    // Render detailed view using 'details' object
                     return (
                         <div className="text-xs text-gray-600 flex flex-col space-y-0.5">
                             <span>Yes</span>
@@ -135,11 +140,34 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                         </div>
                     );
                 }
-                // Exists is true, but no details in the object
                 return <span>Yes</span>;
             }
-            // If details don't exist or exist=false/null/undefined, render the simple value
-            return <span>{item.value}</span>; // Renders "No" or "Not Mentioned"
+            return <span>{item.value}</span>;
+        }
+
+        else if (key === CHECKLIST_KEYS.MOBILE_COVERAGE && !isEffectivelyLocked) {
+            const overallLabel = item.mobileCoverage?.mobileCoverageLabel;
+            return (
+                <div className="w-full">
+                    <div className="flex items-center justify-between w-full cursor-pointer cursor-pointer text-blue-500 underline" onClick={() => onValueClick?.()}>
+                        <span >{overallLabel}</span>
+                    </div>
+                    {mobileCoverageAccordion?.isExpanded && (
+                        <div
+                            ref={mobileCoverageAccordion.contentRef}
+                            style={{ height: mobileCoverageAccordion.contentHeight, overflow: 'hidden', transition: 'height 0.3s ease' }}
+                            className="mt-2"
+                        >
+                            {Array.isArray(item.mobileCoverage?.mobileServiceCoverageArray) &&
+                                item.mobileCoverage?.mobileServiceCoverageArray.length > 0 && (
+                                    <div className="mt-1">
+                                        <MobileCoverageDisplay mobileCoverage={item.mobileCoverage} />
+                                    </div>
+                                )}
+                        </div>
+                    )}
+                </div>
+            );
         }
 
         else if (key === CHECKLIST_KEYS.RESTRICTIVE_COVENANTS) {
@@ -176,15 +204,13 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     </div>
                 );
             }
-            // Otherwise (null, undefined, or empty array), render the simple string value
-            return <span>{item.value}</span>; // Renders "None Found", "Not Mentioned", "Loading..."
+            return <span>{item.value}</span>;
         }
 
-        // Special case floor plan
         if ((key === CHECKLIST_KEYS.FLOOR_PLAN) && value !== CHECKLIST_NO_VALUE.NOT_MENTIONED) {
             return (
                 <span
-                    onClick={onValueClick}
+                    onClick={() => onValueClick?.()}
                     className="cursor-pointer text-blue-500 underline"
                 >
                     Yes
@@ -204,8 +230,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // For crimeScore
-        if (key === CHECKLIST_KEYS.CRIME_SCORE && !isPremiumLocked) {
+        if (key === CHECKLIST_KEYS.CRIME_SCORE && !isEffectivelyLocked) {
             return (
                 <span
                     onClick={() => onValueClick?.()}
@@ -216,8 +241,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // For planningPermissions and nearbyPlanningPermissions - render clickable text if applicable
-        if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) && isClickableItemKey && !isPremiumLocked) {
+        if ((key === CHECKLIST_KEYS.PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS || key === CHECKLIST_KEYS.MOBILE_COVERAGE) && isClickableItemKey && !isEffectivelyLocked) {
             const isNonClickableState =
                 typeof value === "string" &&
                 (Object.values(CHECKLIST_NO_VALUE).includes(value as any) ||
@@ -236,80 +260,47 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             );
         }
 
-        // Log warning if this is a clickable key but we don't have specific rendering for it
-        if (checkIfClickableItemKey(key) && !isPremiumLocked &&
+        if (checkIfClickableItemKey(key) && !isEffectivelyLocked &&
             // @ts-expect-error TS2367: Comparison is intentional to exclude handled clickable keys.
             key !== CHECKLIST_KEYS.EPC && key !== CHECKLIST_KEYS.FLOOR_PLAN &&
             key !== CHECKLIST_KEYS.CRIME_SCORE && key !== CHECKLIST_KEYS.PLANNING_PERMISSIONS &&
-            key !== CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS) {
+            key !== CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && key !== CHECKLIST_KEYS.MOBILE_COVERAGE) {
             console.warn(`Key "${key}" is defined as clickable but has no special rendering in ChecklistItem`);
         }
 
         return <span>{item.value || CHECKLIST_NO_VALUE.NOT_FOUND}</span>;
     };
 
-    // Return simple list item without internal expansion logic
     return (
         <li
             className={`grid grid-cols-[1rem_5rem_1fr_auto] items-center p-2 bg-gray-100 rounded-md my-1 ${isWarning ? "border border-yellow-400" : ""}`}
         >
-            {/* Status Icon - Adjusted alignment slightly */}
             <div className="flex items-center justify-start pt-0.5">
                 <IconComponent className={`w-4 h-4 ${color}`} />
             </div>
-            {/* Label - Adjusted alignment slightly */}
             <div className="flex items-center ml-2 pt-0.5">
                 <span>{label}</span>
             </div>
-            {/* Value */}
             <div className="min-w-0 text-gray-800 ml-4 flex items-center">{renderValue()}</div>
-            {/* Icons (Lock, Boost, Info) - Adjusted alignment slightly */}
             <div className="flex items-center justify-end ml-4 space-x-1 pt-0.5">
-                {/* Conditionally render Lock Icon */}
-                {isPremiumLocked && (
+                {showPremiumIndicator && (
                     <TooltipProvider>
                         <Tooltip delayDuration={0}>
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={onOpenUpsellModal}
-                                    onMouseEnter={() => setIsLockHovered(true)}
-                                    onMouseLeave={() => setIsLockHovered(false)}
-                                    className="p-0.5 rounded-full cursor-pointer hover:bg-gray-200 transition-colors duration-150 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                    aria-label="Unlock with Premium"
-                                >
-                                    {isLockHovered ? (
-                                        <FaUnlock className="w-3 h-3 text-blue-500" />
-                                    ) : (
-                                        <FaLock className="w-3 h-3 text-gray-500" />
-                                    )}
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" align="center" className="max-w-xs">
-                                Click to find out more.
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                )}
-                {/* Conditionally render Boost Icon */}
-                {!isPremiumLocked && showBoost && (
-                    <TooltipProvider>
-                        <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={canUpgrade ? onOpenUpsellModal : undefined}
-                                    className={`p-0.5 rounded-full ${canUpgrade ? 'cursor-pointer hover:bg-yellow-100' : ''} focus:outline-none focus:ring-1 focus:ring-yellow-400`}
-                                    aria-label={canUpgrade ? "Find out more with Premium" : "Premium deep dive available"}
+                                    className={`p-0.5 rounded-full cursor-pointer hover:bg-yellow-100 focus:outline-none focus:ring-1 focus:ring-yellow-400`}
+                                    aria-label={PREMIUM_LOCKED_DESCRIPTIONS[key] || "Find out more with Premium"}
                                 >
                                     <FaSearch className="w-3 h-3 text-yellow-500" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" align="center" className="max-w-xs">
-                                Find out in a deep dive with Premium.{canUpgrade ? ' Click to find out more' : ''}
+                                {PREMIUM_LOCKED_DESCRIPTIONS[key] || "More information available with Premium."} Click to find out more.
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                {/* Info Icon */}
                 <TooltipProvider>
                     <Tooltip delayDuration={0}>
                         <TooltipTrigger asChild>
@@ -324,7 +315,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </TooltipProvider>
             </div>
 
-            {/* Render Debug Canvas if debug mode is ON */}
             {isEpcDebugModeOn && isEpcItem && epcDebugCanvasRef && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px solid grey', overflow: 'auto' }}>
                     <canvas
@@ -334,7 +324,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                 </div>
             )}
 
-            {/* Image Graph - Render based only on isImageSourceWithUrl */}
             {isImageSourceWithUrl && epcImageUrl && (
                 <div className="col-span-4" style={{ marginTop: '10px', border: '1px dashed blue', padding: '5px' }}>
                     <img

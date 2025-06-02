@@ -1,4 +1,4 @@
-import { ChecklistItem } from "@/components/ui/ChecklistItem";
+import { ChecklistItem, ChecklistItemProps } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { EpcBandResult } from "@/types/epc";
@@ -6,6 +6,7 @@ import { PropertyDataListItem } from "@/types/property";
 import { UseQueryResult } from "@tanstack/react-query";
 import React, { lazy, RefObject, Suspense } from "react";
 
+import { useAccordion } from '@/hooks/useAccordion';
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import {
     GetPremiumStreetDataResponse
@@ -18,11 +19,7 @@ export interface ChecklistViewProps {
     filteredChecklistData: PropertyDataListItem[];
     openGroups: Record<string, boolean>;
     toggleGroup: (group: string) => void;
-    getValueClickHandler: (...args: any[]) => (() => void) | undefined;
     openNewTab: (url: string) => void;
-    toggleCrimeChart: () => void;
-    togglePlanningPermissionCard: () => void;
-    toggleNearbyPlanningPermissionCard: () => void;
     isPremiumDataFetched: boolean;
     epcBandData?: EpcBandResult | undefined;
     handleEpcValueChange: (newValue: string) => void;
@@ -43,17 +40,15 @@ export interface ChecklistViewProps {
     nearbyPlanningPermissionContentRef: RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
     onTriggerPremiumFlow: () => void;
+    mobileCoverageAccordion: ReturnType<typeof useAccordion>;
+    onItemValueClick: (item: PropertyDataListItem) => void;
 }
 
 export const ChecklistView: React.FC<ChecklistViewProps> = ({
     filteredChecklistData,
     openGroups,
     toggleGroup,
-    getValueClickHandler,
     openNewTab,
-    toggleCrimeChart,
-    togglePlanningPermissionCard,
-    toggleNearbyPlanningPermissionCard,
     isPremiumDataFetched,
     epcBandData,
     handleEpcValueChange,
@@ -71,6 +66,8 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow,
+    mobileCoverageAccordion,
+    onItemValueClick,
 }) => {
     // Keep track of the last rendered group within this component instance
     let lastGroup = "";
@@ -100,31 +97,36 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
 
                 const isVisible = openGroups[currentGroup] ?? true;
 
+                const checklistItemProps: ChecklistItemProps = {
+                    item,
+                    onValueClick: () => onItemValueClick(item),
+                    isPremiumDataFetched,
+                    epcBandData: epcBandData,
+                    onEpcChange: handleEpcValueChange,
+                    epcDebugCanvasRef,
+                    isEpcDebugModeOn,
+                    onOpenUpsellModal: onTriggerPremiumFlow,
+                };
+
+                if (item.key === CHECKLIST_KEYS.MOBILE_COVERAGE) {
+                    checklistItemProps.mobileCoverageAccordion = mobileCoverageAccordion;
+                }
+
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>
                         {groupHeader}
                         {isVisible && (
                             <>
                                 <ChecklistItem
-                                    item={item}
-                                    onValueClick={getValueClickHandler(
-                                        item,
-                                        openNewTab,
-                                        toggleCrimeChart,
-                                        togglePlanningPermissionCard,
-                                        toggleNearbyPlanningPermissionCard
-                                    )}
-                                    isPremiumDataFetched={isPremiumDataFetched}
-                                    epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
-                                    onEpcChange={item.key === CHECKLIST_KEYS.EPC ? handleEpcValueChange : undefined}
-                                    epcDebugCanvasRef={item.key === CHECKLIST_KEYS.EPC && isEpcDebugModeOn ? epcDebugCanvasRef : undefined}
-                                    isEpcDebugModeOn={isEpcDebugModeOn}
-                                    onOpenUpsellModal={onTriggerPremiumFlow}
+                                    {...checklistItemProps}
                                 />
 
                                 {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeQuery.data && (
                                     <Suspense fallback={<LoadingSpinner />}>
-                                        <div className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]" style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}>
+                                        <div
+                                            className="overflow-hidden transition-max-height duration-500 ease-in-out pl-[calc(1rem+8px)]"
+                                            style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : '0' }}
+                                        >
                                             <div ref={crimeContentRef}>
                                                 <LazyCrimePieChart
                                                     crimeSummary={crimeQuery.data.crimeSummary}
@@ -136,9 +138,13 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                     </Suspense>
                                 )}
 
-                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningApplications && planningApplications.length > 0 && planningPermissionCardExpanded && (
+                                {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningApplications && planningApplications.length > 0 && (
                                     <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
-                                        <div ref={planningPermissionContentRef} className="pl-[calc(1rem+8px)] pt-2">
+                                        <div
+                                            ref={planningPermissionContentRef}
+                                            className="pl-[calc(1rem+8px)] pt-2 overflow-hidden transition-max-height duration-500 ease-in-out"
+                                            style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : '0' }}
+                                        >
                                             <LazyPlanningPermissionCard
                                                 planningPermissionData={planningApplications}
                                                 nearbyPlanningPermissionData={nearbyPlanningApplications}
@@ -149,9 +155,13 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                     </Suspense>
                                 )}
 
-                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningApplications && nearbyPlanningApplications.length > 0 && nearbyPlanningPermissionCardExpanded && (
+                                {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningApplications && nearbyPlanningApplications.length > 0 && (
                                     <Suspense fallback={<div className="flex justify-center p-4"><LoadingSpinner /></div>}>
-                                        <div ref={nearbyPlanningPermissionContentRef} className="pl-[calc(1rem+8px)] pt-2">
+                                        <div
+                                            ref={nearbyPlanningPermissionContentRef}
+                                            className="pl-[calc(1rem+8px)] pt-2 overflow-hidden transition-max-height duration-500 ease-in-out"
+                                            style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : '0' }}
+                                        >
                                             <LazyPlanningPermissionCard
                                                 planningPermissionData={planningApplications}
                                                 nearbyPlanningPermissionData={nearbyPlanningApplications}

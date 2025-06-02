@@ -44,19 +44,21 @@ const calculateCombinedConnectivityScore = (
   broadbandScoreValue: number,
   schoolsScoreValue: number,
   nearestStationsItem: PropertyDataListItem | undefined,
-  broadbandItem: PropertyDataListItem | undefined,
   schoolsItem: PropertyDataListItem | undefined,
+  mobileCoverageItem: PropertyDataListItem | undefined,
   preprocessedData: PreprocessedData
 ): { combinedScoreValue: number; scoreLabel: string; warningMessages?: string[] } => {
-  // --- Weighting --- (Adjust as needed)
-  const stationWeight = 0.5;
+  // --- Weighting --- (Adjusted to include mobile)
+  const stationWeight = 0.35;
   const broadbandWeight = 0.2;
-  const schoolsWeight = 0.3;
+  const schoolsWeight = 0.25;
+  const mobileWeight = 0.2;
 
   const weightedScore =
     stationScoreValue * stationWeight +
     broadbandScoreValue * broadbandWeight +
-    schoolsScoreValue * schoolsWeight;
+    schoolsScoreValue * schoolsWeight +
+    (mobileCoverageItem?.mobileCoverage?.mobileCoverageScore ?? 50) * mobileWeight;
 
   // Ensure score is within 0-100
   const combinedScoreValue = Math.max(0, Math.min(MAX_SCORE, Math.round(weightedScore)));
@@ -116,6 +118,16 @@ const calculateCombinedConnectivityScore = (
   ) {
     warningMessages.push("School data limited/unavailable.");
   }
+  if (
+    !mobileCoverageItem ||
+    [DataStatus.ASK_AGENT, DataStatus.FOUND_NEGATIVE, DataStatus.IS_LOADING].includes(
+      mobileCoverageItem.status
+    ) ||
+    !preprocessedData.processedPremiumData?.mobileServiceCoverage ||
+    preprocessedData.processedPremiumData.mobileServiceCoverage.length === 0
+  ) {
+    warningMessages.push("Mobile coverage data limited/unavailable.");
+  }
 
   return { combinedScoreValue, scoreLabel, warningMessages };
 };
@@ -128,6 +140,7 @@ const calculateConnectivityScore = (
   const nearestStationsItem = findItemByKey(items, CHECKLIST_KEYS.NEAREST_STATIONS);
   const broadbandItem = findItemByKey(items, CHECKLIST_KEYS.BROADBAND);
   const schoolsItem = findItemByKey(items, CHECKLIST_KEYS.NEARBY_SCHOOLS);
+  const mobileCoverageItem = findItemByKey(items, CHECKLIST_KEYS.MOBILE_COVERAGE);
 
   const calculationStatus: ScoreCalculationStatus = CALCULATED_STATUS.CALCULATED;
 
@@ -141,14 +154,17 @@ const calculateConnectivityScore = (
     broadbandScoreValue,
     effectiveSchoolsScore,
     nearestStationsItem,
-    broadbandItem,
     schoolsItem,
+    mobileCoverageItem,
     preprocessedData
   );
 
-  const contributingItems = [nearestStationsItem, broadbandItem, schoolsItem].filter(
-    Boolean
-  ) as PropertyDataListItem[];
+  const contributingItems = [
+    nearestStationsItem,
+    broadbandItem,
+    schoolsItem,
+    mobileCoverageItem,
+  ].filter(Boolean) as PropertyDataListItem[];
 
   const finalScore: DashboardScore = {
     scoreValue: combinedScoreValue,

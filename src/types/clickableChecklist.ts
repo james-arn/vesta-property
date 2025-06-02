@@ -6,7 +6,9 @@ export type ClickableItemKey =
   | typeof CHECKLIST_KEYS.FLOOR_PLAN
   | typeof CHECKLIST_KEYS.CRIME_SCORE
   | typeof CHECKLIST_KEYS.PLANNING_PERMISSIONS
-  | typeof CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS;
+  | typeof CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS
+  | typeof CHECKLIST_KEYS.MOBILE_COVERAGE
+  | typeof CHECKLIST_KEYS.FLOOD_RISK;
 
 // Define the array using constants
 export const CLICKABLE_KEYS: ClickableItemKey[] = [
@@ -15,6 +17,8 @@ export const CLICKABLE_KEYS: ClickableItemKey[] = [
   CHECKLIST_KEYS.CRIME_SCORE,
   CHECKLIST_KEYS.PLANNING_PERMISSIONS,
   CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS,
+  CHECKLIST_KEYS.MOBILE_COVERAGE,
+  CHECKLIST_KEYS.FLOOD_RISK,
 ];
 
 // Update the type guard to accept ChecklistKey and use the constant array

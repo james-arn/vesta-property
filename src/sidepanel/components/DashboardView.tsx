@@ -1,6 +1,7 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
+import { useAccordion } from '@/hooks/useAccordion';
 import { CrimeScoreData } from "@/hooks/useCrimeScore";
 import { getCategoryDisplayName } from '@/sidepanel/helpers';
 import { EpcBandResult } from "@/types/epc";
@@ -21,25 +22,14 @@ import React, { Suspense, useState } from 'react';
 import { DashboardScoreItem } from './DashboardScoreItem';
 import { DashboardTile } from './DashboardTile';
 
-type GetValueClickHandlerType = (
-    item: PropertyDataListItem,
-    openNewTab: (url: string) => void,
-    toggleCrimeChart: () => void,
-    togglePlanningPermissionCard: (expand?: boolean) => void,
-    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void
-) => (() => void) | undefined;
-
 interface DashboardViewProps {
     checklistsData: PropertyDataListItem[] | null;
     categoryScores: DashboardScores;
     overallScore: number | null;
     dataCoverageScoreData: CategoryScoreData | undefined;
     isLoading: boolean;
-    getValueClickHandler: GetValueClickHandlerType;
+    onItemValueClick: (item: PropertyDataListItem) => void;
     openNewTab: (url: string) => void;
-    toggleCrimeChart: () => void;
-    togglePlanningPermissionCard: (expand?: boolean) => void;
-    toggleNearbyPlanningPermissionCard?: (expand?: boolean) => void;
     isPremiumDataFetched: boolean;
     epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -62,6 +52,7 @@ interface DashboardViewProps {
     nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
     onTriggerPremiumFlow: () => void;
+    mobileCoverageAccordion: ReturnType<typeof useAccordion>;
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
@@ -79,11 +70,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     overallScore,
     dataCoverageScoreData,
     isLoading,
-    getValueClickHandler,
     openNewTab,
-    toggleCrimeChart,
-    togglePlanningPermissionCard,
-    toggleNearbyPlanningPermissionCard,
+    onItemValueClick,
     crimeQuery,
     premiumStreetDataQuery,
     crimeChartExpanded,
@@ -100,7 +88,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
-    handleEpcValueChange
+    handleEpcValueChange,
+    mobileCoverageAccordion
 }) => {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
@@ -180,11 +169,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 title={title}
                                 categoryScoreData={categoryScoreData}
                                 icon={IconComponent}
-                                getValueClickHandler={getValueClickHandler}
-                                openNewTab={openNewTab}
-                                toggleCrimeChart={toggleCrimeChart}
-                                togglePlanningPermissionCard={togglePlanningPermissionCard}
-                                toggleNearbyPlanningPermissionCard={toggleNearbyPlanningPermissionCard}
+                                onItemValueClick={onItemValueClick}
                                 isPremiumDataFetched={isPremiumDataFetched}
                                 upgradeUrl={upgradeUrl}
                                 crimeQuery={crimeQuery}
@@ -204,6 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 epcDebugCanvasRef={epcDebugCanvasRef}
                                 isEpcDebugModeOn={isEpcDebugModeOn}
                                 invertColorScale={false}
+                                mobileCoverageAccordion={mobileCoverageAccordion}
                             />
                         </Suspense>
                     );
