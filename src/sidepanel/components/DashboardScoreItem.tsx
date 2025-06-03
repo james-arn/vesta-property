@@ -26,6 +26,9 @@ const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/Pl
 const LazyMobileCoverageDisplay = lazy(() =>
     import('@/components/MobileCoverageDisplay').then(module => ({ default: module.MobileCoverageDisplay }))
 );
+const LazyCoastalErosionDisplay = lazy(() =>
+    import('@/components/CoastalErosionDisplay').then(module => ({ default: module.default }))
+);
 
 interface DashboardScoreItemProps {
     title: string;
@@ -35,7 +38,7 @@ interface DashboardScoreItemProps {
     onToggleExpand: (category: DashboardScoreCategory) => void;
     invertColorScale?: boolean;
     icon?: React.ElementType;
-    isPremiumDataFetched: boolean;
+    isPremiumDataFetchedAndHasData: boolean;
     upgradeUrl: string;
     epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
@@ -62,6 +65,7 @@ interface DashboardScoreItemProps {
     nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
     nearbyPlanningPermissionContentHeight: number;
     mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
+    coastalErosionAccordion?: ReturnType<typeof useAccordion>;
 }
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
@@ -72,7 +76,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     onToggleExpand,
     invertColorScale = false,
     icon: IconComponent,
-    isPremiumDataFetched,
+    isPremiumDataFetchedAndHasData,
     epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
@@ -91,6 +95,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
     mobileCoverageAccordion,
+    coastalErosionAccordion
 }) => {
     if (!categoryScoreData) {
         return (
@@ -109,9 +114,6 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
 
     const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
     const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
-
-    const mobileCoverageItemData = contributingItems?.find(item => item.key === CHECKLIST_KEYS.MOBILE_COVERAGE);
-    const shouldShowMobileCoverageDetailsSection = mobileCoverageAccordion?.isExpanded && mobileCoverageItemData?.mobileCoverage;
 
     return (
         <Accordion type="single" collapsible value={isExpanded ? category : ""} onValueChange={() => onToggleExpand(category)} className="w-full border rounded-lg overflow-hidden shadow-sm bg-white mb-1.5 last:mb-0">
@@ -168,7 +170,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                 <React.Fragment key={item.key}>
                                     <ChecklistItem
                                         item={item}
-                                        isPremiumDataFetched={isPremiumDataFetched}
+                                        isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
                                         epcBandData={item.key === CHECKLIST_KEYS.EPC ? epcBandData : undefined}
                                         epcDebugCanvasRef={epcDebugCanvasRef}
                                         isEpcDebugModeOn={isEpcDebugModeOn}
@@ -221,23 +223,33 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                             </Suspense>
                                         </div>
                                     )}
+                                    {item.key === CHECKLIST_KEYS.COASTAL_EROSION && coastalErosionAccordion?.isExpanded && item.coastalErosionDetails && (
+                                        <div
+                                            ref={coastalErosionAccordion?.contentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                            style={{ maxHeight: coastalErosionAccordion?.contentHeight ? `${coastalErosionAccordion.contentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyCoastalErosionDisplay coastalErosionDetails={item.coastalErosionDetails} />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                    {item.key === CHECKLIST_KEYS.MOBILE_COVERAGE && mobileCoverageAccordion?.isExpanded && item.mobileCoverage && (
+                                        <div
+                                            ref={mobileCoverageAccordion?.contentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
+                                            style={{ maxHeight: mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyMobileCoverageDisplay mobileCoverage={item.mobileCoverage} />
+                                            </Suspense>
+                                        </div>
+                                    )}
                                 </React.Fragment>
                             ))}
                         </ul>
                     ) : (
                         <p className="text-sm text-muted-foreground py-2">No contributing items for this category.</p>
-                    )}
-
-                    {shouldShowMobileCoverageDetailsSection && mobileCoverageItemData && mobileCoverageItemData.mobileCoverage && (
-                        <div
-                            ref={mobileCoverageAccordion?.contentRef}
-                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
-                            style={{ maxHeight: mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
-                        >
-                            <Suspense fallback={<LoadingSpinner />}>
-                                <LazyMobileCoverageDisplay mobileCoverage={mobileCoverageItemData.mobileCoverage} />
-                            </Suspense>
-                        </div>
                     )}
                 </AccordionContent>
             </AccordionItem>

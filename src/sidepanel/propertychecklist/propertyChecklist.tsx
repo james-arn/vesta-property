@@ -37,7 +37,8 @@ import {
 export function generatePropertyChecklist(
   propertyData: ExtractedPropertyScrapingData,
   crimeScoreQuery: UseQueryResult<CrimeScoreData, Error> | undefined,
-  preprocessedData: PreprocessedData
+  preprocessedData: PreprocessedData,
+  isPremiumDataFetchedAndHasData: boolean
 ): PropertyDataListItem[] {
   if (!propertyData) {
     console.error('No property data provided to generatePropertyChecklist');
@@ -871,9 +872,12 @@ export function generatePropertyChecklist(
       label: "Coastal Erosion",
       key: CHECKLIST_KEYS.COASTAL_EROSION,
       status: propertyData.coastalErosion.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: propertyData.coastalErosion.reason ?? "",
-      toolTipExplainer: "Information about the property's risk from coastal erosion, relevant for seaside properties.",
+      coastalErosionDetails: preprocessedData.coastalErosionForChecklist,
+      value: isPremiumDataFetchedAndHasData
+        ? preprocessedData?.coastalErosionForChecklist?.valueDisplay ?? propertyData.coastalErosion.value
+        : (propertyData.coastalErosion.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED),
+      askAgentMessage: preprocessedData?.coastalErosionForChecklist?.reasonForAskAgent ?? propertyData.coastalErosion.reason ?? "",
+      toolTipExplainer: "Coastal Erosion data for properties that are within 1km of a shoreline. Contains the 2 nearest coastal erosion plans to the property",
       isExpectedInPremiumSearchData: true,
       isExpectedInListing: false,
     },
@@ -891,17 +895,6 @@ export function generatePropertyChecklist(
       toolTipExplainer:
         "Evaluates the level of noise pollution from nearby airports and flight paths.\n\n" +
         "Significant noise can impact quality of life and potentially property value.",
-      isExpectedInPremiumSearchData: true,
-      isExpectedInListing: false,
-    },
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Coastal Erosion Risk (Detailed)",
-      key: CHECKLIST_KEYS.COASTAL_EROSION_RISK_DETAILED,
-      status: getStatusFromPremium(processedPremiumData?.coastalErosionRisk),
-      value: processedPremiumData?.coastalErosionRisk?.can_have_erosion_plan ? "Plan Possible" : CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer: "Detailed assessment of coastal erosion risk, indicating if mitigation plans might be applicable.",
       isExpectedInPremiumSearchData: true,
       isExpectedInListing: false,
     },

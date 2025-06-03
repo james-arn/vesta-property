@@ -44,7 +44,7 @@ export function usePersistentPremiumData(): UseActivatePremiumSearchReturn {
         console.warn("Mock activation called without confirmed address in context for testing.");
       }
       try {
-        const mockModule = await import("@/assets/mocks/premiumDataResponse.json");
+        const mockModule = await import("@/assets/mocks/newquayPremiumResponse.json");
         const oldMockData = mockModule.default;
         const mockResponse: GetPremiumStreetDataResponse = {
           premiumData: oldMockData as any,

@@ -8,10 +8,12 @@ import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
 import React from "react";
 import { GovEpcValidationMatch } from "./govEpcCertificate";
 import {
+  CoastalErosion,
   ListedBuilding,
   ProcessedMobileServiceCoverageWithScoreAndLabel,
   ProcessedPremiumStreetData,
   RestrictiveCovenant,
+  RightOfWayRowType,
 } from "./premiumStreetData";
 import { Station } from "./rightmovePageModel";
 
@@ -25,18 +27,19 @@ export enum DataStatus {
 
 export interface PropertyDataListItem {
   label: string;
-  status: DataStatus;
   value: React.ReactNode;
+  status: DataStatus;
   key: ChecklistKey;
   checklistGroup: string;
-  selected?: boolean;
-  askAgentMessage: string;
   toolTipExplainer: string | React.ReactNode;
+  askAgentMessage: string;
+  isExpectedInPremiumSearchData: boolean;
+  isExpectedInListing: boolean;
+  selected?: boolean;
   epcBandData?: EpcBandResult;
   epcImageUrl?: string | null;
   confidence?: Confidence | null;
-  isExpectedInPremiumSearchData: boolean;
-  isExpectedInListing: boolean;
+  coastalErosionDetails?: CoastalErosionDataForChecklist | null;
   restrictiveCovenants?: RestrictiveCovenant[] | null;
   publicRightOfWay?: RightOfWayDetails | null;
   epcSource?: EpcDataSourceType | null;
@@ -67,7 +70,6 @@ export enum EpcDataSourceType {
   // matched with the EPC rating of a unique property found on the GOV EPC Register's list for the postcode.
   PREMIUM_API = "PremiumAPI", // EPC data sourced from the premium API
 }
-
 export enum AddressSourceType {
   NONE = "None",
   INITIAL_SCRAPE = "InitialScrape", // Address as initially scraped from the listing
@@ -99,8 +101,6 @@ export interface NearbySchool {
   distance: number | null; // Numerical distance value
   unit: string | null; // e.g., "miles"
 }
-
-export type RightOfWayRowType = string | null;
 
 export interface RightOfWayDetails {
   distance: number | null;
@@ -216,13 +216,20 @@ export enum ScoreQuality {
   UNKNOWN = "UNKNOWN",
 }
 
+export interface CoastalErosionDataForChecklist {
+  status: DataStatus | null;
+  valueDisplay: string | null;
+  detailsForAccordion: CoastalErosion | null;
+  reasonForAskAgent?: string | null;
+}
+
 export interface PreprocessedData {
   isPreprocessedDataLoading: boolean;
   preprocessedDataError: Error | null;
   finalEpcBandData: EpcBandResult | undefined;
   processedPremiumData: ProcessedPremiumStreetData | null;
   finalEpcValue: string | null;
-  finalEpcConfidence: Confidence | null;
+  finalEpcConfidence: Confidence;
   finalEpcSource: EpcDataSourceType | null;
   epcScoreForCalculation: number | null;
   calculatedLeaseMonths: number | null;
@@ -245,4 +252,5 @@ export interface PreprocessedData {
   rawFloodSources: string[] | null;
   rawFloodedInLastFiveYears: boolean | null;
   mobileServiceCoverageWithScoreAndLabel: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
+  coastalErosionForChecklist: CoastalErosionDataForChecklist | null;
 }

@@ -8,20 +8,20 @@ import { EpcBandResult } from "@/types/epc";
 import { DataStatus, PropertyDataListItem } from "@/types/property";
 import React, { useEffect } from 'react';
 import { FaCheckCircle, FaClock, FaInfoCircle, FaQuestionCircle, FaSearch, FaTimesCircle } from "react-icons/fa";
-import { MobileCoverageDisplay } from "../MobileCoverageDisplay";
 import { EpcChecklistItem } from "./EpcChecklistItem";
 
 export interface ChecklistItemProps {
     item: PropertyDataListItem;
     onItemClick?: () => void;
     onValueClick?: () => void;
-    isPremiumDataFetched: boolean;
+    isPremiumDataFetchedAndHasData: boolean;
     epcBandData?: EpcBandResult | undefined;
     onEpcChange?: (newValue: string) => void;
     epcDebugCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     onOpenUpsellModal?: () => void;
     mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
+    coastalErosionAccordion?: ReturnType<typeof useAccordion>;
 }
 
 const statusStyles: Record<DataStatus, { icon: React.ElementType; color: string }> = {
@@ -38,13 +38,12 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
     item,
     onItemClick,
     onValueClick,
-    isPremiumDataFetched,
+    isPremiumDataFetchedAndHasData,
     epcBandData,
     onEpcChange,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     onOpenUpsellModal,
-    mobileCoverageAccordion,
 }) => {
     const { key, label, status, value, toolTipExplainer, isExpectedInPremiumSearchData: hasPremiumFeature, epcImageUrl } = item;
 
@@ -55,7 +54,7 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             ((Object.values(CHECKLIST_NO_VALUE) as string[]).includes(item.value) ||
                 (Object.values(PREMIUM_DATA_STATES) as string[]).includes(item.value)));
 
-    const showPremiumIndicator = !isPremiumDataFetched && hasPremiumFeature;
+    const showPremiumIndicator = !isPremiumDataFetchedAndHasData && hasPremiumFeature;
 
     const isImageSourceWithUrl =
         isEpcItem &&
@@ -145,6 +144,16 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             return <span>{item.value}</span>;
         }
 
+        else if (key === CHECKLIST_KEYS.COASTAL_EROSION && !isEffectivelyLocked) {
+            return (
+                <div className="w-full">
+                    <div className="flex items-center justify-between w-full cursor-pointer cursor-pointer text-blue-500 underline" onClick={() => onValueClick?.()}>
+                        <span >{item.value}</span>
+                    </div>
+                </div>
+            );
+        }
+
         else if (key === CHECKLIST_KEYS.MOBILE_COVERAGE && !isEffectivelyLocked) {
             const overallLabel = item.mobileCoverage?.mobileCoverageLabel;
             return (
@@ -152,20 +161,6 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
                     <div className="flex items-center justify-between w-full cursor-pointer cursor-pointer text-blue-500 underline" onClick={() => onValueClick?.()}>
                         <span >{overallLabel}</span>
                     </div>
-                    {mobileCoverageAccordion?.isExpanded && (
-                        <div
-                            ref={mobileCoverageAccordion.contentRef}
-                            style={{ height: mobileCoverageAccordion.contentHeight, overflow: 'hidden', transition: 'height 0.3s ease' }}
-                            className="mt-2"
-                        >
-                            {Array.isArray(item.mobileCoverage?.mobileServiceCoverageArray) &&
-                                item.mobileCoverage?.mobileServiceCoverageArray.length > 0 && (
-                                    <div className="mt-1">
-                                        <MobileCoverageDisplay mobileCoverage={item.mobileCoverage} />
-                                    </div>
-                                )}
-                        </div>
-                    )}
                 </div>
             );
         }

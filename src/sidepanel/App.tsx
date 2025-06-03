@@ -83,6 +83,7 @@ const App: React.FC = () => {
   const planningPermissionAccordion = useAccordion("planningPermissionAccordion");
   const nearbyPlanningPermissionAccordion = useAccordion("nearbyPlanningPermissionAccordion");
   const mobileCoverageAccordion = useAccordion("mobileCoverageAccordion");
+  const coastalErosionAccordion = useAccordion("coastalErosionAccordion");
 
   const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
     if (!currentPropertyId) {
@@ -269,9 +270,10 @@ const App: React.FC = () => {
       crimeAccordion.toggle,
       planningPermissionAccordion.toggle,
       nearbyPlanningPermissionAccordion.toggle,
-      mobileCoverageAccordion.toggle
+      mobileCoverageAccordion.toggle,
+      coastalErosionAccordion.toggle
     );
-  }, [openNewTab, crimeAccordion.toggle, planningPermissionAccordion.toggle, nearbyPlanningPermissionAccordion.toggle, mobileCoverageAccordion.toggle]);
+  }, [openNewTab, crimeAccordion.toggle, planningPermissionAccordion.toggle, nearbyPlanningPermissionAccordion.toggle, mobileCoverageAccordion.toggle, coastalErosionAccordion.toggle]);
 
   if (isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
@@ -288,6 +290,8 @@ const App: React.FC = () => {
       <Alert type="error" message={`Error loading property data: ${queryPropertyDataError.message}`} />
     );
   }
+
+  const isPremiumDataFetchedAndHasData = premiumDataQuery.isFetched && !!premiumDataQuery.data?.premiumData.data;
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -322,7 +326,7 @@ const App: React.FC = () => {
               toggleGroup={toggleGroup}
               openNewTab={openNewTab}
               onItemValueClick={handleChecklistItemValueClick}
-              isPremiumDataFetched={premiumDataQuery.isFetched}
+              isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
               epcBandData={preprocessedData.finalEpcBandData}
               handleEpcValueChange={handleEpcValueChange}
               isEpcDebugModeOn={isEpcDebugModeOn}
@@ -340,6 +344,7 @@ const App: React.FC = () => {
               onTriggerPremiumFlow={initiatePremiumActivationFlow}
               premiumStreetDataQuery={premiumDataQuery}
               mobileCoverageAccordion={mobileCoverageAccordion}
+              coastalErosionAccordion={coastalErosionAccordion}
             />
           </Suspense>
         )}
@@ -362,7 +367,7 @@ const App: React.FC = () => {
             nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
             nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
             onTriggerPremiumFlow={initiatePremiumActivationFlow}
-            isPremiumDataFetched={premiumDataQuery.isFetched}
+            isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
             epcBandData={preprocessedData.finalEpcBandData}
             epcDebugCanvasRef={epcDebugCanvasRef}
             isEpcDebugModeOn={isEpcDebugModeOn}
@@ -371,6 +376,7 @@ const App: React.FC = () => {
             premiumStreetDataQuery={premiumDataQuery}
             openNewTab={openNewTab}
             mobileCoverageAccordion={mobileCoverageAccordion}
+            coastalErosionAccordion={coastalErosionAccordion}
           />
         )}
       </main>

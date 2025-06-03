@@ -62,6 +62,9 @@ export const useChecklistAndDashboardData = ({
     refetchOnReconnect: false,
   });
 
+  const isPremiumDataFetchedAndHasData =
+    premiumDataQuery.isFetched && !!premiumDataQuery.data?.premiumData.data;
+
   const preprocessedData = usePreprocessedPropertyData({
     propertyData,
     premiumStreetDataQuery: premiumDataQuery,
@@ -75,7 +78,12 @@ export const useChecklistAndDashboardData = ({
       preprocessedData.preprocessedDataError
     )
       return [];
-    return generatePropertyChecklist(propertyData, crimeScoreQuery, preprocessedData);
+    return generatePropertyChecklist(
+      propertyData,
+      crimeScoreQuery,
+      preprocessedData,
+      isPremiumDataFetchedAndHasData
+    );
   }, [propertyData, crimeScoreQuery, preprocessedData]);
 
   const [calculationResultState, setCalculationResultState] =

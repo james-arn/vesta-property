@@ -562,8 +562,58 @@ export interface RestrictiveCovenant {
 }
 
 export interface CoastalErosion {
+  // Flag indicating if the property can have a coastal erosion plan.
+  // If a property is located in an area where coastal erosion is a risk, this flag will be `true` regardless
+  // of whether a plan is in place or not. This would include properties on or near a coastline.
+  // If a property is not located in an area where coastal erosion is a risk, this flag will be `false`. This
+  // would include properties located inland.
   can_have_erosion_plan: boolean | null;
-  plans: unknown | null; // Type unknown, assuming null or complex object
+  plans: CoastalErosionPlan[] | null; // List of coastal erosion plans associated with the property
+}
+
+export interface CoastalErosionPlan {
+  feature_id: string | null; // The ID of the coastal feature
+  feature_type: string | null; // The type of the coastal feature (e.g., Floodable/Erodible)
+  defence_type: string | null; // The defence type if in-place
+  floodable: boolean | null; // A flag indicating if the feature is floodable
+  boundary: string | null; // The geographical boundary of the coastal feature in WKT (LINESTRING)
+  mid_point: string | null; // The MidPoint of the geographical boundary in WKT (POINT)
+  distance_from_point: number | null; // The closest distance in metres from the property to the coastal feature
+  shore_management_plan: CoastalErosionShoreManagementPlan | null; // Coastal erosion estimates where a shore management plan is in place
+  no_active_intervention: CoastalErosionNoActiveIntervention | null; // Coastal erosion estimates that would occur if no shore management plan is in place
+  meta: {
+    data_type: "actual" | "predicted";
+    source?: string | null;
+    attribution_string?: string | null;
+  } | null;
+}
+
+export interface CoastalErosionShoreManagementPlan {
+  name: string; // The name of the shore management plan
+  id: string | null; // The ID of the shore management plan
+  estimated_distance_lost: CoastalErosionEstimatedDistanceLost; // Estimated distances lost to coastal erosion with a shore management plan
+}
+
+export interface CoastalErosionNoActiveIntervention {
+  estimated_distance_lost: CoastalErosionEstimatedDistanceLost; // Estimated distances lost to coastal erosion without a shore management plan in place
+}
+
+export interface CoastalErosionEstimatedDistanceLost {
+  short_term: CoastalErosionEstimatedDistanceLostTerm | null; // Coastal erosion values for the short term (0-20 years)
+  medium_term: CoastalErosionEstimatedDistanceLostTerm | null; // Coastal erosion values for the medium term (20-50 years)
+  long_term: CoastalErosionEstimatedDistanceLostTerm | null; // Coastal erosion values for the long term (50-100 years)
+}
+
+export interface CoastalErosionEstimatedDistanceLostTerm {
+  average_estimated_value: number | null; // The average estimated amount of coastal erosion in metres
+  estimated_value_upper_bound: number | null; // The upper bound of average estimated amount of coastal erosion in metres
+  estimated_value_lower_bound: number | null; // The lower bound of average estimated amount of coastal erosion in metres
+  risk: CoastalErosionEstimatedDistanceLostTermRisk | null; // Information about the risk of coastal erosion on the property
+}
+
+export interface CoastalErosionEstimatedDistanceLostTermRisk {
+  risk_value: number | null; // A measure indicating the level of risk of the property being affected by Coastal Erosion
+  risk_rating: "no risk" | "low risk" | "medium risk" | "high risk" | null; // A description of the risk value as a rating
 }
 
 export interface RightOfWay {
@@ -711,6 +761,13 @@ export interface PointModel {
 export interface MultiPointModel {
   type: "MultiPoint";
   coordinates: [number, number][]; // Array of [longitude, latitude]
+}
+
+// Define a generic Meta interface
+export interface Meta {
+  data_type: "actual" | "predicted" | string | null;
+  source?: string | null;
+  attribution_string?: string | null;
 }
 
 export interface ListedBuilding {

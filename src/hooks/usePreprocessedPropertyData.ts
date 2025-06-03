@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
 import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
@@ -8,6 +9,7 @@ import {
   ProcessedPremiumStreetData,
 } from "@/types/premiumStreetData";
 import {
+  CoastalErosionDataForChecklist,
   ConfidenceLevels,
   DataStatus,
   EpcData,
@@ -16,6 +18,10 @@ import {
 } from "@/types/property";
 import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
+import {
+  COASTAL_EROSION_RISK_RATINGS,
+  determineOverallCoastalRisk,
+} from "@/utils/scoreCalculations/helpers/environmentalProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
 import { getStatusFromString } from "@/utils/statusHelpers";
 import { UseQueryResult } from "@tanstack/react-query";
@@ -157,7 +163,7 @@ export const usePreprocessedPropertyData = ({
         const score = mapGradeToScore(initialEpcData.value);
         return {
           finalEpcValue: initialEpcData.value,
-          finalEpcConfidence: initialEpcData.confidence,
+          finalEpcConfidence: initialEpcData.confidence || ConfidenceLevels.NONE,
           finalEpcSource: initialEpcData.source,
           epcScoreForCalculation: score,
         };
@@ -181,7 +187,7 @@ export const usePreprocessedPropertyData = ({
       isParentDataLoading,
       processedPremiumDataResult, // Still a dependency, in case other parts of it are used or premium EPC is re-added
       premiumStreetDataQuery?.status,
-      premiumStreetDataQuery?.data?.premiumData?.data?.attributes?.energy_performance, // Corrected path
+      premiumStreetDataQuery?.data?.premiumData?.data?.attributes?.energy_performance,
     ]);
 
   const nearbySchoolsScoreValue = useMemo(() => {
@@ -243,6 +249,74 @@ export const usePreprocessedPropertyData = ({
     return processMobileCoverageForScoreAndLabel(processedPremiumDataResult.mobileServiceCoverage);
   }, [processedPremiumDataResult.mobileServiceCoverage]);
 
+  // --- Coastal Erosion Data Processing ---
+  const coastalErosionForChecklist = useMemo((): CoastalErosionDataForChecklist | null => {
+    const premiumQueryStatus = premiumStreetDataQuery?.status;
+    const premiumCoastalAPIData = processedPremiumDataResult.coastalErosionRisk;
+
+    if (premiumQueryStatus === "pending") {
+      return {
+        status: DataStatus.IS_LOADING,
+        valueDisplay: CHECKLIST_NO_VALUE.NOT_MENTIONED,
+        detailsForAccordion: null,
+      };
+    }
+
+    if (premiumQueryStatus === "error" || !processedPremiumDataResult) {
+      return {
+        status: DataStatus.ASK_AGENT,
+        valueDisplay: "Error fetching coastal erosion data. Please check connection or try again.",
+        detailsForAccordion: null,
+      };
+    }
+
+    const overallRisk = determineOverallCoastalRisk(processedPremiumDataResult.coastalErosionRisk);
+    let status: DataStatus;
+    let valueDisplay = `${overallRisk}`;
+
+    switch (overallRisk) {
+      case COASTAL_EROSION_RISK_RATINGS.HIGH:
+      case COASTAL_EROSION_RISK_RATINGS.MEDIUM:
+        status = DataStatus.FOUND_NEGATIVE;
+        break;
+      case COASTAL_EROSION_RISK_RATINGS.LOW:
+        status = DataStatus.FOUND_POSITIVE;
+        break;
+      case COASTAL_EROSION_RISK_RATINGS.NONE:
+        status = DataStatus.FOUND_POSITIVE;
+        break;
+      case COASTAL_EROSION_RISK_RATINGS.UNKNOWN:
+      default:
+        status = DataStatus.ASK_AGENT;
+        valueDisplay = "Coastal erosion risk status unknown.";
+        if (
+          premiumCoastalAPIData?.can_have_erosion_plan === null &&
+          (!premiumCoastalAPIData?.plans || premiumCoastalAPIData.plans.length === 0)
+        ) {
+          status = DataStatus.NOT_APPLICABLE;
+          valueDisplay = "Coastal erosion data not determined for this property.";
+        } else if (
+          premiumCoastalAPIData?.can_have_erosion_plan === true &&
+          (!premiumCoastalAPIData?.plans || premiumCoastalAPIData.plans.length === 0)
+        ) {
+          status = DataStatus.ASK_AGENT;
+          valueDisplay = "Property in potential coastal risk area; detailed plan data missing.";
+        }
+        break;
+    }
+
+    if (premiumCoastalAPIData?.can_have_erosion_plan === false) {
+      status = DataStatus.FOUND_POSITIVE;
+      valueDisplay = `${COASTAL_EROSION_RISK_RATINGS.NONE}`;
+    }
+
+    return {
+      status,
+      valueDisplay,
+      detailsForAccordion: premiumCoastalAPIData,
+    };
+  }, [premiumStreetDataQuery?.status, processedPremiumDataResult.coastalErosionRisk]);
+
   const preprocessedData: PreprocessedData = useMemo(() => {
     const initialPublicRoW = propertyData?.publicRightOfWayObligation ?? null;
     const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
@@ -256,13 +330,15 @@ export const usePreprocessedPropertyData = ({
 
     const restrictiveCovenants = processRestrictiveCovenants(
       premiumStreetDataQuery?.status ?? "idle",
-      processedPremiumDataResult?.restrictiveCovenants,
+      processedPremiumDataResult.restrictiveCovenants,
       propertyData?.restrictions
     );
 
     const automatedProcessingResultFromInitial = initialEpcData?.automatedProcessingResult;
     const derivedFinalEpcBandData =
-      automatedProcessingResultFromInitial && "currentBand" in automatedProcessingResultFromInitial
+      automatedProcessingResultFromInitial &&
+      typeof automatedProcessingResultFromInitial === "object" &&
+      "currentBand" in automatedProcessingResultFromInitial
         ? (automatedProcessingResultFromInitial as EpcBandResult)
         : undefined;
 
@@ -293,6 +369,7 @@ export const usePreprocessedPropertyData = ({
       rawFloodSources: propertyData?.floodSources ?? null,
       rawFloodedInLastFiveYears: propertyData?.floodedInLastFiveYears ?? null,
       mobileServiceCoverageWithScoreAndLabel,
+      coastalErosionForChecklist,
     };
   }, [
     isPreprocessedDataLoading,
@@ -322,6 +399,7 @@ export const usePreprocessedPropertyData = ({
     propertyData?.floodSources,
     propertyData?.floodedInLastFiveYears,
     mobileServiceCoverageWithScoreAndLabel,
+    coastalErosionForChecklist,
   ]);
 
   return preprocessedData;

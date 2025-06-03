@@ -7,9 +7,15 @@ import {
   MAX_SCORE,
 } from "@/constants/scoreConstants";
 import { CrimeRating } from "@/hooks/useCrimeScore"; // Import CrimeRating type
-import { FloodRisk } from "@/types/premiumStreetData";
+import {
+  CoastalErosion,
+  CoastalErosionEstimatedDistanceLost,
+  CoastalErosionEstimatedDistanceLostTerm,
+  CoastalErosionPlan,
+  FloodRisk,
+} from "@/types/premiumStreetData";
 import { PropertyDataListItem } from "@/types/property";
-import { parseNumberFromString, parseYesNoUnknown } from "@/utils/parsingHelpers";
+import { parseNumberFromString } from "@/utils/parsingHelpers";
 import React from "react"; // Import React for ReactNode checks
 
 interface FactorProcessingResult {
@@ -17,6 +23,35 @@ interface FactorProcessingResult {
   maxPossibleScore: number; // Max score achievable for this factor (usually MAX_SCORE if data present, 0 otherwise)
   warning?: string;
 }
+
+// --- START: Coastal Erosion Specific Definitions ---
+export type CoastalRiskRating = "High Risk" | "Medium Risk" | "Low Risk" | "No Risk" | "Unknown";
+
+export const COASTAL_EROSION_RISK_RATINGS: Record<string, CoastalRiskRating> = {
+  HIGH: "High Risk",
+  MEDIUM: "Medium Risk",
+  LOW: "Low Risk",
+  NONE: "No Risk",
+  UNKNOWN: "Unknown",
+};
+
+// Defines the severity order. Higher number means higher risk.
+const COASTAL_EROSION_RISK_HIERARCHY: Record<CoastalRiskRating, number> = {
+  "High Risk": 4,
+  "Medium Risk": 3,
+  "Low Risk": 2,
+  "No Risk": 1,
+  Unknown: 0,
+};
+
+export const COASTAL_EROSION_RISK_MULTIPLIERS: Record<CoastalRiskRating, number> = {
+  "High Risk": 1.0,
+  "Medium Risk": 0.6,
+  "Low Risk": 0.3,
+  "No Risk": 0.0,
+  Unknown: 0.0,
+};
+// --- END: Coastal Erosion Specific Definitions ---
 
 export const calculateCrimeRisk = (
   item: PropertyDataListItem | undefined
@@ -31,12 +66,9 @@ export const calculateCrimeRisk = (
   let rating: CrimeRating | null = null;
   let numericalScore: number | null = null;
 
-  // 1. Check if value is an object (potentially CrimeScoreResponse)
   if (typeof value === "object" && value !== null && !React.isValidElement(value)) {
-    // Check for properties defensively
     if ("crimeRating" in value && typeof value.crimeRating === "string") {
       const potentialRating = value.crimeRating.trim();
-      // Validate against the CrimeRating type
       if (
         potentialRating === CRIME_RATINGS.HIGH ||
         potentialRating === CRIME_RATINGS.MODERATE ||
@@ -45,17 +77,13 @@ export const calculateCrimeRisk = (
         rating = potentialRating as CrimeRating;
       }
     }
-    // If rating not found, try parsing score from object
     if (!rating && "crimeScore" in value) {
       if (typeof value.crimeScore === "string" || typeof value.crimeScore === "number") {
         numericalScore = parseNumberFromString(value.crimeScore);
       }
     }
-  }
-  // 2. Check if value is a string (could be rating or numerical score)
-  else if (typeof value === "string") {
+  } else if (typeof value === "string") {
     const trimmedValue = value.trim();
-    // Validate against the CrimeRating type
     if (
       trimmedValue === CRIME_RATINGS.HIGH ||
       trimmedValue === CRIME_RATINGS.MODERATE ||
@@ -63,21 +91,16 @@ export const calculateCrimeRisk = (
     ) {
       rating = trimmedValue as CrimeRating;
     } else {
-      numericalScore = parseNumberFromString(value); // Try parsing as number
+      numericalScore = parseNumberFromString(value);
     }
-  }
-  // 3. Check if value is a number
-  else if (typeof value === "number") {
+  } else if (typeof value === "number") {
     numericalScore = value;
   }
 
-  // Determine score contribution based on rating or numerical score
   if (rating) {
-    // Use rating directly
     const multiplier = CRIME_RATING_MULTIPLIERS[rating] ?? 0;
     scoreContribution = MAX_SCORE * multiplier;
   } else if (numericalScore !== null) {
-    // Use numerical thresholds as fallback
     if (numericalScore >= CRIME_SCORE_THRESHOLDS.high) {
       scoreContribution = MAX_SCORE * CRIME_RATING_MULTIPLIERS[CRIME_RATINGS.HIGH];
     } else if (numericalScore >= CRIME_SCORE_THRESHOLDS.medium) {
@@ -86,14 +109,12 @@ export const calculateCrimeRisk = (
       scoreContribution = MAX_SCORE * CRIME_RATING_MULTIPLIERS[CRIME_RATINGS.LOW];
     }
   } else {
-    // If neither rating nor numerical score could be determined
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,
       warning: "Invalid or unrecognized crime score format.",
     };
   }
-
   return { scoreContribution, maxPossibleScore: MAX_SCORE };
 };
 
@@ -104,32 +125,24 @@ export const calculateFloodRisk = (
   detailedFloodRiskAssessment: FloodRisk | null
 ): FactorProcessingResult => {
   const internalWarnings: string[] = [];
-  let hasDetailedAssessmentData = false; // Flag to track if detailed assessment is valid
+  let hasDetailedAssessmentData = false;
 
   const FLOOD_FACTORS_MAX_SCORE = {
     last5Years: 50,
     defences: 20,
     sources: 15,
-    assessment: 15, // This represents the score if detailed assessment is present and positive
+    assessment: 15,
   } as const;
 
-  // --- Calculate score for each factor --- //
-
-  // 1. Flooded in last 5 years
   const last5YearsResult = (() => {
     const score = floodedInLastFiveYears === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
     if (floodedInLastFiveYears === null && !hasDetailedAssessmentData) {
       internalWarnings.push("Flooded in last 5 years: Status unknown/missing.");
     }
-    // Max score is always possible as we expect this data (even if null)
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
   })();
 
-  // 2. Flood Defences
   const defencesResult = (() => {
-    // Use the direct boolean value
-    // Score if defences are NOT present (true = defences exist, so risk is lower, score contribution is 0)
-    // If defencesPresent is false (no defences), then it contributes to risk score.
     const score = floodDefences === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
     if (floodDefences === null && !hasDetailedAssessmentData) {
       internalWarnings.push("Flood defences: Status unknown/missing.");
@@ -137,7 +150,6 @@ export const calculateFloodRisk = (
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
   })();
 
-  // 3. Flood Sources
   const sourcesResult = (() => {
     let hasSources = false;
     if (Array.isArray(floodSources) && floodSources.length > 0) {
@@ -152,14 +164,13 @@ export const calculateFloodRisk = (
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
   })();
 
-  // 4. Detailed Assessment
   const assessmentResult = (() => {
     let score = 0;
-    let maxScoreForAssessment = 0; // Default to 0, becomes active if assessment data is present
+    let maxScoreForAssessment = 0;
 
     if (detailedFloodRiskAssessment) {
-      hasDetailedAssessmentData = true; // Set flag if detailed assessment is valid
-      maxScoreForAssessment = FLOOD_FACTORS_MAX_SCORE.assessment; // Activate max score for this part
+      hasDetailedAssessmentData = true;
+      maxScoreForAssessment = FLOOD_FACTORS_MAX_SCORE.assessment;
       const floodRiskData = detailedFloodRiskAssessment;
       const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
         .map((risk) => (risk ? risk.toLowerCase() : undefined))
@@ -175,35 +186,27 @@ export const calculateFloodRisk = (
         }, -1);
 
         if (highestMultiplier >= 0) {
-          // Score contribution from detailed assessment is based on its own max (e.g., 15 points)
           score = FLOOD_FACTORS_MAX_SCORE.assessment * highestMultiplier;
         } else {
           if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
             internalWarnings.push("Could not determine flood risk score from assessment levels.");
           }
-          // If levels are unrecognized, it implies higher risk, so no positive score contribution from detailed assessment.
         }
       } else {
         internalWarnings.push("Flood risk assessment present but risk levels missing.");
-        // If present but no levels, imply higher risk, no positive score contribution
       }
-    } else {
-      // No detailed assessment data, so this part contributes 0 to score and 0 to max possible for this sub-factor.
-      // Warnings for missing *detailed* assessment are handled by the presence of `hasDetailedAssessmentData` flag in other sections.
     }
     return { score, maxScore: maxScoreForAssessment };
   })();
 
-  // --- Consolidate results --- //
   const totalScoreContribution =
-    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score; // Risk score (higher means more risk)
+    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score;
 
-  // Max possible score considers if detailed assessment was available to contribute its part
   const totalMaxPossibleScore =
     last5YearsResult.maxScore +
     defencesResult.maxScore +
     sourcesResult.maxScore +
-    assessmentResult.maxScore; // This will be 0 if detailed assessment was null
+    assessmentResult.maxScore;
 
   const finalWarning = internalWarnings.length > 0 ? internalWarnings.join(" ") : undefined;
 
@@ -214,34 +217,152 @@ export const calculateFloodRisk = (
   };
 };
 
+// --- START: New Coastal Erosion Helper Functions ---
+
+const getRiskRatingFromString = (ratingStr: string | null | undefined): CoastalRiskRating => {
+  if (!ratingStr) return COASTAL_EROSION_RISK_RATINGS.UNKNOWN;
+  const lowerRating = ratingStr.toLowerCase();
+  if (lowerRating.includes("high")) return COASTAL_EROSION_RISK_RATINGS.HIGH;
+  if (lowerRating.includes("medium")) return COASTAL_EROSION_RISK_RATINGS.MEDIUM;
+  if (lowerRating.includes("low")) return COASTAL_EROSION_RISK_RATINGS.LOW;
+  if (lowerRating.includes("no risk")) return COASTAL_EROSION_RISK_RATINGS.NONE;
+  return COASTAL_EROSION_RISK_RATINGS.UNKNOWN;
+};
+
+const extractRiskRatingsFromTerm = (
+  term: CoastalErosionEstimatedDistanceLostTerm | null
+): CoastalRiskRating => {
+  return getRiskRatingFromString(term?.risk?.risk_rating);
+};
+
+const extractRiskRatingsFromDistanceLost = (
+  distanceLost: CoastalErosionEstimatedDistanceLost | null
+): CoastalRiskRating[] => {
+  if (!distanceLost) return [COASTAL_EROSION_RISK_RATINGS.UNKNOWN];
+  return [
+    extractRiskRatingsFromTerm(distanceLost.short_term),
+    extractRiskRatingsFromTerm(distanceLost.medium_term),
+    extractRiskRatingsFromTerm(distanceLost.long_term),
+  ];
+};
+
+const extractRiskRatingsFromPlan = (plan: CoastalErosionPlan): CoastalRiskRating[] => {
+  let ratings: CoastalRiskRating[] = [];
+  if (plan.shore_management_plan?.estimated_distance_lost) {
+    ratings = ratings.concat(
+      extractRiskRatingsFromDistanceLost(plan.shore_management_plan.estimated_distance_lost)
+    );
+  }
+  if (plan.no_active_intervention?.estimated_distance_lost) {
+    ratings = ratings.concat(
+      extractRiskRatingsFromDistanceLost(plan.no_active_intervention.estimated_distance_lost)
+    );
+  }
+  return ratings.length > 0 ? ratings : [COASTAL_EROSION_RISK_RATINGS.UNKNOWN];
+};
+
+export const determineOverallCoastalRisk = (
+  coastalErosianDetails: CoastalErosion | null | undefined
+): CoastalRiskRating => {
+  if (!coastalErosianDetails) {
+    return COASTAL_EROSION_RISK_RATINGS.UNKNOWN;
+  }
+
+  if (coastalErosianDetails?.can_have_erosion_plan === false) {
+    return COASTAL_EROSION_RISK_RATINGS.NONE;
+  }
+
+  if (!coastalErosianDetails?.plans || coastalErosianDetails?.plans.length === 0) {
+    return coastalErosianDetails?.can_have_erosion_plan === true
+      ? COASTAL_EROSION_RISK_RATINGS.LOW
+      : COASTAL_EROSION_RISK_RATINGS.UNKNOWN;
+  }
+
+  const allRiskRatings = coastalErosianDetails.plans.flatMap(extractRiskRatingsFromPlan);
+
+  const specificRiskRatings = allRiskRatings.filter(
+    (r) => r !== COASTAL_EROSION_RISK_RATINGS.UNKNOWN
+  );
+
+  const ratingsToConsider = specificRiskRatings.length > 0 ? specificRiskRatings : allRiskRatings;
+
+  if (ratingsToConsider.length === 0) {
+    return coastalErosianDetails.can_have_erosion_plan === null
+      ? COASTAL_EROSION_RISK_RATINGS.UNKNOWN
+      : COASTAL_EROSION_RISK_RATINGS.NONE;
+  }
+
+  let highestRisk = COASTAL_EROSION_RISK_RATINGS.NONE;
+
+  if (ratingsToConsider.every((r) => r === COASTAL_EROSION_RISK_RATINGS.UNKNOWN)) {
+    highestRisk = COASTAL_EROSION_RISK_RATINGS.UNKNOWN;
+  } else {
+    for (const rating of ratingsToConsider) {
+      if (rating === COASTAL_EROSION_RISK_RATINGS.UNKNOWN) continue;
+      if (COASTAL_EROSION_RISK_HIERARCHY[rating] > COASTAL_EROSION_RISK_HIERARCHY[highestRisk]) {
+        highestRisk = rating;
+      }
+    }
+  }
+  return highestRisk;
+};
+
+// --- END: New Coastal Erosion Helper Functions ---
+
 export const calculateCoastalErosionRisk = (
-  item: PropertyDataListItem | undefined
+  coastalData: PropertyDataListItem | null | undefined
 ): FactorProcessingResult => {
-  const key = "coastalErosion";
-  if (!item) {
+  const coastalErosianDetails = coastalData?.coastalErosionDetails?.detailsForAccordion;
+  if (!coastalErosianDetails) {
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,
-      warning: "Coastal erosion data item missing.",
+      warning: "Coastal erosion API data missing.",
     };
   }
 
-  const atRisk = parseYesNoUnknown(item.value);
-  let scoreContribution = 0;
-  let warning: string | undefined = undefined;
-  let maxPossibleScore = 0; // Initialize to 0
+  const overallRiskRating = determineOverallCoastalRisk(coastalErosianDetails);
 
-  if (atRisk === true) {
-    scoreContribution = MAX_SCORE;
-    maxPossibleScore = MAX_SCORE;
-  } else if (atRisk === false) {
-    scoreContribution = 0;
+  let scoreContribution = 0;
+  let maxPossibleScore = 0;
+  let warning: string | undefined = undefined;
+
+  if (
+    coastalErosianDetails?.can_have_erosion_plan !== null ||
+    (coastalErosianDetails?.plans && coastalErosianDetails?.plans.length > 0)
+  ) {
     maxPossibleScore = MAX_SCORE;
   } else {
-    // Unknown/other value - treat as missing for score calculation, but warn.
-    scoreContribution = 0;
     maxPossibleScore = 0;
-    warning = "Coastal erosion status unknown/missing.";
+  }
+
+  if (overallRiskRating === COASTAL_EROSION_RISK_RATINGS.UNKNOWN) {
+    scoreContribution = 0;
+    if (maxPossibleScore === MAX_SCORE) {
+      warning = "Coastal erosion risk status could not be determined from available plan data.";
+    } else {
+      warning = "Coastal erosion risk status unknown due to missing data.";
+    }
+  } else {
+    scoreContribution = MAX_SCORE * (COASTAL_EROSION_RISK_MULTIPLIERS[overallRiskRating] ?? 0);
+    maxPossibleScore = MAX_SCORE;
+  }
+
+  if (
+    overallRiskRating === COASTAL_EROSION_RISK_RATINGS.NONE &&
+    coastalErosianDetails?.can_have_erosion_plan === true &&
+    (!coastalErosianDetails?.plans || coastalErosianDetails?.plans.length === 0)
+  ) {
+    warning =
+      "Property in potential risk area, but no specific erosion plans found; assessed as 'No Risk'.";
+  }
+  if (
+    overallRiskRating === COASTAL_EROSION_RISK_RATINGS.LOW &&
+    coastalErosianDetails?.can_have_erosion_plan === true &&
+    (!coastalErosianDetails?.plans || coastalErosianDetails?.plans.length === 0)
+  ) {
+    warning =
+      "Property in potential risk area, defaulted to 'Low Risk' due to no specific erosion plans.";
   }
 
   return { scoreContribution, maxPossibleScore, warning };
@@ -250,7 +371,6 @@ export const calculateCoastalErosionRisk = (
 export const calculateAirportNoiseRisk = (
   item: PropertyDataListItem | undefined
 ): FactorProcessingResult => {
-  // Initial checks for missing item or unusable value
   if (!item) {
     return {
       scoreContribution: 0,
@@ -268,7 +388,6 @@ export const calculateAirportNoiseRisk = (
     };
   }
 
-  // Helper to determine category and potential initial warning
   const determineCategoryAndWarning = (): { category?: string; warning?: string } => {
     if (
       typeof value === "object" &&
@@ -291,7 +410,6 @@ export const calculateAirportNoiseRisk = (
 
   const { category, warning: initialWarning } = determineCategoryAndWarning();
 
-  // If there was an immediate warning during category determination
   if (initialWarning) {
     return {
       scoreContribution: 0,
@@ -300,7 +418,6 @@ export const calculateAirportNoiseRisk = (
     };
   }
 
-  // If category is valid, calculate score
   if (category && category in AIRPORT_NOISE_CATEGORY_MULTIPLIERS) {
     const multiplier = AIRPORT_NOISE_CATEGORY_MULTIPLIERS[category];
     const scoreContribution = MAX_SCORE * multiplier;
@@ -308,7 +425,6 @@ export const calculateAirportNoiseRisk = (
     return { scoreContribution, maxPossibleScore };
   }
 
-  // If category was not found or invalid (and no initial warning)
   return {
     scoreContribution: 0,
     maxPossibleScore: 0,
@@ -334,7 +450,6 @@ export const calculateConservationAreaRisk = (
 
   const { conservationAreaDataAvailable, conservationArea } = details;
 
-  // Check if data availability itself is unknown
   if (conservationAreaDataAvailable === null || conservationAreaDataAvailable === undefined) {
     return {
       scoreContribution: 0,
@@ -343,7 +458,6 @@ export const calculateConservationAreaRisk = (
     };
   }
 
-  // If data is explicitly marked as unavailable
   if (conservationAreaDataAvailable === false) {
     return {
       scoreContribution: 0,
@@ -352,8 +466,6 @@ export const calculateConservationAreaRisk = (
     };
   }
 
-  // Data is available, now check the status
-  // conservationArea being a non-empty string means it IS in a conservation area (high risk)
   if (
     conservationArea !== null &&
     typeof conservationArea === "string" &&
@@ -363,9 +475,7 @@ export const calculateConservationAreaRisk = (
       scoreContribution: MAX_SCORE,
       maxPossibleScore: MAX_SCORE,
     };
-  }
-  // conservationArea being null or empty string means it IS NOT in a conservation area (zero risk)
-  else if (
+  } else if (
     conservationArea === null ||
     (typeof conservationArea === "string" && conservationArea.trim() === "")
   ) {
@@ -373,9 +483,7 @@ export const calculateConservationAreaRisk = (
       scoreContribution: 0,
       maxPossibleScore: MAX_SCORE,
     };
-  }
-  // Should not happen if conservationAreaDataAvailable is true, but handle defensively
-  else {
+  } else {
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,

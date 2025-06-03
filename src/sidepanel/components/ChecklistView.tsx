@@ -1,4 +1,4 @@
-import { ChecklistItem, ChecklistItemProps } from "@/components/ui/ChecklistItem";
+import { ChecklistItem } from "@/components/ui/ChecklistItem";
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
 import { EpcBandResult } from "@/types/epc";
@@ -14,13 +14,19 @@ import {
 
 const LazyCrimePieChart = lazy(() => import('@/components/ui/CrimePieChart'));
 const LazyPlanningPermissionCard = lazy(() => import('@/components/ui/Premium/PlanningPermission/PlanningPermissionCard'));
+const LazyMobileCoverageDisplay = lazy(() =>
+    import('@/components/MobileCoverageDisplay').then(module => ({ default: module.MobileCoverageDisplay }))
+);
+const LazyCoastalErosionDisplay = lazy(() =>
+    import('@/components/CoastalErosionDisplay').then(module => ({ default: module.default }))
+);
 
 export interface ChecklistViewProps {
     filteredChecklistData: PropertyDataListItem[];
     openGroups: Record<string, boolean>;
     toggleGroup: (group: string) => void;
     openNewTab: (url: string) => void;
-    isPremiumDataFetched: boolean;
+    isPremiumDataFetchedAndHasData: boolean;
     epcBandData?: EpcBandResult | undefined;
     handleEpcValueChange: (newValue: string) => void;
     isEpcDebugModeOn: boolean;
@@ -42,6 +48,7 @@ export interface ChecklistViewProps {
     onTriggerPremiumFlow: () => void;
     mobileCoverageAccordion: ReturnType<typeof useAccordion>;
     onItemValueClick: (item: PropertyDataListItem) => void;
+    coastalErosionAccordion: ReturnType<typeof useAccordion>;
 }
 
 export const ChecklistView: React.FC<ChecklistViewProps> = ({
@@ -49,7 +56,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     openGroups,
     toggleGroup,
     openNewTab,
-    isPremiumDataFetched,
+    isPremiumDataFetchedAndHasData,
     epcBandData,
     handleEpcValueChange,
     isEpcDebugModeOn,
@@ -68,6 +75,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     onTriggerPremiumFlow,
     mobileCoverageAccordion,
     onItemValueClick,
+    coastalErosionAccordion,
 }) => {
     // Keep track of the last rendered group within this component instance
     let lastGroup = "";
@@ -75,7 +83,6 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     // Safely access nested data
     const planningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.planning_applications;
     const nearbyPlanningApplications = premiumStreetDataQuery.data?.premiumData?.data?.attributes?.nearby_planning_applications;
-
     return (
         <>
             {filteredChecklistData.map((item, index) => {
@@ -96,21 +103,8 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                 }
 
                 const isVisible = openGroups[currentGroup] ?? true;
-
-                const checklistItemProps: ChecklistItemProps = {
-                    item,
-                    onValueClick: () => onItemValueClick(item),
-                    isPremiumDataFetched,
-                    epcBandData: epcBandData,
-                    onEpcChange: handleEpcValueChange,
-                    epcDebugCanvasRef,
-                    isEpcDebugModeOn,
-                    onOpenUpsellModal: onTriggerPremiumFlow,
-                };
-
-                if (item.key === CHECKLIST_KEYS.MOBILE_COVERAGE) {
-                    checklistItemProps.mobileCoverageAccordion = mobileCoverageAccordion;
-                }
+                const shouldShowCoastalErosionDetailsSection = coastalErosionAccordion?.isExpanded && item?.coastalErosionDetails;
+                const shouldShowMobileCoverageDetailsSection = mobileCoverageAccordion?.isExpanded && item?.mobileCoverage;
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>
@@ -118,7 +112,14 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                         {isVisible && (
                             <>
                                 <ChecklistItem
-                                    {...checklistItemProps}
+                                    item={item}
+                                    onValueClick={() => onItemValueClick(item)}
+                                    isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
+                                    epcBandData={epcBandData}
+                                    onEpcChange={handleEpcValueChange}
+                                    epcDebugCanvasRef={epcDebugCanvasRef}
+                                    isEpcDebugModeOn={isEpcDebugModeOn}
+                                    onOpenUpsellModal={onTriggerPremiumFlow}
                                 />
 
                                 {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeQuery.data && (
@@ -170,6 +171,30 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                             />
                                         </div>
                                     </Suspense>
+                                )}
+
+                                {shouldShowMobileCoverageDetailsSection && item?.mobileCoverage && (
+                                    <div
+                                        ref={mobileCoverageAccordion?.contentRef}
+                                        className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
+                                        style={{ maxHeight: mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
+                                    >
+                                        <Suspense fallback={<LoadingSpinner />}>
+                                            <LazyMobileCoverageDisplay mobileCoverage={item?.mobileCoverage} />
+                                        </Suspense>
+                                    </div>
+                                )}
+
+                                {shouldShowCoastalErosionDetailsSection && (
+                                    <div
+                                        ref={coastalErosionAccordion?.contentRef}
+                                        className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
+                                        style={{ maxHeight: coastalErosionAccordion?.contentHeight ? `${coastalErosionAccordion.contentHeight}px` : "0px" }}
+                                    >
+                                        <Suspense fallback={<LoadingSpinner />}>
+                                            <LazyCoastalErosionDisplay coastalErosionDetails={item.coastalErosionDetails ?? null} />
+                                        </Suspense>
+                                    </div>
                                 )}
                             </>
                         )}

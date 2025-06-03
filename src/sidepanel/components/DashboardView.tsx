@@ -30,7 +30,7 @@ interface DashboardViewProps {
     isLoading: boolean;
     onItemValueClick: (item: PropertyDataListItem) => void;
     openNewTab: (url: string) => void;
-    isPremiumDataFetched: boolean;
+    isPremiumDataFetchedAndHasData: boolean;
     epcBandData?: EpcBandResult | undefined;
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
@@ -53,6 +53,7 @@ interface DashboardViewProps {
     nearbyPlanningPermissionContentHeight: number;
     onTriggerPremiumFlow: () => void;
     mobileCoverageAccordion: ReturnType<typeof useAccordion>;
+    coastalErosionAccordion: ReturnType<typeof useAccordion>;
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
@@ -84,12 +85,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow,
-    isPremiumDataFetched,
+    isPremiumDataFetchedAndHasData,
     epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     handleEpcValueChange,
-    mobileCoverageAccordion
+    mobileCoverageAccordion,
+    coastalErosionAccordion
 }) => {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
@@ -170,7 +172,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 categoryScoreData={categoryScoreData}
                                 icon={IconComponent}
                                 onItemValueClick={onItemValueClick}
-                                isPremiumDataFetched={isPremiumDataFetched}
+                                isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
                                 upgradeUrl={upgradeUrl}
                                 crimeQuery={crimeQuery}
                                 premiumStreetDataQuery={premiumStreetDataQuery}
@@ -190,6 +192,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 isEpcDebugModeOn={isEpcDebugModeOn}
                                 invertColorScale={false}
                                 mobileCoverageAccordion={mobileCoverageAccordion}
+                                coastalErosionAccordion={coastalErosionAccordion}
                             />
                         </Suspense>
                     );
