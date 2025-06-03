@@ -9,7 +9,7 @@ import { CategoryScoreData, DashboardScores } from "@/types/property";
  */
 export const calculateOverallScore = (scores: DashboardScores): number | null => {
   const relevantScores = Object.entries(scores)
-    .filter(([key]) => key !== DashboardScoreCategory.LISTING_COMPLETENESS)
+    .filter(([key]) => key !== DashboardScoreCategory.DATA_COVERAGE)
     // Map to the nested scoreValue, handling potential nulls
     .map((entry: [string, CategoryScoreData]): number | null => entry[1].score?.scoreValue ?? null)
     // Filter out null or NaN scores

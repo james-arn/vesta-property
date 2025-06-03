@@ -11,7 +11,6 @@ import {
   Address,
   AddressLookupInputData,
   ConfidenceLevels,
-  DataStatus,
   EpcDataSourceType,
   ExtractedPropertyScrapingData,
   RightOfWayDetails,
@@ -45,8 +44,6 @@ export async function extractPropertyDataFromDOM(
     bathroom: bathroomFromUnstructuredText,
     accessibility: accessibilityFromUnstructuredText,
     coastalErosion: coastalErosionResultFromUnstructuredText,
-    miningImpactPropertyItem,
-    miningImpactStatus,
     listedProperty: listedPropertyFromUnstructuredText,
     epcRating: epcRatingFromPageModelText,
     leaseTerm: leaseTermFromText,
@@ -269,22 +266,18 @@ export async function extractPropertyDataFromDOM(
     serviceCharge: serviceChargeFromText,
 
     // Risks and Obligations (primarily from pageModel)
-    floodedInLastFiveYears: true,
-    floodDefences: true,
-    floodSources: ["yes", "no"],
-    privateRightOfWayObligation: true,
+    floodedInLastFiveYears:
+      pageModel?.propertyData?.features?.risks?.floodedInLastFiveYears ?? null,
+    floodDefences: pageModel?.propertyData?.features?.risks?.floodDefences ?? null,
+    floodSources: pageModel?.propertyData?.features?.risks?.floodSources ?? null,
+    privateRightOfWayObligation:
+      pageModel?.propertyData?.features?.obligations?.requiredAccess ?? null,
     publicRightOfWayObligation: mapBooleanToRightOfWayDetails(
       pageModel?.propertyData?.features?.obligations?.rightsOfWay
     ),
     restrictions: pageModel?.propertyData?.features?.obligations?.restrictions ?? null,
     listedProperty: mapScrapedStatusToListedBuildings(listedPropertyFromUnstructuredText),
     coastalErosion: coastalErosionResultFromUnstructuredText || CHECKLIST_NO_VALUE.NOT_MENTIONED,
-    miningImpact: miningImpactPropertyItem || {
-      value: CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      status: DataStatus.ASK_AGENT,
-      reason: "Could not determine mining impact.",
-    },
-    miningImpactStatus: miningImpactStatus ?? null,
 
     // Media and History
     floorPlan:

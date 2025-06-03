@@ -95,7 +95,6 @@ export const ENVIRONMENT_RISK_FACTOR_WEIGHTS: Record<string, number> = {
   crimeScore: 18,
   floodRisk: 27,
   coastalErosion: 14,
-  miningImpact: 9,
   airportNoiseAssessment: 9,
   conservationArea: 9,
 };

@@ -8,7 +8,7 @@ export enum DashboardScoreCategory {
   CONDITION = "CONDITION",
   ENVIRONMENT_RISK = "ENVIRONMENTAL_RISK",
   LEGAL_CONSTRAINTS = "LEGAL_CONSTRAINTS",
-  LISTING_COMPLETENESS = "LISTING_COMPLETENESS",
+  DATA_COVERAGE = "DATA_COVERAGE",
 }
 
 // Map categories to the *keys* of checklist items contributing to them
@@ -58,7 +58,6 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     CHECKLIST_KEYS.CRIME_SCORE,
     CHECKLIST_KEYS.FLOOD_RISK,
     CHECKLIST_KEYS.COASTAL_EROSION,
-    CHECKLIST_KEYS.MINING_IMPACT,
     CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT,
   ],
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: [
@@ -82,7 +81,7 @@ export const DASHBOARD_CATEGORY_DISPLAY_NAMES: Record<DashboardScoreCategory, st
   [DashboardScoreCategory.CONDITION]: "Condition",
   [DashboardScoreCategory.ENVIRONMENT_RISK]: "Environment Risk",
   [DashboardScoreCategory.LEGAL_CONSTRAINTS]: "Legal Constraints",
-  [DashboardScoreCategory.LISTING_COMPLETENESS]: "Listing Completeness",
+  [DashboardScoreCategory.DATA_COVERAGE]: "Listing Completeness",
 };
 
 export const CALCULATED_STATUS = {

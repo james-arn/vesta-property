@@ -16,21 +16,16 @@ const getListingCompletenessScoreLabel = (score: number): string => {
 };
 
 export const calculateCompletenessScore = (items: PropertyDataListItem[]): CategoryScoreData => {
-  // 1. Filter for items expected in a standard listing
-  const expectedItems = items.filter((item) => item.isExpectedInListing);
-
-  // 2. Filter out items that are not applicable *from the expected list*
-  const applicableExpectedItems = expectedItems.filter(
-    (item) => item.status !== DataStatus.NOT_APPLICABLE
-  );
+  // 2. Filter out items that are not applicable
+  const applicableExpectedItems = items.filter((item) => item.status !== DataStatus.NOT_APPLICABLE);
   const applicableExpectedTotal = applicableExpectedItems.length;
 
   if (applicableExpectedTotal === 0) {
     // If no items are expected OR all expected items are N/A, consider it complete
     return {
-      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Very Complete" },
+      score: { scoreValue: 100, maxScore: 100, scoreLabel: "Fully Complete" },
       contributingItems: [],
-      warningMessages: ["No applicable expected items found for completeness calculation."],
+      warningMessages: [],
       calculationStatus: CALCULATED_STATUS.CALCULATED,
     };
   }

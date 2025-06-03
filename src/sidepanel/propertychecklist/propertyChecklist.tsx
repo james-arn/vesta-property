@@ -337,7 +337,7 @@ export function generatePropertyChecklist(
         propertyData.salesHistory.compoundAnnualGrowthRate !== null &&
           typeof propertyData.salesHistory.compoundAnnualGrowthRate === "number"
           ? `${(propertyData.salesHistory.compoundAnnualGrowthRate * 100).toFixed(2)}%`
-          : "N/A",
+          : CHECKLIST_NO_VALUE.NOT_APPLICABLE,
       askAgentMessage: (() => {
         const cagr = propertyData.salesHistory.compoundAnnualGrowthRate;
         if (cagr === null || typeof cagr !== "number") return "";
@@ -905,19 +905,6 @@ export function generatePropertyChecklist(
       isExpectedInListing: false,
     },
     consolidatedFloodRiskItem,
-    {
-      checklistGroup: PropertyGroups.RISKS,
-      label: "Mining Impact",
-      key: CHECKLIST_KEYS.MINING_IMPACT,
-      status: propertyData.miningImpact.status ?? DataStatus.ASK_AGENT,
-      value: propertyData.miningImpact.value ?? CHECKLIST_NO_VALUE.NOT_MENTIONED,
-      askAgentMessage: propertyData.miningImpact.reason ?? "",
-      toolTipExplainer:
-        "Mining impact refers to the impact of mining on the property and the surrounding area.\n\n" +
-        "It's important to check the mining impact to ensure the property is not at risk of mining subsidence or other mining-related risks.",
-      isExpectedInPremiumSearchData: false,
-      isExpectedInListing: false,
-    },
 
     // Neighbourhood
     {
@@ -1027,6 +1014,16 @@ export function generatePropertyChecklist(
   // Filter out items not applicable based on property type AND filter out nulls
   const filteredChecklist = checklist.filter((item): item is PropertyDataListItem => {
     if (!item) return false; // Explicitly filter out nulls here with type predicate
+
+    // Filter out leasehold-related items if the property is not leasehold
+    if (!isLeasehold && (
+      item.key === CHECKLIST_KEYS.SERVICE_CHARGE
+      || item.key === CHECKLIST_KEYS.GROUND_RENT
+    )) {
+      return false;
+    }
+
+    if (item.value === CHECKLIST_NO_VALUE.NOT_APPLICABLE) return false;
 
     // Ensure isExpectedInListing has a default value if somehow missed during creation
     if (item.isExpectedInListing === undefined) {

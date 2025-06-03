@@ -247,29 +247,6 @@ export const calculateCoastalErosionRisk = (
   return { scoreContribution, maxPossibleScore, warning };
 };
 
-export const calculateMiningImpactRisk = (status: boolean | null): FactorProcessingResult => {
-  let scoreContribution = 0;
-  let warning: string | undefined = undefined;
-  let maxPossibleScore = 0; // Assume 0 unless data is valid (not null)
-
-  if (status === true) {
-    // status: true means negative impact found
-    scoreContribution = MAX_SCORE;
-    maxPossibleScore = MAX_SCORE;
-  } else if (status === false) {
-    // status: false means positive terms found (no impact)
-    scoreContribution = 0;
-    maxPossibleScore = MAX_SCORE;
-  } else {
-    // status: null means unknown / not mentioned
-    scoreContribution = 0;
-    maxPossibleScore = 0; // Treat as missing for score calculation
-    warning = "Mining impact status unknown/not mentioned.";
-  }
-
-  return { scoreContribution, maxPossibleScore, warning };
-};
-
 export const calculateAirportNoiseRisk = (
   item: PropertyDataListItem | undefined
 ): FactorProcessingResult => {

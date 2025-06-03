@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { EpcBandInfo } from "@/types/epc"; // Assuming type location
 
 export const formatEPCBandInfo = (band: EpcBandInfo | undefined | null): string => {
@@ -16,7 +17,7 @@ export const formatCurrencyGBP = (
   maximumFractionDigits: number = 0
 ): string => {
   if (value === null || value === undefined) {
-    return "Not Available";
+    return CHECKLIST_NO_VALUE.NOT_AVAILABLE;
   }
   return value.toLocaleString("en-GB", {
     style: "currency",
@@ -34,7 +35,7 @@ export const formatPercentage = (
   decimalPlaces: number = 2
 ): string => {
   if (value === null || value === undefined) {
-    return "Not Available";
+    return CHECKLIST_NO_VALUE.NOT_AVAILABLE;
   }
   // Multiply by 100 to convert decimal to percentage
   return `${(value * 100).toFixed(decimalPlaces)}%`;

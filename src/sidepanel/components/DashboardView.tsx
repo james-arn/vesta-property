@@ -118,7 +118,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         DashboardScoreCategory.CONDITION,
         DashboardScoreCategory.ENVIRONMENT_RISK,
         DashboardScoreCategory.LEGAL_CONSTRAINTS,
-        DashboardScoreCategory.LISTING_COMPLETENESS,
+        DashboardScoreCategory.DATA_COVERAGE,
     ];
 
     const overallScoreTooltip = (
@@ -153,7 +153,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         console.warn(`DashboardView: Missing score data for category: ${category}`);
                         return null;
                     }
-                    if (category === DashboardScoreCategory.LISTING_COMPLETENESS) {
+                    if (category === DashboardScoreCategory.DATA_COVERAGE) {
                         return null;
                     }
                     const title = getCategoryDisplayName(category);

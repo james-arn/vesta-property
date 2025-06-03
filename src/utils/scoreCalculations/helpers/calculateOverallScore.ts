@@ -16,7 +16,7 @@ const calculateOverallScore = (scores: DashboardScores): number | null => {
     // Filter using constant
     .filter(
       ([key, data]) =>
-        key !== DashboardScoreCategory.LISTING_COMPLETENESS &&
+        key !== DashboardScoreCategory.DATA_COVERAGE &&
         data?.calculationStatus === CALCULATED_STATUS.CALCULATED && // Use constant
         data.score !== null
     )

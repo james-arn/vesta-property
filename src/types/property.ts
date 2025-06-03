@@ -152,8 +152,6 @@ export interface ExtractedPropertyScrapingData {
   listedProperty: ListedBuilding[] | null;
   listingHistory: string | null;
   address: Address;
-  miningImpact: PropertyItem;
-  miningImpactStatus: boolean | null;
   parking: string | null;
   privateRightOfWayObligation: boolean | null;
   propertyType: string | null;
@@ -232,7 +230,6 @@ export interface PreprocessedData {
   broadbandScoreValue: number | null;
   broadbandDisplayValue: string | null;
   broadbandStatus: DataStatus | null;
-  miningImpactStatus: boolean | null;
   conservationAreaDetails: {
     conservationAreaDataAvailable: boolean | null;
     conservationArea: string | null;

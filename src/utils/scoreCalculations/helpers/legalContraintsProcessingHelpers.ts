@@ -83,7 +83,6 @@ export const isDataMissing = (item: PropertyDataListItem | undefined): boolean =
   if (!item || item.status === DataStatus.IS_LOADING) {
     return true; // Undefined item or still loading is definitely missing data
   }
-  // Consider explicit "not available" or "not mentioned" values as missing for scoring purposes
   if (
     typeof item.value === "string" &&
     (Object.values(CHECKLIST_NO_VALUE).includes(item.value as any) ||

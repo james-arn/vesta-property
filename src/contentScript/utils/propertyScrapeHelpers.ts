@@ -3,8 +3,6 @@ import {
   accessibilityTerms,
   coastalErosionTermsNegative,
   coastalErosionTermsPositive,
-  miningImpactTermsNegative,
-  miningImpactTermsPositive,
   windowTerms,
 } from "@/constants/keyTerms";
 import {
@@ -210,14 +208,6 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
     coastalErosionTermsPositive,
     coastalErosionTermsNegative
   );
-
-  const miningImpactResult = extractTermInfo(
-    "Mining Impact",
-    combinedTextLower,
-    miningImpactTermsPositive,
-    miningImpactTermsNegative
-  );
-
   const hasCommunalGarden = combinedTextLower.includes("communal garden");
 
   const listedProperty = getListedPropertyDetails(pageModel, combinedTextLower);
@@ -271,12 +261,6 @@ export function extractInfoFromPageModelKeyFeaturesAndDescription(
       status: coastalErosionResult.status,
       reason: coastalErosionResult.askAgentMessage,
     },
-    miningImpactPropertyItem: {
-      value: miningImpactResult.displayValue,
-      status: miningImpactResult.status,
-      reason: miningImpactResult.askAgentMessage,
-    },
-    miningImpactStatus: miningImpactResult.impactStatus,
     epcRating: epcRatingFromText,
     leaseTerm: leaseTermValue,
     groundRent: groundRentValue,

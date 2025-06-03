@@ -1,3 +1,4 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { NOT_APPLICABLE, PriceDiscrepancyReason } from "@/constants/propertyConsts";
 import { multiplierCAGRThreshold } from "@/constants/thresholds";
 import { clickPropertySaleHistoryButton } from "@/contentScript/utils/propertyScrapeHelpers";
@@ -262,15 +263,11 @@ export default getPropertySalesInsights;
 
 // Placeholder for calculateVolatility
 function calculateVolatility(history: SaleHistoryEntry[]): { volatility: string; reason?: string } {
-  if (history.length < 2) {
-    return { volatility: "N/A (requires 2+ past sales)" };
-  }
   if (history.length < 3) {
-    return { volatility: "N/A (requires 3+ past sales)" };
+    return { volatility: CHECKLIST_NO_VALUE.NOT_APPLICABLE };
   }
-  // Simplified placeholder - real calculation involves standard deviation of percentage changes
   console.warn("Using placeholder calculateVolatility function");
-  return { volatility: "N/A" };
+  return { volatility: CHECKLIST_NO_VALUE.NOT_APPLICABLE };
 }
 
 function checkPriceDiscrepancy(

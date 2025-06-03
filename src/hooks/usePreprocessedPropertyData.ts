@@ -239,8 +239,6 @@ export const usePreprocessedPropertyData = ({
     return calculateListingHistoryDetails(propertyData?.listingHistory ?? null);
   }, [propertyData?.listingHistory]);
 
-  const miningImpactStatus = propertyData?.miningImpactStatus;
-
   const mobileServiceCoverageWithScoreAndLabel = useMemo(() => {
     return processMobileCoverageForScoreAndLabel(processedPremiumDataResult.mobileServiceCoverage);
   }, [processedPremiumDataResult.mobileServiceCoverage]);
@@ -282,7 +280,6 @@ export const usePreprocessedPropertyData = ({
       broadbandScoreValue,
       broadbandDisplayValue,
       broadbandStatus,
-      miningImpactStatus: miningImpactStatus ?? null,
       conservationAreaDetails: processedPremiumDataResult.conservationAreaDetails,
       privateRightOfWayObligation: propertyData?.privateRightOfWayObligation ?? null,
       publicRightOfWayObligation: finalPublicRoW,
@@ -310,7 +307,6 @@ export const usePreprocessedPropertyData = ({
     broadbandScoreValue,
     broadbandDisplayValue,
     broadbandStatus,
-    miningImpactStatus,
     processedPremiumDataResult.conservationAreaDetails,
     listingHistoryStatus,
     listingHistoryDisplayValue,

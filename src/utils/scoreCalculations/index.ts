@@ -73,17 +73,15 @@ export const calculateDashboardScores = (
     categoryScores[DashboardScoreCategory.LEGAL_CONSTRAINTS] = legalConstraintsData;
   }
 
-  const listingCompletenessData = calculateCompletenessScore(items);
-  if (listingCompletenessData) {
-    categoryScores[DashboardScoreCategory.LISTING_COMPLETENESS] = listingCompletenessData;
+  const dataCoverageData = calculateCompletenessScore(items);
+  if (dataCoverageData) {
+    categoryScores[DashboardScoreCategory.DATA_COVERAGE] = dataCoverageData;
   }
 
   const overallScore = calculateOverallScore(categoryScores);
 
-  // Extract data coverage score data
-  const dataCoverageScoreData = categoryScores[DashboardScoreCategory.LISTING_COMPLETENESS];
+  const dataCoverageScoreData = categoryScores[DashboardScoreCategory.DATA_COVERAGE];
 
-  // Return the combined result
   return {
     categoryScores,
     overallScore,

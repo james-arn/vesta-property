@@ -168,33 +168,3 @@ export const coastalErosionTermsNegative = [
   "coastal environment",
   "coastal access",
 ];
-
-export const miningImpactTermsPositive = ["mining safe", "no mining impact"];
-
-export const miningImpactTermsNegative = [
-  "mining",
-  "mining impact",
-  "mining disturbance",
-  "mining subsidence",
-  "mining operations",
-  "quarry",
-  "industrial mining",
-  "mining activity",
-  "mining site",
-  "mining area",
-  "mining zone",
-  "mining region",
-  "mining district",
-  "mining vicinity",
-  "mining neighbourhood",
-  "mining community",
-  "mining town",
-  "mining village",
-  "mining city",
-  "mining property",
-  "mining land",
-  "mining lease",
-  "mining rights",
-  "mining exploration",
-  "mining extraction",
-];

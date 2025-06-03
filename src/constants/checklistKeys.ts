@@ -45,7 +45,6 @@ export const CHECKLIST_KEYS = {
   FLOOD_RISK: "floodRisk",
   AIRPORT_NOISE_ASSESSMENT: "airportNoiseAssessment",
   COASTAL_EROSION_RISK_DETAILED: "coastalErosionRiskDetailed",
-  MINING_IMPACT: "miningImpact",
   CRIME_SCORE: "crimeScore",
   NEAREST_STATIONS: "nearestStations",
   NEARBY_SCHOOLS: "nearbySchools",
