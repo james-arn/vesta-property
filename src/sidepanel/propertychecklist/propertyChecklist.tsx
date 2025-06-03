@@ -5,6 +5,7 @@ import { PropertyGroups } from "@/constants/propertyConsts";
 import { LOW_TURNOVER_THRESHOLD } from "@/constants/scoreConstants";
 import { volatilityThreshold } from "@/constants/thresholds";
 import { CrimeScoreData, getCrimeScoreStatus, getCrimeScoreValue } from "@/hooks/useCrimeScore";
+import { getConstructionMaterialValue } from "@/sidepanel/propertychecklist/constructionMaterialHelpers";
 import { BaseChecklistListItem } from "@/types/baseChecklist";
 import { formatCurrencyGBP, formatPercentage } from "@/utils/formatting";
 import { getStatusFromString } from "@/utils/statusHelpers";
@@ -621,7 +622,7 @@ export function generatePropertyChecklist(
       label: "Construction Materials",
       key: CHECKLIST_KEYS.CONSTRUCTION_MATERIALS,
       status: getStatusFromPremium(processedPremiumData?.constructionMaterials),
-      value: `Floor: ${processedPremiumData?.constructionMaterials?.floor ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Walls: ${processedPremiumData?.constructionMaterials?.walls ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Roof: ${processedPremiumData?.constructionMaterials?.roof ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}, Windows: ${processedPremiumData?.constructionMaterials?.windows ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE}`,
+      value: getConstructionMaterialValue(processedPremiumData?.constructionMaterials ?? {}),
       askAgentMessage: "",
       toolTipExplainer:
         "The primary materials used to build the property (e.g., brick, timber frame, concrete).\n\n" +
