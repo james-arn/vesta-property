@@ -54,6 +54,7 @@ interface DashboardViewProps {
     onTriggerPremiumFlow: () => void;
     mobileCoverageAccordion: ReturnType<typeof useAccordion>;
     coastalErosionAccordion: ReturnType<typeof useAccordion>;
+    floodRiskAccordion: ReturnType<typeof useAccordion>;
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
@@ -91,7 +92,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     isEpcDebugModeOn,
     handleEpcValueChange,
     mobileCoverageAccordion,
-    coastalErosionAccordion
+    coastalErosionAccordion,
+    floodRiskAccordion
 }) => {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
@@ -193,6 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 invertColorScale={false}
                                 mobileCoverageAccordion={mobileCoverageAccordion}
                                 coastalErosionAccordion={coastalErosionAccordion}
+                                floodRiskAccordion={floodRiskAccordion}
                             />
                         </Suspense>
                     );

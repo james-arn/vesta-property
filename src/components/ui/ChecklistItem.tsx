@@ -144,7 +144,10 @@ export const ChecklistItem: React.FC<ChecklistItemProps> = ({
             return <span>{item.value}</span>;
         }
 
-        else if (key === CHECKLIST_KEYS.COASTAL_EROSION && !isEffectivelyLocked) {
+        else if (
+            (key === CHECKLIST_KEYS.COASTAL_EROSION || key === CHECKLIST_KEYS.FLOOD_RISK) &&
+            !isEffectivelyLocked
+        ) {
             return (
                 <div className="w-full">
                     <div className="flex items-center justify-between w-full cursor-pointer cursor-pointer text-blue-500 underline" onClick={() => onValueClick?.()}>

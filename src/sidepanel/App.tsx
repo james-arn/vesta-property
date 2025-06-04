@@ -84,6 +84,7 @@ const App: React.FC = () => {
   const nearbyPlanningPermissionAccordion = useAccordion("nearbyPlanningPermissionAccordion");
   const mobileCoverageAccordion = useAccordion("mobileCoverageAccordion");
   const coastalErosionAccordion = useAccordion("coastalErosionAccordion");
+  const floodRiskAccordion = useAccordion("floodRiskAccordion");
 
   const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
     if (!currentPropertyId) {
@@ -271,9 +272,10 @@ const App: React.FC = () => {
       planningPermissionAccordion.toggle,
       nearbyPlanningPermissionAccordion.toggle,
       mobileCoverageAccordion.toggle,
-      coastalErosionAccordion.toggle
+      coastalErosionAccordion.toggle,
+      floodRiskAccordion.toggle
     );
-  }, [openNewTab, crimeAccordion.toggle, planningPermissionAccordion.toggle, nearbyPlanningPermissionAccordion.toggle, mobileCoverageAccordion.toggle, coastalErosionAccordion.toggle]);
+  }, [openNewTab, crimeAccordion.toggle, planningPermissionAccordion.toggle, nearbyPlanningPermissionAccordion.toggle, mobileCoverageAccordion.toggle, coastalErosionAccordion.toggle, floodRiskAccordion.toggle]);
 
   if (isLoadingQueryPropertyData || isPropertyDataLoading || (!propertyData && !nonPropertyPageWarningMessage) || isActivatingPremiumSearch) {
     return <SideBarLoading />;
@@ -345,6 +347,7 @@ const App: React.FC = () => {
               premiumStreetDataQuery={premiumDataQuery}
               mobileCoverageAccordion={mobileCoverageAccordion}
               coastalErosionAccordion={coastalErosionAccordion}
+              floodRiskAccordion={floodRiskAccordion}
             />
           </Suspense>
         )}
@@ -377,6 +380,7 @@ const App: React.FC = () => {
             openNewTab={openNewTab}
             mobileCoverageAccordion={mobileCoverageAccordion}
             coastalErosionAccordion={coastalErosionAccordion}
+            floodRiskAccordion={floodRiskAccordion}
           />
         )}
       </main>

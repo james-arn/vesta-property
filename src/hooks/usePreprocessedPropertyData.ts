@@ -10,15 +10,20 @@ import {
 } from "@/types/premiumStreetData";
 import {
   CoastalErosionDataForChecklist,
+  CompleteFloodRiskAssessment,
   ConfidenceLevels,
   DataStatus,
   EpcData,
   EpcDataSourceType,
+  ListingFloodRiskAssessment,
+  PremiumFloodRiskAssessment,
   PreprocessedData,
 } from "@/types/property";
 import { parseCurrency } from "@/utils/parsingHelpers";
 import { calculateNearbySchoolsScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
 import {
+  calculateListingFloodScore,
+  calculatePremiumFloodScore,
   COASTAL_EROSION_RISK_RATINGS,
   determineOverallCoastalRisk,
 } from "@/utils/scoreCalculations/helpers/environmentalProcessingHelpers";
@@ -317,6 +322,61 @@ export const usePreprocessedPropertyData = ({
     };
   }, [premiumStreetDataQuery?.status, processedPremiumDataResult.coastalErosionRisk]);
 
+  const completeFloodRiskAssessment: CompleteFloodRiskAssessment | null = useMemo(() => {
+    // listing results
+    const listingData = {
+      floodDefences: propertyData?.floodDefences ?? null,
+      floodSources: propertyData?.floodSources ?? null,
+      floodedInLastFiveYears: propertyData?.floodedInLastFiveYears ?? null,
+    };
+    const listingScore = calculateListingFloodScore(
+      listingData.floodDefences,
+      listingData.floodSources,
+      listingData.floodedInLastFiveYears,
+      processedPremiumDataResult.detailedFloodRiskAssessment === null
+    );
+    const listingFloodRiskAssessment: ListingFloodRiskAssessment | null = {
+      ...listingData,
+      score: listingScore,
+    };
+
+    // premium results
+    const premiumFloodRisk = processedPremiumDataResult.detailedFloodRiskAssessment;
+    const premiumScore = calculatePremiumFloodScore(premiumFloodRisk);
+
+    const premiumFloodRiskAssessment: PremiumFloodRiskAssessment | null = premiumFloodRisk
+      ? {
+          floodRisk: premiumFloodRisk,
+          score: premiumScore,
+        }
+      : null;
+
+    if (
+      !listingFloodRiskAssessment.floodDefences &&
+      !listingFloodRiskAssessment.floodedInLastFiveYears &&
+      (!listingFloodRiskAssessment.floodSources ||
+        listingFloodRiskAssessment.floodSources.length === 0) &&
+      !premiumFloodRiskAssessment &&
+      listingScore.scoreContribution === 0 &&
+      premiumScore.scoreContribution === 0
+    ) {
+      // If all data points are null or empty, and scores are zero,
+      // it implies no meaningful flood data at all.
+      // Depending on desired behavior, could return null here.
+      // For now, returning the object with nulls and zero scores.
+    }
+
+    return {
+      listingFloodRiskAssessment,
+      premiumFloodRiskAssessment,
+    };
+  }, [
+    processedPremiumDataResult.detailedFloodRiskAssessment,
+    propertyData?.floodDefences,
+    propertyData?.floodSources,
+    propertyData?.floodedInLastFiveYears,
+  ]);
+
   const preprocessedData: PreprocessedData = useMemo(() => {
     const initialPublicRoW = propertyData?.publicRightOfWayObligation ?? null;
     const premiumPublicRoW = processedPremiumDataResult?.publicRightOfWayObligation ?? null;
@@ -365,9 +425,7 @@ export const usePreprocessedPropertyData = ({
       listedProperty,
       restrictiveCovenants,
       initialEpcData,
-      rawFloodDefences: propertyData?.floodDefences ?? null,
-      rawFloodSources: propertyData?.floodSources ?? null,
-      rawFloodedInLastFiveYears: propertyData?.floodedInLastFiveYears ?? null,
+      completeFloodRiskAssessment,
       mobileServiceCoverageWithScoreAndLabel,
       coastalErosionForChecklist,
     };
@@ -395,9 +453,7 @@ export const usePreprocessedPropertyData = ({
     premiumStreetDataQuery?.status,
     processedPremiumDataResult?.restrictiveCovenants,
     initialEpcData,
-    propertyData?.floodDefences,
-    propertyData?.floodSources,
-    propertyData?.floodedInLastFiveYears,
+    completeFloodRiskAssessment,
     mobileServiceCoverageWithScoreAndLabel,
     coastalErosionForChecklist,
   ]);

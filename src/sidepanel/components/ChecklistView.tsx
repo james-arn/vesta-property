@@ -20,6 +20,10 @@ const LazyMobileCoverageDisplay = lazy(() =>
 const LazyCoastalErosionDisplay = lazy(() =>
     import('@/components/CoastalErosionDisplay').then(module => ({ default: module.default }))
 );
+const LazyFloodRiskDisplay = lazy(() =>
+    import('@/components/ui/Premium/FloodRiskDisplay').then(module => ({ default: module.default }))
+);
+
 
 export interface ChecklistViewProps {
     filteredChecklistData: PropertyDataListItem[];
@@ -49,6 +53,7 @@ export interface ChecklistViewProps {
     mobileCoverageAccordion: ReturnType<typeof useAccordion>;
     onItemValueClick: (item: PropertyDataListItem) => void;
     coastalErosionAccordion: ReturnType<typeof useAccordion>;
+    floodRiskAccordion: ReturnType<typeof useAccordion>;
 }
 
 export const ChecklistView: React.FC<ChecklistViewProps> = ({
@@ -76,6 +81,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
     mobileCoverageAccordion,
     onItemValueClick,
     coastalErosionAccordion,
+    floodRiskAccordion
 }) => {
     // Keep track of the last rendered group within this component instance
     let lastGroup = "";
@@ -105,6 +111,7 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                 const isVisible = openGroups[currentGroup] ?? true;
                 const shouldShowCoastalErosionDetailsSection = coastalErosionAccordion?.isExpanded && item?.coastalErosionDetails;
                 const shouldShowMobileCoverageDetailsSection = mobileCoverageAccordion?.isExpanded && item?.mobileCoverage;
+                const shouldShowFloodRiskSection = floodRiskAccordion?.isExpanded && item.value;
 
                 return (
                     <React.Fragment key={item.key || `item-${index}`}>
@@ -193,6 +200,18 @@ export const ChecklistView: React.FC<ChecklistViewProps> = ({
                                     >
                                         <Suspense fallback={<LoadingSpinner />}>
                                             <LazyCoastalErosionDisplay coastalErosionDetails={item.coastalErosionDetails ?? null} />
+                                        </Suspense>
+                                    </div>
+                                )}
+
+                                {shouldShowFloodRiskSection && (
+                                    <div
+                                        ref={floodRiskAccordion?.contentRef}
+                                        className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
+                                        style={{ maxHeight: floodRiskAccordion?.contentHeight ? `${floodRiskAccordion.contentHeight}px` : "0px" }}
+                                    >
+                                        <Suspense fallback={<LoadingSpinner />}>
+                                            <LazyFloodRiskDisplay completeFloodRiskAssessment={item.completeFloodRiskAssessment} />
                                         </Suspense>
                                     </div>
                                 )}

@@ -1,146 +1,161 @@
-import FloodRiskDisplay from "@/components/ui/Premium/FloodRiskDisplay";
 import { CHECKLIST_NO_VALUE as CNV_TYPE } from "@/constants/checkListConsts";
 import { CHECKLIST_KEYS } from "@/constants/checklistKeys";
+import { FLOOD_RISK_LABELS } from "@/constants/floodRiskConstants";
 import { PropertyGroups } from "@/constants/propertyConsts";
-import { DataStatus, ExtractedPropertyScrapingData, PreprocessedData, PropertyDataListItem } from "@/types/property";
-import React from 'react';
-import { getYesNoOrAskAgentStringFromBoolean as GYN_TYPE } from "./helpers"; // Assuming it's in helpers.ts relative to propertyChecklist.tsx
+import {
+  CompleteFloodRiskAssessment,
+  DataStatus,
+  PreprocessedData,
+  PropertyDataListItem
+} from "@/types/property";
+import { logErrorToSentry } from "@/utils/sentry";
 
 interface FloodRiskHelperDependencies {
-  propertyData: ExtractedPropertyScrapingData;
   preprocessedData: PreprocessedData;
-  getYesNoOrAskAgentStringFromBoolean: typeof GYN_TYPE;
   CHECKLIST_NO_VALUE: typeof CNV_TYPE;
+  completeFloodRiskAssessment: CompleteFloodRiskAssessment | null;
+  isPremiumDataFetchedAndHasData: boolean;
 }
 
+const getPresentationDetails = (
+  completeFloodRiskAssessment: CompleteFloodRiskAssessment,
+  CHECKLIST_NO_VALUE: typeof CNV_TYPE,
+  isPremiumDataFetchedAndHasData: boolean
+): { value: string; status: DataStatus; askMessage: string } => {
+  const { listingFloodRiskAssessment, premiumFloodRiskAssessment } = completeFloodRiskAssessment;
+
+  const listingScore = listingFloodRiskAssessment?.score;
+  const premiumScore = premiumFloodRiskAssessment?.score;
+  const premiumRiskLabel = premiumScore?.riskLabel;
+
+  const status = (() => {
+    if (premiumRiskLabel === FLOOD_RISK_LABELS.HIGH_RISK || premiumRiskLabel === FLOOD_RISK_LABELS.MEDIUM_RISK) {
+      return DataStatus.ASK_AGENT;
+    }
+    if (
+      premiumRiskLabel === FLOOD_RISK_LABELS.LOW_RISK ||
+      premiumRiskLabel === FLOOD_RISK_LABELS.VERY_LOW_RISK ||
+      premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_NO_SPECIFIC_LEVELS ||
+      premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_UNQUANTIFIED ||
+      premiumRiskLabel === FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED ||
+      premiumRiskLabel === FLOOD_RISK_LABELS.PREMIUM_ASSESSMENT_AVAILABLE
+    ) {
+      return DataStatus.FOUND_POSITIVE;
+    }
+    if (listingScore && listingScore.scoreContribution > 0 && listingScore.maxPossibleScore > 0) {
+      return DataStatus.ASK_AGENT;
+    }
+    if (listingScore && listingScore.maxPossibleScore > 0) {
+      return DataStatus.FOUND_POSITIVE;
+    }
+    if (premiumFloodRiskAssessment?.floodRisk && !premiumRiskLabel) {
+      return DataStatus.FOUND_POSITIVE;
+    }
+    return DataStatus.ASK_AGENT;
+  })();
+
+  const listingValuePart = listingScore && listingScore.maxPossibleScore > 0
+    ? `Based on listing only: ${listingScore.riskLabel}`
+    : listingFloodRiskAssessment?.floodDefences !== null || listingFloodRiskAssessment?.floodedInLastFiveYears !== null || (listingFloodRiskAssessment?.floodSources && listingFloodRiskAssessment.floodSources.length > 0)
+      ? FLOOD_RISK_LABELS.BASIC_INFO_AVAILABLE
+      : null;
+
+  const premiumValuePart = premiumRiskLabel
+    ? `${premiumRiskLabel}`
+    : premiumFloodRiskAssessment?.floodRisk
+      ? FLOOD_RISK_LABELS.PREMIUM_ASSESSMENT_AVAILABLE
+      : null;
+
+
+  const value = premiumValuePart && isPremiumDataFetchedAndHasData
+    ? premiumValuePart
+    : listingValuePart || CHECKLIST_NO_VALUE.NOT_AVAILABLE;
+
+  const askMessage = (() => {
+    if (status === DataStatus.ASK_AGENT) {
+      return "Potential flood risks identified. Expand for detailed breakdown and advice.";
+    }
+    if (status === DataStatus.FOUND_POSITIVE) {
+      if (
+        value.includes(FLOOD_RISK_LABELS.PREMIUM_ASSESSMENT_AVAILABLE) ||
+        value.includes(FLOOD_RISK_LABELS.BASIC_INFO_AVAILABLE) ||
+        premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_NO_SPECIFIC_LEVELS ||
+        premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_UNQUANTIFIED ||
+        premiumRiskLabel === FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED
+      ) {
+        return "Flood risk assessment data available. Expand for details.";
+      }
+      return "Flood risk assessment indicates low or managed risk. Expand for details.";
+    }
+    return "Review flood risk details or consult with agent.";
+  })();
+
+  return { value, status, askMessage };
+};
+
 export function generateConsolidatedFloodRiskItem({
-  propertyData,
   preprocessedData,
-  getYesNoOrAskAgentStringFromBoolean,
   CHECKLIST_NO_VALUE,
+  completeFloodRiskAssessment,
+  isPremiumDataFetchedAndHasData
 }: FloodRiskHelperDependencies): PropertyDataListItem {
-  const {
-    isPreprocessedDataLoading,
-    preprocessedDataError,
-    processedPremiumData,
-  } = preprocessedData;
+  const { isPreprocessedDataLoading, preprocessedDataError } = preprocessedData;
 
-  const floodDefencesValue = propertyData.floodDefences;
-  const floodSourcesValue = propertyData.floodSources;
-  const floodedInLastFiveYearsValue = propertyData.floodedInLastFiveYears;
+  const premiumFloodRiskAssessmentForFeatureCheck = completeFloodRiskAssessment?.premiumFloodRiskAssessment;
 
-  const hasActualFloodDefencesData = floodDefencesValue !== null && floodDefencesValue !== undefined;
-  const hasActualFloodSourcesData = (floodSourcesValue ?? []).length > 0;
-  const hasActualFloodedInLastFiveYearsData = floodedInLastFiveYearsValue !== null && floodedInLastFiveYearsValue !== undefined;
-
-  const hasAnyFreeFloodData = hasActualFloodDefencesData || hasActualFloodSourcesData || hasActualFloodedInLastFiveYearsData;
-
-  const freeFloodDataDisplayElements: React.ReactNode[] = [];
-  if (hasActualFloodDefencesData) {
-    freeFloodDataDisplayElements.push(
-      <div key="defences" className="text-sm">
-        <span className="font-semibold">Flood Defences:</span> {getYesNoOrAskAgentStringFromBoolean(floodDefencesValue)}
-      </div>
-    );
-  }
-  if (hasActualFloodSourcesData) {
-    freeFloodDataDisplayElements.push(
-      <div key="sources" className="text-sm">
-        <span className="font-semibold">Flood Sources:</span> {propertyData.floodSources?.join(", ") ?? CHECKLIST_NO_VALUE.NOT_MENTIONED}
-      </div>
-    );
-  }
-  if (hasActualFloodedInLastFiveYearsData) {
-    freeFloodDataDisplayElements.push(
-      <div key="last5years" className="text-sm">
-        <span className="font-semibold">Flooded in last 5 years:</span> {getYesNoOrAskAgentStringFromBoolean(floodedInLastFiveYearsValue)}
-      </div>
-    );
-  }
-
-  const freeFloodDataComponent = freeFloodDataDisplayElements.length > 0 ? (
-    <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-      <p className="font-medium text-gray-700 text-xs">Information from property listing:</p>
-      {freeFloodDataDisplayElements}
-    </div>
-  ) : null;
-
-  const determineFloodRiskPresentation = (): {
-    status: DataStatus;
-    value: React.ReactNode | string;
-    askAgentMessage: string;
-  } => {
-    if (isPreprocessedDataLoading) {
-      return {
-        status: DataStatus.IS_LOADING,
-        value: "Loading detailed flood risk data...",
-        askAgentMessage: "",
-      };
-    }
-    if (preprocessedDataError || processedPremiumData?.status === "error") {
-      const errorSource = preprocessedDataError ? "preprocessing" : "premium data fetch";
-      return {
-        status: DataStatus.ASK_AGENT,
-        value: (
-          <>
-            <div className="text-sm text-red-600">Error loading detailed flood risk data ({errorSource}).</div>
-            {freeFloodDataComponent}
-          </>
-        ),
-        askAgentMessage: `Could not load detailed flood risk data (${errorSource}). Any information from the listing is shown. Ask Agent?`,
-      };
-    }
-    if (processedPremiumData?.detailedFloodRiskAssessment) {
-      return {
-        status: DataStatus.FOUND_POSITIVE,
-        value: (
-          <>
-            <FloodRiskDisplay floodRisk={processedPremiumData.detailedFloodRiskAssessment} />
-          </>
-        ),
-        askAgentMessage: "",
-      };
-    }
-    if (hasAnyFreeFloodData) {
-      return {
-        status: DataStatus.ASK_AGENT,
-        value: (
-          <>
-            {freeFloodDataComponent}
-            <div className="mt-2 text-xs text-gray-600 italic">
-              A more detailed flood risk assessment (covering rivers, sea, surface/groundwater) may be available with Premium.
-            </div>
-          </>
-        ),
-        askAgentMessage: "Basic flood information found. Unlock Premium for a comprehensive detailed assessment.",
-      };
-    }
+  if (isPreprocessedDataLoading) {
     return {
+      checklistGroup: PropertyGroups.RISKS,
+      label: "Flood Risk",
+      key: CHECKLIST_KEYS.FLOOD_RISK,
+      status: DataStatus.IS_LOADING,
+      value: "Loading detailed flood risk data...",
+      askAgentMessage: "",
+      toolTipExplainer: "Loading...",
+      isExpectedInPremiumSearchData: true,
+      isExpectedInListing: true,
+      completeFloodRiskAssessment: null,
+    };
+  }
+
+  if (preprocessedDataError || !completeFloodRiskAssessment) {
+    const errorToLog = preprocessedDataError || new Error("Missing completeFloodRiskAssessment in generateConsolidatedFloodRiskItem");
+    logErrorToSentry(errorToLog.message, "error");
+    return {
+      checklistGroup: PropertyGroups.RISKS,
+      label: "Flood Risk",
+      key: CHECKLIST_KEYS.FLOOD_RISK,
       status: DataStatus.ASK_AGENT,
       value: CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "No flood information found in the listing. Ask Agent and unlock Premium for a detailed assessment.",
+      askAgentMessage: "",
+      toolTipExplainer: "Could not retrieve or process flood risk information.",
+      isExpectedInPremiumSearchData: true,
+      isExpectedInListing: true,
+      completeFloodRiskAssessment: null,
     };
-  };
+  }
 
-  const { status, value, askAgentMessage } = determineFloodRiskPresentation();
+  const { value, status, askMessage } = getPresentationDetails(completeFloodRiskAssessment, CHECKLIST_NO_VALUE, isPremiumDataFetchedAndHasData);
 
-  // If premium data for flood risk is already loaded and present, there's no further premium feature to show.
-  // Otherwise, if it's not loaded, it implies a premium feature is available (to get the detailed assessment).
-  const determinedHasPremiumFeature = !processedPremiumData?.detailedFloodRiskAssessment;
+  const determinedHasPremiumFeature =
+    !premiumFloodRiskAssessmentForFeatureCheck?.floodRisk ||
+    (premiumFloodRiskAssessmentForFeatureCheck?.score?.maxPossibleScore === 0 &&
+      premiumFloodRiskAssessmentForFeatureCheck?.score?.scoreContribution === 0 &&
+      !premiumFloodRiskAssessmentForFeatureCheck?.score?.riskLabel);
 
-  const consolidatedFloodRiskItem: PropertyDataListItem = {
+  return {
     checklistGroup: PropertyGroups.RISKS,
     label: "Flood Risk",
     key: CHECKLIST_KEYS.FLOOD_RISK,
     status,
     value,
-    askAgentMessage,
+    askAgentMessage: askMessage,
     toolTipExplainer:
       "Comprehensive assessment of flood risk, combining information from the property listing (defences, sources, recent flooding if available) with a detailed premium analysis (rivers, sea, surface water, groundwater). " +
       "Premium data provides a more in-depth understanding crucial for insurance and mitigation needs.",
     isExpectedInPremiumSearchData: determinedHasPremiumFeature,
     isExpectedInListing: true,
+    hasMoreDetailsInPremiumThanListingValue: !!completeFloodRiskAssessment?.premiumFloodRiskAssessment?.floodRisk,
+    completeFloodRiskAssessment,
   };
-
-  return consolidatedFloodRiskItem;
 }

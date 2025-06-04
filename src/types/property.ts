@@ -5,10 +5,12 @@ import {
 } from "@/constants/dashboardScoreCategoryConsts";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
 import { ExtractedEpcData } from "@/utils/pdfProcessingUtils";
+import { FactorProcessingResult } from "@/utils/scoreCalculations/helpers/environmentalProcessingHelpers";
 import React from "react";
 import { GovEpcValidationMatch } from "./govEpcCertificate";
 import {
   CoastalErosion,
+  FloodRisk,
   ListedBuilding,
   ProcessedMobileServiceCoverageWithScoreAndLabel,
   ProcessedPremiumStreetData,
@@ -36,6 +38,9 @@ export interface PropertyDataListItem {
   isExpectedInPremiumSearchData: boolean;
   isExpectedInListing: boolean;
   selected?: boolean;
+  hasMoreDetailsInPremiumThanListingValue?: boolean | null;
+
+  // custom properties
   epcBandData?: EpcBandResult;
   epcImageUrl?: string | null;
   confidence?: Confidence | null;
@@ -43,8 +48,25 @@ export interface PropertyDataListItem {
   restrictiveCovenants?: RestrictiveCovenant[] | null;
   publicRightOfWay?: RightOfWayDetails | null;
   epcSource?: EpcDataSourceType | null;
-  hasMoreDetailsInPremiumThanListingValue?: boolean | null;
   mobileCoverage?: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
+  completeFloodRiskAssessment?: CompleteFloodRiskAssessment | null;
+}
+
+export interface CompleteFloodRiskAssessment {
+  listingFloodRiskAssessment: ListingFloodRiskAssessment | null;
+  premiumFloodRiskAssessment: PremiumFloodRiskAssessment | null;
+}
+
+export interface ListingFloodRiskAssessment {
+  floodDefences: boolean | null;
+  floodSources: string[] | null;
+  floodedInLastFiveYears: boolean | null;
+  score?: FactorProcessingResult | null;
+}
+
+export interface PremiumFloodRiskAssessment {
+  floodRisk: FloodRisk | null;
+  score?: FactorProcessingResult | null;
 }
 
 export interface AgentDetails {
@@ -248,9 +270,7 @@ export interface PreprocessedData {
   privateRightOfWayObligation: boolean | null;
   listedProperty: ListedBuilding[] | null;
   restrictiveCovenants: RestrictiveCovenant[] | null;
-  rawFloodDefences: boolean | null;
-  rawFloodSources: string[] | null;
-  rawFloodedInLastFiveYears: boolean | null;
+  completeFloodRiskAssessment: CompleteFloodRiskAssessment | null;
   mobileServiceCoverageWithScoreAndLabel: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
   coastalErosionForChecklist: CoastalErosionDataForChecklist | null;
 }

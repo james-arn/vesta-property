@@ -29,6 +29,9 @@ const LazyMobileCoverageDisplay = lazy(() =>
 const LazyCoastalErosionDisplay = lazy(() =>
     import('@/components/CoastalErosionDisplay').then(module => ({ default: module.default }))
 );
+const LazyFloodRiskDisplay = lazy(() =>
+    import('@/components/ui/Premium/FloodRiskDisplay').then(module => ({ default: module.default }))
+);
 
 interface DashboardScoreItemProps {
     title: string;
@@ -66,6 +69,7 @@ interface DashboardScoreItemProps {
     nearbyPlanningPermissionContentHeight: number;
     mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
     coastalErosionAccordion?: ReturnType<typeof useAccordion>;
+    floodRiskAccordion?: ReturnType<typeof useAccordion>;
 }
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
@@ -95,7 +99,8 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     nearbyPlanningPermissionContentRef,
     nearbyPlanningPermissionContentHeight,
     mobileCoverageAccordion,
-    coastalErosionAccordion
+    coastalErosionAccordion,
+    floodRiskAccordion
 }) => {
     if (!categoryScoreData) {
         return (
@@ -242,6 +247,17 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyMobileCoverageDisplay mobileCoverage={item.mobileCoverage} />
+                                            </Suspense>
+                                        </div>
+                                    )}
+                                    {item.key === CHECKLIST_KEYS.FLOOD_RISK && floodRiskAccordion?.isExpanded && item?.completeFloodRiskAssessment && (
+                                        <div
+                                            ref={floodRiskAccordion?.contentRef}
+                                            className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
+                                            style={{ maxHeight: floodRiskAccordion?.contentHeight ? `${floodRiskAccordion.contentHeight}px` : "0px" }}
+                                        >
+                                            <Suspense fallback={<LoadingSpinner />}>
+                                                <LazyFloodRiskDisplay completeFloodRiskAssessment={item.completeFloodRiskAssessment} />
                                             </Suspense>
                                         </div>
                                     )}

@@ -81,7 +81,8 @@ export const getValueClickHandler = (
   togglePlanningPermissionCard: () => void,
   toggleNearbyPlanningPermissionCard: () => void,
   toggleMobileCoverageCard: () => void,
-  toggleCoastalErosionCard: () => void
+  toggleCoastalErosionCard: () => void,
+  toggleFloodRiskCard: () => void
 ): void => {
 
   const { key, value } = item;
@@ -113,6 +114,9 @@ export const getValueClickHandler = (
       break;
     case CHECKLIST_KEYS.COASTAL_EROSION:
       toggleCoastalErosionCard();
+      break;
+    case CHECKLIST_KEYS.FLOOD_RISK:
+      toggleFloodRiskCard();
       break;
     default:
       // This case should ideally not be reached if checkIfClickableItemKey is comprehensive

@@ -120,7 +120,7 @@ export const CRIME_SCORE_THRESHOLDS = {
 
 // Maps AirportNoise categories to risk multipliers (0 = none, 1 = max risk)
 export const AIRPORT_NOISE_CATEGORY_MULTIPLIERS: Record<string, number> = {
-  None: 0.0,
+  "No noise": 0.0,
   Minimal: 0.1,
   Occasional: 0.25,
   Regular: 0.4,

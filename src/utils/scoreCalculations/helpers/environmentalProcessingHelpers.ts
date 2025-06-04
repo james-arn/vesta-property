@@ -1,3 +1,4 @@
+import { FLOOD_RISK_LABELS } from "@/constants/floodRiskConstants";
 import {
   AIRPORT_NOISE_CATEGORY_MULTIPLIERS,
   CRIME_RATINGS,
@@ -18,10 +19,11 @@ import { PropertyDataListItem } from "@/types/property";
 import { parseNumberFromString } from "@/utils/parsingHelpers";
 import React from "react"; // Import React for ReactNode checks
 
-interface FactorProcessingResult {
+export interface FactorProcessingResult {
   scoreContribution: number; // Score before weighting (0-MAX_SCORE)
   maxPossibleScore: number; // Max score achievable for this factor (usually MAX_SCORE if data present, 0 otherwise)
   warning?: string;
+  riskLabel?: string | null; // Added for qualitative risk level
 }
 
 // --- START: Coastal Erosion Specific Definitions ---
@@ -119,24 +121,55 @@ export const calculateCrimeRisk = (
 };
 
 export const calculateFloodRisk = (
+  listingFloodScore: FactorProcessingResult | null | undefined,
+  premiumFloodScore: FactorProcessingResult | null | undefined
+): FactorProcessingResult => {
+  const warnings: string[] = [];
+  if (listingFloodScore?.warning) {
+    warnings.push(listingFloodScore.warning);
+  }
+  if (premiumFloodScore?.warning) {
+    warnings.push(premiumFloodScore.warning);
+  }
+
+  const totalScoreContribution =
+    (listingFloodScore?.scoreContribution ?? 0) + (premiumFloodScore?.scoreContribution ?? 0);
+  const totalMaxPossibleScore =
+    (listingFloodScore?.maxPossibleScore ?? 0) + (premiumFloodScore?.maxPossibleScore ?? 0);
+
+  // For the combined score, a specific riskLabel is less direct.
+  // The individual labels are on listingFloodScore.riskLabel (usually null) and premiumFloodScore.riskLabel.
+  // The overall environmental score will reflect the numeric impact.
+  // We could concatenate labels or prioritize, but for now, keep it simple for the *combined* numeric result.
+  // If a specific label is needed for the *overall* flood risk factor in the environmental score summary,
+  // that logic would likely reside in how this combined result is presented, not here.
+
+  return {
+    scoreContribution: totalScoreContribution,
+    maxPossibleScore: totalMaxPossibleScore,
+    warning: warnings.length > 0 ? warnings.join(" ") : undefined,
+    riskLabel: premiumFloodScore?.riskLabel || null, // Prioritize premium label if available for the combined factor
+  };
+};
+
+export const FLOOD_FACTORS_MAX_SCORE = {
+  last5Years: 50,
+  defences: 20,
+  sources: 15,
+  assessment: 15,
+} as const;
+
+export const calculateListingFloodScore = (
   floodDefences: boolean | null,
   floodSources: string[] | null,
   floodedInLastFiveYears: boolean | null,
-  detailedFloodRiskAssessment: FloodRisk | null
+  hasDetailedAssessmentDataForWarnings: boolean
 ): FactorProcessingResult => {
   const internalWarnings: string[] = [];
-  let hasDetailedAssessmentData = false;
-
-  const FLOOD_FACTORS_MAX_SCORE = {
-    last5Years: 50,
-    defences: 20,
-    sources: 15,
-    assessment: 15,
-  } as const;
 
   const last5YearsResult = (() => {
     const score = floodedInLastFiveYears === true ? FLOOD_FACTORS_MAX_SCORE.last5Years : 0;
-    if (floodedInLastFiveYears === null && !hasDetailedAssessmentData) {
+    if (floodedInLastFiveYears === null && !hasDetailedAssessmentDataForWarnings) {
       internalWarnings.push("Flooded in last 5 years: Status unknown/missing.");
     }
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.last5Years };
@@ -144,7 +177,7 @@ export const calculateFloodRisk = (
 
   const defencesResult = (() => {
     const score = floodDefences === false ? FLOOD_FACTORS_MAX_SCORE.defences : 0;
-    if (floodDefences === null && !hasDetailedAssessmentData) {
+    if (floodDefences === null && !hasDetailedAssessmentDataForWarnings) {
       internalWarnings.push("Flood defences: Status unknown/missing.");
     }
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.defences };
@@ -158,62 +191,105 @@ export const calculateFloodRisk = (
       );
     }
     const score = hasSources ? FLOOD_FACTORS_MAX_SCORE.sources : 0;
-    if (floodSources === null && !hasDetailedAssessmentData) {
+    if (floodSources === null && !hasDetailedAssessmentDataForWarnings) {
       internalWarnings.push("Flood sources: Data unknown/missing.");
     }
     return { score, maxScore: FLOOD_FACTORS_MAX_SCORE.sources };
   })();
 
-  const assessmentResult = (() => {
-    let score = 0;
-    let maxScoreForAssessment = 0;
-
-    if (detailedFloodRiskAssessment) {
-      hasDetailedAssessmentData = true;
-      maxScoreForAssessment = FLOOD_FACTORS_MAX_SCORE.assessment;
-      const floodRiskData = detailedFloodRiskAssessment;
-      const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
-        .map((risk) => (risk ? risk.toLowerCase() : undefined))
-        .filter((risk): risk is string => !!risk);
-
-      if (riskLevels.length > 0) {
-        const highestMultiplier = riskLevels.reduce((maxMultiplier, currentRisk) => {
-          const currentMultiplier = FLOOD_RISK_LEVEL_MULTIPLIERS[currentRisk] ?? -1;
-          if (currentMultiplier === -1) {
-            internalWarnings.push(`Unrecognized flood risk level: '${currentRisk}'.`);
-          }
-          return Math.max(maxMultiplier, currentMultiplier);
-        }, -1);
-
-        if (highestMultiplier >= 0) {
-          score = FLOOD_FACTORS_MAX_SCORE.assessment * highestMultiplier;
-        } else {
-          if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
-            internalWarnings.push("Could not determine flood risk score from assessment levels.");
-          }
-        }
-      } else {
-        internalWarnings.push("Flood risk assessment present but risk levels missing.");
-      }
-    }
-    return { score, maxScore: maxScoreForAssessment };
-  })();
-
   const totalScoreContribution =
-    last5YearsResult.score + defencesResult.score + sourcesResult.score + assessmentResult.score;
-
+    last5YearsResult.score + defencesResult.score + sourcesResult.score;
   const totalMaxPossibleScore =
-    last5YearsResult.maxScore +
-    defencesResult.maxScore +
-    sourcesResult.maxScore +
-    assessmentResult.maxScore;
+    last5YearsResult.maxScore + defencesResult.maxScore + sourcesResult.maxScore;
 
-  const finalWarning = internalWarnings.length > 0 ? internalWarnings.join(" ") : undefined;
+  let riskLabel: string | null = null;
+  if (totalScoreContribution > 0) {
+    // If any risk factors are present, determine the risk level
+    if (totalScoreContribution >= totalMaxPossibleScore * 0.7) {
+      riskLabel = FLOOD_RISK_LABELS.HIGH_RISK;
+    } else if (totalScoreContribution >= totalMaxPossibleScore * 0.4) {
+      riskLabel = FLOOD_RISK_LABELS.MEDIUM_RISK;
+    } else {
+      riskLabel = FLOOD_RISK_LABELS.LOW_RISK;
+    }
+  } else if (totalMaxPossibleScore > 0) {
+    // If we have data but no risk factors
+    riskLabel = FLOOD_RISK_LABELS.VERY_LOW_RISK;
+  }
 
   return {
     scoreContribution: totalScoreContribution,
     maxPossibleScore: totalMaxPossibleScore,
-    warning: finalWarning,
+    warning: internalWarnings.length > 0 ? internalWarnings.join(" ") : undefined,
+    riskLabel,
+  };
+};
+
+export const calculatePremiumFloodScore = (
+  detailedFloodRiskAssessment: FloodRisk | null
+): FactorProcessingResult => {
+  const internalWarnings: string[] = [];
+  let score = 0;
+  let maxScoreForAssessment = 0;
+  let riskLabel: string | null = null;
+
+  if (detailedFloodRiskAssessment) {
+    maxScoreForAssessment = FLOOD_FACTORS_MAX_SCORE.assessment;
+    const floodRiskData = detailedFloodRiskAssessment;
+    const riskLevels = [floodRiskData.rivers_and_seas?.risk, floodRiskData.surface_water?.risk]
+      .map((risk) => (risk ? risk.toLowerCase() : undefined))
+      .filter((risk): risk is string => !!risk);
+
+    if (riskLevels.length > 0) {
+      let highestRiskValue = -1;
+      let determinedRiskLabel = "";
+
+      riskLevels.forEach((currentRiskKey) => {
+        const currentMultiplier = FLOOD_RISK_LEVEL_MULTIPLIERS[currentRiskKey] ?? -1;
+        if (currentMultiplier > highestRiskValue) {
+          highestRiskValue = currentMultiplier;
+          if (currentRiskKey === "very high" || currentRiskKey === "high") {
+            determinedRiskLabel = FLOOD_RISK_LABELS.HIGH_RISK;
+          } else if (currentRiskKey === "medium") {
+            determinedRiskLabel = FLOOD_RISK_LABELS.MEDIUM_RISK;
+          } else if (currentRiskKey === "low") {
+            determinedRiskLabel = FLOOD_RISK_LABELS.LOW_RISK;
+          } else if (currentRiskKey === "very low") {
+            determinedRiskLabel = FLOOD_RISK_LABELS.VERY_LOW_RISK;
+          } else {
+            determinedRiskLabel = FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED;
+          }
+        }
+        if (currentMultiplier === -1) {
+          internalWarnings.push(`Unrecognized flood risk level: \'${currentRiskKey}\'.`);
+        }
+      });
+
+      riskLabel = determinedRiskLabel || FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED;
+
+      if (highestRiskValue >= 0) {
+        score = FLOOD_FACTORS_MAX_SCORE.assessment * highestRiskValue;
+      } else {
+        if (!internalWarnings.some((w) => w.startsWith("Unrecognized flood risk level:"))) {
+          internalWarnings.push("Could not determine flood risk score from assessment levels.");
+        }
+        if (riskLabel === FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED && riskLevels.length > 0) {
+          riskLabel = FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_UNQUANTIFIED;
+        }
+      }
+    } else {
+      internalWarnings.push("Flood risk assessment present but risk levels missing.");
+      riskLabel = FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_NO_SPECIFIC_LEVELS;
+    }
+  } else {
+    riskLabel = null;
+  }
+
+  return {
+    scoreContribution: score,
+    maxPossibleScore: maxScoreForAssessment,
+    warning: internalWarnings.length > 0 ? internalWarnings.join(" ") : undefined,
+    riskLabel,
   };
 };
 

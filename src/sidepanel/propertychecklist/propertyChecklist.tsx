@@ -62,7 +62,8 @@ export function generatePropertyChecklist(
     publicRightOfWayObligation,
     listedProperty,
     restrictiveCovenants,
-    mobileServiceCoverageWithScoreAndLabel
+    mobileServiceCoverageWithScoreAndLabel,
+    completeFloodRiskAssessment
   } = preprocessedData;
 
   const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
@@ -200,10 +201,10 @@ export function generatePropertyChecklist(
 
   // Generate the consolidated flood risk item by calling the helper
   const consolidatedFloodRiskItem = generateConsolidatedFloodRiskItem({
-    propertyData,
     preprocessedData,
-    getYesNoOrAskAgentStringFromBoolean,
     CHECKLIST_NO_VALUE,
+    completeFloodRiskAssessment,
+    isPremiumDataFetchedAndHasData
   });
 
   const checklist: (PropertyDataListItem | null)[] = [
@@ -880,6 +881,7 @@ export function generatePropertyChecklist(
       toolTipExplainer: "Coastal Erosion data for properties that are within 1km of a shoreline. Contains the 2 nearest coastal erosion plans to the property",
       isExpectedInPremiumSearchData: true,
       isExpectedInListing: false,
+      hasMoreDetailsInPremiumThanListingValue: true
     },
     {
       checklistGroup: PropertyGroups.RISKS,
