@@ -15,7 +15,7 @@ import {
   CoastalErosionPlan,
   FloodRisk,
 } from "@/types/premiumStreetData";
-import { PropertyDataListItem } from "@/types/property";
+import { DataStatus, ProcessedConservationAreaData, PropertyDataListItem } from "@/types/property";
 import { parseNumberFromString } from "@/utils/parsingHelpers";
 import React from "react"; // Import React for ReactNode checks
 
@@ -508,13 +508,8 @@ export const calculateAirportNoiseRisk = (
   };
 };
 
-interface ConservationAreaDetails {
-  conservationAreaDataAvailable: boolean | null;
-  conservationArea: string | null;
-}
-
 export const calculateConservationAreaRisk = (
-  details: ConservationAreaDetails | undefined | null
+  details: ProcessedConservationAreaData | null
 ): FactorProcessingResult => {
   if (!details) {
     return {
@@ -524,9 +519,9 @@ export const calculateConservationAreaRisk = (
     };
   }
 
-  const { conservationAreaDataAvailable, conservationArea } = details;
+  const { isInArea, status } = details;
 
-  if (conservationAreaDataAvailable === null || conservationAreaDataAvailable === undefined) {
+  if (status === DataStatus.IS_LOADING) {
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,
@@ -534,36 +529,24 @@ export const calculateConservationAreaRisk = (
     };
   }
 
-  if (conservationAreaDataAvailable === false) {
+  if (isInArea === false) {
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,
-      warning: "Conservation area data marked as unavailable.",
+      warning: "",
     };
   }
 
-  if (
-    conservationArea !== null &&
-    typeof conservationArea === "string" &&
-    conservationArea.trim() !== ""
-  ) {
+  if (isInArea) {
     return {
       scoreContribution: MAX_SCORE,
-      maxPossibleScore: MAX_SCORE,
-    };
-  } else if (
-    conservationArea === null ||
-    (typeof conservationArea === "string" && conservationArea.trim() === "")
-  ) {
-    return {
-      scoreContribution: 0,
       maxPossibleScore: MAX_SCORE,
     };
   } else {
     return {
       scoreContribution: 0,
       maxPossibleScore: 0,
-      warning: "Conservation area status unclear despite data being available.",
+      warning: "Conservation area status unclear despite data being available",
     };
   }
 };

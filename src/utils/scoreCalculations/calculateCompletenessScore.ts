@@ -16,7 +16,7 @@ const getListingCompletenessScoreLabel = (score: number): string => {
 };
 
 export const calculateCompletenessScore = (items: PropertyDataListItem[]): CategoryScoreData => {
-  // 2. Filter out items that are not applicable
+  // 1. Filter out items that are not applicable
   const applicableExpectedItems = items.filter((item) => item.status !== DataStatus.NOT_APPLICABLE);
   const applicableExpectedTotal = applicableExpectedItems.length;
 
@@ -30,13 +30,13 @@ export const calculateCompletenessScore = (items: PropertyDataListItem[]): Categ
     };
   }
 
-  // 3. Count expected items where the status indicates missing info (ASK_AGENT)
+  // 2. Count expected items where the status indicates missing info (ASK_AGENT)
   const missingExpectedItems = applicableExpectedItems.filter(
     (item) => item.status === DataStatus.ASK_AGENT
   );
   const missingExpectedCount = missingExpectedItems.length;
 
-  // 4. Calculate the score
+  // 3. Calculate the score
   const scoreValue =
     ((applicableExpectedTotal - missingExpectedCount) / applicableExpectedTotal) * 100;
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));

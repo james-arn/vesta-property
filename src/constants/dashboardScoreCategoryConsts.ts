@@ -69,6 +69,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     CHECKLIST_KEYS.LEASE_TERM,
     CHECKLIST_KEYS.PLANNING_PERMISSIONS,
     CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS,
+    CHECKLIST_KEYS.CONSERVATION_AREA_STATUS,
   ],
   // LISTING_COMPLETENESS uses a global calculation, no specific keys needed here
 };

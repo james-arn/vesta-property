@@ -63,7 +63,8 @@ export function generatePropertyChecklist(
     listedProperty,
     restrictiveCovenants,
     mobileServiceCoverageWithScoreAndLabel,
-    completeFloodRiskAssessment
+    completeFloodRiskAssessment,
+    processedConservationArea,
   } = preprocessedData;
 
   const hasPremiumDataLoadedSuccessfully = processedPremiumData?.status === "success"
@@ -781,24 +782,27 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Conservation Area Status",
       key: CHECKLIST_KEYS.CONSERVATION_AREA_STATUS,
-      status: processedPremiumData?.conservationAreaDetails.conservationAreaDataAvailable
-        ? getStatusFromPremium(processedPremiumData?.conservationAreaDetails.conservationArea)
-        : DataStatus.ASK_AGENT,
-      value: processedPremiumData?.conservationAreaDetails.conservationArea ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer: "Indicates if the property is within a conservation area, which adds controls over demolition, alterations, and tree work.",
+      status: processedConservationArea?.status ?? DataStatus.ASK_AGENT,
+      value: processedConservationArea?.displayValue ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      askAgentMessage: processedConservationArea?.isInArea
+        ? "The property is in a conservation area. What are the specific implications or restrictions for this property?"
+        : (processedConservationArea?.status === DataStatus.ASK_AGENT)
+          ? "Is the property in a conservation area?"
+          : "",
+      toolTipExplainer: `Indicates if the property is within a conservation area. Being in a conservation area typically adds controls over demolition, new construction, alterations to existing buildings, and work on trees. ${processedConservationArea?.isInArea ? "This property is reported to be in one." : ((processedConservationArea?.status !== DataStatus.ASK_AGENT && processedConservationArea?.status !== DataStatus.IS_LOADING)) ? "This property is reported as not being in one." : "Status could not be determined from available data."}`,
       isExpectedInPremiumSearchData: true,
-      isExpectedInListing: true,
+      isExpectedInListing: false,
     },
     {
       checklistGroup: PropertyGroups.RIGHTS_AND_RESTRICTIONS,
       label: "Property Planning Permissions",
       key: CHECKLIST_KEYS.PLANNING_PERMISSIONS,
       status: getPropertyPlanningApplicationsStatus(
-        processedPremiumData?.propertyPlanningApplications
+        processedPremiumData?.propertyPlanningApplications,
+        isPremiumDataFetchedAndHasData
       ),
       value: getPropertyPlanningApplicationsValue(
-        processedPremiumData?.propertyPlanningApplications
+        processedPremiumData?.propertyPlanningApplications,
       ),
       askAgentMessage: "I noticed there are quite a few planning permissions on the property. Do you have more information on this?",
       toolTipExplainer:

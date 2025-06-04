@@ -7,11 +7,11 @@ import { DataStatus } from "@/types/property";
  * Determines the status of property planning applications data
  */
 export const getPropertyPlanningApplicationsStatus = (
-  planningApplications: PlanningApplication[] | null | undefined
+  planningApplications: PlanningApplication[] | null | undefined,
+  isPremiumDataFetchedAndHasData: boolean | undefined
 ) => {
-  if (!planningApplications) {
-    return DataStatus.NOT_APPLICABLE;
-  }
+  if (!isPremiumDataFetchedAndHasData) return DataStatus.NOT_APPLICABLE;
+  if (!planningApplications) return DataStatus.ASK_AGENT;
 
   return planningApplications.length > 0 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 };

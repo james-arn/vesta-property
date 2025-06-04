@@ -147,6 +147,7 @@ export interface AirportNoise {
 }
 
 export interface Localities {
+  // Flag indicating if conservation area data is available for this property's local authority.
   conservation_area_data_available: boolean;
   conservation_area: string | null;
   ward: string | null;

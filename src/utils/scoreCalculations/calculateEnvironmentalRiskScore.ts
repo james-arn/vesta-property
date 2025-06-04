@@ -58,7 +58,7 @@ export const calculateEnvironmentalRiskScore = (
   const crimeItem = findItemByKey(items, CHECKLIST_KEYS.CRIME_SCORE);
   const coastalErosionItem = findItemByKey(items, CHECKLIST_KEYS.COASTAL_EROSION);
   const airportNoiseItem = findItemByKey(items, CHECKLIST_KEYS.AIRPORT_NOISE_ASSESSMENT);
-  const conservationAreaDetails = preprocessedData.conservationAreaDetails;
+  const conservationAreaDetails = preprocessedData.processedConservationArea;
 
   const listingFloodScore =
     preprocessedData.completeFloodRiskAssessment?.listingFloodRiskAssessment?.score;
@@ -73,7 +73,10 @@ export const calculateEnvironmentalRiskScore = (
     },
     { key: "coastalErosion", result: calculateCoastalErosionRisk(coastalErosionItem) },
     { key: "airportNoiseAssessment", result: calculateAirportNoiseRisk(airportNoiseItem) },
-    { key: "conservationArea", result: calculateConservationAreaRisk(conservationAreaDetails) },
+    {
+      key: "conservationArea",
+      result: calculateConservationAreaRisk(conservationAreaDetails),
+    },
   ];
 
   const allWarnings = results

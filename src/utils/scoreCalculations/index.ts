@@ -66,6 +66,7 @@ export const calculateDashboardScores = (
   const legalCalculationData = {
     calculatedLeaseMonths: preprocessedData.calculatedLeaseMonths,
     tenure: typeof tenureValue === "string" ? tenureValue : null,
+    processedConservationArea: preprocessedData.processedConservationArea,
   };
 
   const legalConstraintsData = calculateLegalConstraintsScore(items, legalCalculationData);

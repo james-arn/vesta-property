@@ -245,6 +245,13 @@ export interface CoastalErosionDataForChecklist {
   reasonForAskAgent?: string | null;
 }
 
+// New interface for processed conservation area data
+export interface ProcessedConservationAreaData {
+  isInArea: boolean;
+  displayValue: string;
+  status: DataStatus;
+}
+
 export interface PreprocessedData {
   isPreprocessedDataLoading: boolean;
   preprocessedDataError: Error | null;
@@ -259,10 +266,6 @@ export interface PreprocessedData {
   broadbandScoreValue: number | null;
   broadbandDisplayValue: string | null;
   broadbandStatus: DataStatus | null;
-  conservationAreaDetails: {
-    conservationAreaDataAvailable: boolean | null;
-    conservationArea: string | null;
-  } | null;
   listingHistoryStatus: DataStatus | null;
   listingHistoryDisplayValue: string | null;
   listingDaysOnMarket: number | null;
@@ -273,4 +276,5 @@ export interface PreprocessedData {
   completeFloodRiskAssessment: CompleteFloodRiskAssessment | null;
   mobileServiceCoverageWithScoreAndLabel: ProcessedMobileServiceCoverageWithScoreAndLabel | null;
   coastalErosionForChecklist: CoastalErosionDataForChecklist | null;
+  processedConservationArea: ProcessedConservationAreaData | null;
 }

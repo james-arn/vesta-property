@@ -5,7 +5,13 @@ import {
   DashboardScoreCategory,
 } from "@/constants/dashboardScoreCategoryConsts";
 import { LEGAL_CONSTRAINT_POINTS } from "@/constants/scoreConstants";
-import { CategoryScoreData, DashboardScore, PropertyDataListItem } from "@/types/property";
+import {
+  CategoryScoreData,
+  DashboardScore,
+  DataStatus,
+  ProcessedConservationAreaData,
+  PropertyDataListItem,
+} from "@/types/property";
 import { findItemByKey, getItemValue } from "@/utils/parsingHelpers";
 import {
   calculateTenureConstraintPoints,
@@ -17,6 +23,7 @@ import {
 interface CalculationData {
   calculatedLeaseMonths: number | null;
   tenure: string | null;
+  processedConservationArea: ProcessedConservationAreaData | null;
 }
 
 interface FactorConfig {
@@ -95,6 +102,13 @@ export const calculateLegalConstraintsScore = (
       warningMessage: "Nearby planning permission status missing.",
       calculatePoints: (item) => (item ? determinePenaltyPointsFromValue(item) : 0),
     },
+    {
+      key: CHECKLIST_KEYS.CONSERVATION_AREA_STATUS,
+      warningMessage: "Conservation area status missing or unknown.",
+      isRelevantToProperty: () => true,
+      calculatePoints: (_, calcData) =>
+        calcData.processedConservationArea?.isInArea ? LEGAL_CONSTRAINT_POINTS.MEDIUM : 0,
+    },
   ];
 
   const processedFactorDetails = factors.reduce<ProcessedFactorDetail[]>((acc, factor) => {
@@ -123,6 +137,13 @@ export const calculateLegalConstraintsScore = (
     let factorHasData = !dataIsMissing;
     if (factor.key === CHECKLIST_KEYS.LEASE_TERM && isLeasehold) {
       factorHasData = factorHasData || calculatedLeaseMonths !== null;
+    }
+    // Specific data check for conservation area
+    if (factor.key === CHECKLIST_KEYS.CONSERVATION_AREA_STATUS) {
+      factorHasData =
+        !!calculationData.processedConservationArea &&
+        calculationData.processedConservationArea.status !== DataStatus.ASK_AGENT &&
+        calculationData.processedConservationArea.status !== DataStatus.IS_LOADING;
     }
 
     if (factorHasData) {

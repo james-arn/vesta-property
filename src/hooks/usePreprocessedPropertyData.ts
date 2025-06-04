@@ -31,6 +31,11 @@ import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpe
 import { getStatusFromString } from "@/utils/statusHelpers";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
+import {
+  getConservationAreaDisplayValue,
+  getConservationAreaStatus,
+  isInConservationArea,
+} from "../sidepanel/propertychecklist/conservationAreaHelpers";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import {
   processMobileCoverageForScoreAndLabel,
@@ -50,6 +55,8 @@ export const usePreprocessedPropertyData = ({
   isParentDataLoading,
 }: UsePreprocessedPropertyDataArgs): PreprocessedData => {
   const initialEpcData: EpcData | null | undefined = propertyData?.epc;
+  const isPremiumDataFetchedAndHasData =
+    premiumStreetDataQuery?.isFetched && !!premiumStreetDataQuery.data?.premiumData.data;
 
   const askingPrice = useMemo(() => {
     return parseCurrency(propertyData?.salePrice ?? null);
@@ -402,6 +409,19 @@ export const usePreprocessedPropertyData = ({
         ? (automatedProcessingResultFromInitial as EpcBandResult)
         : undefined;
 
+    // Process conservation area data
+    const rawConservationAreaDetails = processedPremiumDataResult.conservationAreaDetails;
+    const processedConservationArea = rawConservationAreaDetails
+      ? {
+          isInArea: isInConservationArea(rawConservationAreaDetails),
+          displayValue: getConservationAreaDisplayValue(
+            rawConservationAreaDetails,
+            isPremiumDataFetchedAndHasData
+          ),
+          status: getConservationAreaStatus(rawConservationAreaDetails),
+        }
+      : null;
+
     return {
       isPreprocessedDataLoading,
       preprocessedDataError,
@@ -416,7 +436,7 @@ export const usePreprocessedPropertyData = ({
       broadbandScoreValue,
       broadbandDisplayValue,
       broadbandStatus,
-      conservationAreaDetails: processedPremiumDataResult.conservationAreaDetails,
+      processedConservationArea,
       privateRightOfWayObligation: propertyData?.privateRightOfWayObligation ?? null,
       publicRightOfWayObligation: finalPublicRoW,
       listingHistoryStatus,
