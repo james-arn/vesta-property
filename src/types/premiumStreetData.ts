@@ -78,6 +78,7 @@ export interface PropertyAttributes {
   right_of_way?: RightOfWay | null;
   plot: Plot | null;
   listed_buildings_on_plot?: ListedBuilding[] | null;
+  internal_area_square_metres?: number | null;
 }
 
 export interface Address {
@@ -723,6 +724,7 @@ export interface ProcessedPremiumStreetData {
   tenure: string | null;
   propertyType: string | null;
   broadbandSpeedLabel: string | null;
+  internalAreaInSquareMetres: number | null;
 }
 
 // --- New Plot Types Start ---

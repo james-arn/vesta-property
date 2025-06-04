@@ -8,14 +8,6 @@ export const useAccordion = (accordionKey: string, initialExpanded = false) => {
   const toggle = useCallback((expand?: boolean) => {
     setIsExpanded((prev) => {
       const nextState = expand === undefined ? !prev : expand;
-      console.log(
-        "[useAccordion] toggle called. Key/Instance (not directly available here, identify by context if multiple accordions log). Previous isExpanded:",
-        prev,
-        "Next isExpanded:",
-        nextState,
-        "accordionKey",
-        accordionKey
-      );
       return nextState;
     });
   }, []);

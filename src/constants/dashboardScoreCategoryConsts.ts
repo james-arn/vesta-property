@@ -22,6 +22,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     CHECKLIST_KEYS.TENURE, // Leasehold vs freehold - leasehold may have
     CHECKLIST_KEYS.GROUND_RENT, // Direct cost for leaseholders
     CHECKLIST_KEYS.SERVICE_CHARGE, // Direct cost for leaseholders/managed properties
+    CHECKLIST_KEYS.SIZE,
     // Consider adding broadband/mobile coverage if they have cost implications?
   ],
   [DashboardScoreCategory.INVESTMENT_VALUE]: [

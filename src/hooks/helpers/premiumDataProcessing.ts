@@ -107,6 +107,7 @@ export const processPremiumStreetData = (
   const tenure = attributes?.tenure?.tenure_type ?? null;
 
   const broadbandSpeedLabel = getBroadbandSpeedLabelFromAttributes(attributes);
+  const internalAreaInSquareMetres = attributes?.internal_area_square_metres ?? null;
 
   return {
     status: queryStatus,
@@ -144,5 +145,6 @@ export const processPremiumStreetData = (
     tenure,
     propertyType,
     broadbandSpeedLabel,
+    internalAreaInSquareMetres,
   };
 };

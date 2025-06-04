@@ -597,14 +597,27 @@ export function generatePropertyChecklist(
       checklistGroup: PropertyGroups.INTERIOR,
       label: "Size",
       key: CHECKLIST_KEYS.SIZE,
-      status: getStatusFromString(propertyData.size),
-      value: propertyData.size,
+      status: !!processedPremiumData?.internalAreaInSquareMetres
+        ? DataStatus.FOUND_POSITIVE
+        : getStatusFromString(propertyData.size),
+      value: (() => {
+        if (propertyData.size && propertyData.size !== CHECKLIST_NO_VALUE.NOT_MENTIONED) {
+          return propertyData.size;
+        }
+        if (processedPremiumData?.internalAreaInSquareMetres) {
+          return `${processedPremiumData.internalAreaInSquareMetres}sq. m.`;
+        }
+        if (propertyData.size && propertyData.size === CHECKLIST_NO_VALUE.NOT_MENTIONED) {
+          return CHECKLIST_NO_VALUE.NOT_MENTIONED;
+        }
+        return CHECKLIST_NO_VALUE.NONE_FOUND;
+      })(),
       askAgentMessage: "What's the size?",
       toolTipExplainer:
         "The size of a property refers to the total area of the property, including all habitable rooms and spaces.\n\n" +
         "It is a key factor in determining the property's value, as larger properties generally have higher value.\n\n" +
         "Size can also impact the property's energy efficiency and maintenance costs.",
-      isExpectedInPremiumSearchData: false,
+      isExpectedInPremiumSearchData: true,
       isExpectedInListing: true,
     },
     {
