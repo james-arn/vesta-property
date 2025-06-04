@@ -42,8 +42,8 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
   [DashboardScoreCategory.CONNECTIVITY]: [
     CHECKLIST_KEYS.BROADBAND,
     CHECKLIST_KEYS.NEAREST_STATIONS,
-    CHECKLIST_KEYS.POLICE_FORCE_PROXIMITY,
     CHECKLIST_KEYS.MOBILE_COVERAGE,
+    CHECKLIST_KEYS.NEARBY_SCHOOLS,
   ],
   [DashboardScoreCategory.CONDITION]: [
     CHECKLIST_KEYS.PROPERTY_TYPE,
@@ -53,6 +53,7 @@ export const CATEGORY_ITEM_MAP: { [key in DashboardScoreCategory]?: string[] } =
     CHECKLIST_KEYS.CONSTRUCTION_AGE_BAND, // Age implies condition
     CHECKLIST_KEYS.WINDOWS, // Glazing/material state
     CHECKLIST_KEYS.OCCUPANCY_STATUS, // Potential wear difference
+    CHECKLIST_KEYS.ACCESSIBILITY,
   ],
   [DashboardScoreCategory.ENVIRONMENT_RISK]: [
     CHECKLIST_KEYS.CRIME_SCORE,

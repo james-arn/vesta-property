@@ -1,10 +1,6 @@
+import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
 import { CALCULATED_STATUS } from "@/constants/dashboardScoreCategoryConsts";
-import {
-  CategoryScoreData,
-  DashboardScore,
-  DataStatus,
-  PropertyDataListItem,
-} from "@/types/property";
+import { CategoryScoreData, DashboardScore, PropertyDataListItem } from "@/types/property";
 
 // Helper function for score label (can be moved to a helper file if preferred)
 const getListingCompletenessScoreLabel = (score: number): string => {
@@ -17,10 +13,20 @@ const getListingCompletenessScoreLabel = (score: number): string => {
 
 export const calculateCompletenessScore = (items: PropertyDataListItem[]): CategoryScoreData => {
   // 1. Filter out items that are not applicable
-  const applicableExpectedItems = items.filter((item) => item.status !== DataStatus.NOT_APPLICABLE);
-  const applicableExpectedTotal = applicableExpectedItems.length;
+  const [completedItems, missingItems] = items.reduce<
+    [PropertyDataListItem[], PropertyDataListItem[]]
+  >(
+    ([completed, missing], item) => {
+      const isMissing = Object.values(CHECKLIST_NO_VALUE).some(
+        (noValue) => noValue.toLowerCase() === String(item.value).toLowerCase()
+      );
+      return isMissing ? [completed, [...missing, item]] : [[...completed, item], missing];
+    },
+    [[], []]
+  );
+  const completedTotal = completedItems.length;
 
-  if (applicableExpectedTotal === 0) {
+  if (completedTotal === 0) {
     // If no items are expected OR all expected items are N/A, consider it complete
     return {
       score: { scoreValue: 100, maxScore: 100, scoreLabel: "Fully Complete" },
@@ -30,15 +36,10 @@ export const calculateCompletenessScore = (items: PropertyDataListItem[]): Categ
     };
   }
 
-  // 2. Count expected items where the status indicates missing info (ASK_AGENT)
-  const missingExpectedItems = applicableExpectedItems.filter(
-    (item) => item.status === DataStatus.ASK_AGENT
-  );
-  const missingExpectedCount = missingExpectedItems.length;
+  const totalItems = items.length;
 
-  // 3. Calculate the score
-  const scoreValue =
-    ((applicableExpectedTotal - missingExpectedCount) / applicableExpectedTotal) * 100;
+  // 2. Calculate the score
+  const scoreValue = (completedTotal / totalItems) * 100;
   const finalScoreValue = Math.max(0, Math.min(100, Math.round(scoreValue)));
   const scoreLabel = getListingCompletenessScoreLabel(finalScoreValue);
 
@@ -48,15 +49,10 @@ export const calculateCompletenessScore = (items: PropertyDataListItem[]): Categ
     scoreLabel: scoreLabel,
   };
 
-  const warningMessages: string[] = [];
-  if (missingExpectedCount > 0) {
-    warningMessages.push(`${missingExpectedCount} expected item(s) missing (marked 'Ask Agent').`);
-  }
-
   return {
     score: finalScore,
-    contributingItems: applicableExpectedItems,
-    warningMessages: warningMessages,
+    contributingItems: completedItems,
+    warningMessages: [],
     calculationStatus: CALCULATED_STATUS.CALCULATED,
   };
 };

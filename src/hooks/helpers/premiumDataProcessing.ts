@@ -38,7 +38,6 @@ export const processPremiumStreetData = (
     conservationArea: attributes?.localities?.conservation_area ?? null,
   };
   const airportNoiseAssessment = attributes?.airport_noise ?? null;
-  const policeForceProximity = attributes?.localities?.police_force ?? null;
   const propertyPlanningApplications =
     (attributes?.planning_applications as PlanningApplication[]) ?? [];
   const nearbyPlanningApplications =
@@ -125,7 +124,6 @@ export const processPremiumStreetData = (
     conservationAreaDetails,
     detailedFloodRiskAssessment,
     airportNoiseAssessment,
-    policeForceProximity,
     mobileServiceCoverage,
     propertyPlanningApplications,
     nearbyPlanningApplications,

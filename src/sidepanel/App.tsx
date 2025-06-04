@@ -33,9 +33,6 @@ import PropertyAddressBar from './components/PropertyAddressBar/PropertyAddressB
 import { generateAgentMessage, getValueClickHandler } from './helpers';
 import SettingsBar from "./settingsbar/SettingsBar";
 
-const LazyChecklistView = lazy(() =>
-  import('@/sidepanel/components/ChecklistView').then(module => ({ default: module.ChecklistView }))
-);
 const LazyBuildingConfirmationDialog = lazy(() =>
   import('@/components/ui/Premium/BuildingConfirmationModal/BuildingConfirmationModal')
 );
@@ -320,69 +317,35 @@ const App: React.FC = () => {
       )}
 
       <main className="flex-1 overflow-y-auto p-4">
-        {currentView === VIEWS.CHECKLIST && (
-          <Suspense fallback={<SideBarLoading />}>
-            <LazyChecklistView
-              filteredChecklistData={filteredChecklistData}
-              openGroups={openGroups}
-              toggleGroup={toggleGroup}
-              openNewTab={openNewTab}
-              onItemValueClick={handleChecklistItemValueClick}
-              isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
-              epcBandData={preprocessedData.finalEpcBandData}
-              handleEpcValueChange={handleEpcValueChange}
-              isEpcDebugModeOn={isEpcDebugModeOn}
-              epcDebugCanvasRef={epcDebugCanvasRef}
-              crimeQuery={crimeQuery}
-              crimeChartExpanded={crimeAccordion.isExpanded}
-              crimeContentRef={crimeAccordion.contentRef}
-              crimeContentHeight={crimeAccordion.contentHeight}
-              planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
-              planningPermissionContentRef={planningPermissionAccordion.contentRef}
-              planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
-              nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
-              nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
-              nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
-              onTriggerPremiumFlow={initiatePremiumActivationFlow}
-              premiumStreetDataQuery={premiumDataQuery}
-              mobileCoverageAccordion={mobileCoverageAccordion}
-              coastalErosionAccordion={coastalErosionAccordion}
-              floodRiskAccordion={floodRiskAccordion}
-            />
-          </Suspense>
-        )}
-
-        {currentView === VIEWS.DASHBOARD && (
-          <DashboardView
-            checklistsData={propertyChecklistData}
-            categoryScores={categoryScores}
-            overallScore={overallScore}
-            onItemValueClick={handleChecklistItemValueClick}
-            dataCoverageScoreData={dataCoverageScoreData}
-            crimeQuery={crimeQuery}
-            crimeChartExpanded={crimeAccordion.isExpanded}
-            crimeContentRef={crimeAccordion.contentRef}
-            crimeContentHeight={crimeAccordion.contentHeight}
-            planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
-            planningPermissionContentRef={planningPermissionAccordion.contentRef}
-            planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
-            nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
-            nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
-            nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
-            onTriggerPremiumFlow={initiatePremiumActivationFlow}
-            isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
-            epcBandData={preprocessedData.finalEpcBandData}
-            epcDebugCanvasRef={epcDebugCanvasRef}
-            isEpcDebugModeOn={isEpcDebugModeOn}
-            handleEpcValueChange={handleEpcValueChange}
-            isLoading={isLoadingQueryPropertyData || premiumDataQuery.isLoading}
-            premiumStreetDataQuery={premiumDataQuery}
-            openNewTab={openNewTab}
-            mobileCoverageAccordion={mobileCoverageAccordion}
-            coastalErosionAccordion={coastalErosionAccordion}
-            floodRiskAccordion={floodRiskAccordion}
-          />
-        )}
+        <DashboardView
+          checklistsData={propertyChecklistData}
+          categoryScores={categoryScores}
+          overallScore={overallScore}
+          onItemValueClick={handleChecklistItemValueClick}
+          dataCoverageScoreData={dataCoverageScoreData}
+          crimeQuery={crimeQuery}
+          crimeChartExpanded={crimeAccordion.isExpanded}
+          crimeContentRef={crimeAccordion.contentRef}
+          crimeContentHeight={crimeAccordion.contentHeight}
+          planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
+          planningPermissionContentRef={planningPermissionAccordion.contentRef}
+          planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
+          nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
+          nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
+          nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
+          onTriggerPremiumFlow={initiatePremiumActivationFlow}
+          isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
+          epcBandData={preprocessedData.finalEpcBandData}
+          epcDebugCanvasRef={epcDebugCanvasRef}
+          isEpcDebugModeOn={isEpcDebugModeOn}
+          handleEpcValueChange={handleEpcValueChange}
+          isLoading={isLoadingQueryPropertyData || premiumDataQuery.isLoading}
+          premiumStreetDataQuery={premiumDataQuery}
+          openNewTab={openNewTab}
+          mobileCoverageAccordion={mobileCoverageAccordion}
+          coastalErosionAccordion={coastalErosionAccordion}
+          floodRiskAccordion={floodRiskAccordion}
+        />
       </main>
 
       {showBuildingValidationModal && (

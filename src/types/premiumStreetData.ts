@@ -95,7 +95,6 @@ export interface Address {
   detailedFloodRiskAssessment: FloodRisk | null;
   airportNoiseAssessment: AirportNoise | null;
   nationalParkProximity: string | null;
-  policeForceProximity: string | null;
   schoolProximity: Education | null;
   outcodeAvgSalesPrice: number | null;
   restrictiveCovenants: RestrictiveCovenant[] | null;
@@ -704,7 +703,6 @@ export interface ProcessedPremiumStreetData {
   };
   detailedFloodRiskAssessment: FloodRisk | null;
   airportNoiseAssessment: AirportNoise | null;
-  policeForceProximity: string | null;
   mobileServiceCoverage: MobileServiceCoverageItem[] | null;
   propertyPlanningApplications: PlanningApplication[] | null;
   nearbyPlanningApplications: NearbyPlanningApplication[] | null;

@@ -499,7 +499,7 @@ export function generatePropertyChecklist(
         }
         return CHECKLIST_NO_VALUE.NOT_AVAILABLE;
       })(),
-      askAgentMessage: "Market turnover seems low (<3%). Is there a reason for this?",
+      askAgentMessage: isPremiumDataFetchedAndHasData ? "Market turnover seems low (<3%). Is there a reason for this?" : "",
       toolTipExplainer:
         "Compares the number of sales in the last 12 months to the total number of properties in the postcode area (e.g., M5).\n\n" +
         "A higher percentage (turnover rate) indicates a more liquid/active market. Typical UK average is around 4-5%.",
@@ -995,19 +995,6 @@ export function generatePropertyChecklist(
         "This shows the closest schools found based on the listing information, including their rating (e.g., Ofsted) and distance.",
       isExpectedInPremiumSearchData: false,
       isExpectedInListing: true,
-    },
-    {
-      checklistGroup: PropertyGroups.NEIGHBOURHOOD,
-      label: "Police Force Proximity",
-      key: CHECKLIST_KEYS.POLICE_FORCE_PROXIMITY,
-      status: getStatusFromPremium(processedPremiumData?.policeForceProximity),
-      value: processedPremiumData?.policeForceProximity ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
-      askAgentMessage: "",
-      toolTipExplainer:
-        "Information about the nearest police station and local policing team presence. " +
-        "Can be relevant for understanding community safety resources and response times.",
-      isExpectedInPremiumSearchData: true,
-      isExpectedInListing: false,
     },
   ];
 

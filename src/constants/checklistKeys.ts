@@ -47,7 +47,6 @@ export const CHECKLIST_KEYS = {
   CRIME_SCORE: "crimeScore",
   NEAREST_STATIONS: "nearestStations",
   NEARBY_SCHOOLS: "nearbySchools",
-  POLICE_FORCE_PROXIMITY: "policeForceProximity",
 } as const;
 
 export type ChecklistKey = (typeof CHECKLIST_KEYS)[keyof typeof CHECKLIST_KEYS];

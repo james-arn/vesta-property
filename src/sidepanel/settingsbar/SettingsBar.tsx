@@ -35,32 +35,25 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
   return (
     <div className="flex justify-between items-center p-2 bg-gray-100 rounded-md shadow-md space-x-4">
       <div className="flex items-center space-x-2">
-        <Button
-          variant={currentView === VIEWS.DASHBOARD ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setCurrentView(VIEWS.DASHBOARD)}
-        >
-          Dashboard
-        </Button>
-        <Button
-          variant={currentView === VIEWS.CHECKLIST ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setCurrentView(VIEWS.CHECKLIST)}
-        >
-          Checklist
-        </Button>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon"
-                variant="outline"
+                size="default"
+                variant="default"
                 onClick={onPremiumSearchClick}
+                className="relative flex items-center gap-2 bg-gradient-to-r from-[#B8860B] via-[#DAA520] to-[#B8860B] hover:from-[#986C08] hover:via-[#B8860B] hover:to-[#986C08] transition-all duration-300 border border-[#FFD700]/30 shadow-[0_2px_10px_rgba(255,215,0,0.15)] text-white font-medium py-2 px-4"
               >
-                <FaSearchPlus className="h-4 w-4" />
+                <div className="flex items-center gap-2 z-10">
+                  <FaSearchPlus className="h-4 w-4" />
+                  <span className="font-semibold tracking-wide">Premium Search</span>
+                </div>
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-r from-transparent via-[#FFD700]/20 to-transparent -translate-x-full animate-shimmer"></div>
+                </div>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
+            <TooltipContent sideOffset={5} className="bg-slate-900 text-white">
               <p>Unlock enhanced property data with Premium Search</p>
             </TooltipContent>
           </Tooltip>

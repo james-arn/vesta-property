@@ -72,22 +72,14 @@ const getPresentationDetails = (
     : listingValuePart || CHECKLIST_NO_VALUE.NOT_AVAILABLE;
 
   const askMessage = (() => {
-    if (status === DataStatus.ASK_AGENT) {
-      return "Potential flood risks identified. Expand for detailed breakdown and advice.";
+    if (
+      completeFloodRiskAssessment.listingFloodRiskAssessment?.floodedInLastFiveYears
+      || completeFloodRiskAssessment.premiumFloodRiskAssessment?.score?.riskLabel === FLOOD_RISK_LABELS.HIGH_RISK
+      || completeFloodRiskAssessment.premiumFloodRiskAssessment?.score?.riskLabel === FLOOD_RISK_LABELS.MEDIUM_RISK
+    ) {
+      return "I noticed that this property may have flooding issues. Please could you give me more information on this?";
     }
-    if (status === DataStatus.FOUND_POSITIVE) {
-      if (
-        value.includes(FLOOD_RISK_LABELS.PREMIUM_ASSESSMENT_AVAILABLE) ||
-        value.includes(FLOOD_RISK_LABELS.BASIC_INFO_AVAILABLE) ||
-        premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_NO_SPECIFIC_LEVELS ||
-        premiumRiskLabel === FLOOD_RISK_LABELS.ASSESSMENT_AVAILABLE_UNQUANTIFIED ||
-        premiumRiskLabel === FLOOD_RISK_LABELS.RISK_LEVEL_ASSESSED
-      ) {
-        return "Flood risk assessment data available. Expand for details.";
-      }
-      return "Flood risk assessment indicates low or managed risk. Expand for details.";
-    }
-    return "Review flood risk details or consult with agent.";
+    return "" // no message needed
   })();
 
   return { value, status, askMessage };
