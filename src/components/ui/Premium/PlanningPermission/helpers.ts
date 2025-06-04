@@ -13,7 +13,7 @@ export const getPropertyPlanningApplicationsStatus = (
     return DataStatus.NOT_APPLICABLE;
   }
 
-  return planningApplications.length > 0 ? DataStatus.FOUND_POSITIVE : DataStatus.NOT_APPLICABLE;
+  return planningApplications.length > 0 ? DataStatus.ASK_AGENT : DataStatus.FOUND_POSITIVE;
 };
 
 /**
@@ -37,11 +37,7 @@ export const getNearbyPlanningApplicationsStatus = (
 export const getPropertyPlanningApplicationsValue = (
   planningApplications: PlanningApplication[] | null | undefined
 ) => {
-  if (!planningApplications) {
-    return PREMIUM_DATA_STATES.NOT_FOUND;
-  }
-
-  if (planningApplications.length === 0) {
+  if (!planningApplications || planningApplications.length === 0) {
     return PREMIUM_DATA_STATES.NO_APPLICATIONS;
   }
 

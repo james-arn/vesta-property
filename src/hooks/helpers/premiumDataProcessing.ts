@@ -40,7 +40,7 @@ export const processPremiumStreetData = (
   const airportNoiseAssessment = attributes?.airport_noise ?? null;
   const policeForceProximity = attributes?.localities?.police_force ?? null;
   const propertyPlanningApplications =
-    (attributes?.planning_applications as PlanningApplication[]) ?? null;
+    (attributes?.planning_applications as PlanningApplication[]) ?? [];
   const nearbyPlanningApplications =
     (attributes?.nearby_planning_applications as NearbyPlanningApplication[]) ?? null;
   const outcodeAvgSalesPrice =
