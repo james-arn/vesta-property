@@ -63,7 +63,6 @@ export const UpsellModal: React.FC<UpsellModalProps> = ({
                     <PremiumButton
                         icon={<FaSearchPlus className="h-4 w-4" />}
                         text="Upgrade Now"
-                        tooltipText="Unlock enhanced property data with Premium Search"
                         onClick={handleUpgradeClick}
                     />
                     <Button onClick={handleSignInClick} variant="outline">Sign In</Button>
