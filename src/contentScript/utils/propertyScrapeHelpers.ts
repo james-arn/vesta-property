@@ -408,34 +408,95 @@ export function clickPropertySaleHistoryButton() {
   }
 }
 
-// Helper function to wait for an element to appear in the DOM
-// Use with caution - delays UI load
+// Helper function to wait for an element to appear in the DOM and optionally wait for loading to complete
 const waitForElement = (
   selector: string,
-  timeout = DEFAULT_WAIT_TIMEOUT
+  timeout = DEFAULT_WAIT_TIMEOUT,
+  options: { waitForLoading?: boolean } = {}
 ): Promise<Element | null> => {
   return new Promise((resolve) => {
-    const intervalTime = 100;
-    let timeElapsed = 0;
-
-    const checkElement = () => {
-      const element = document.querySelector(selector);
-      if (element) {
-        clearInterval(interval);
+    // Check if element already exists
+    const element = document.querySelector(selector);
+    if (element) {
+      if (!options.waitForLoading || !element.textContent?.toLowerCase().includes("loading")) {
         resolve(element);
-      } else {
-        timeElapsed += intervalTime;
-        if (timeElapsed >= timeout) {
-          clearInterval(interval);
-          console.warn(`Element with selector "${selector}" not found within ${timeout}ms.`);
-          resolve(null); // Timeout
-        }
+        return;
       }
-    };
+    }
 
-    const interval = setInterval(checkElement, intervalTime);
-    checkElement(); // Initial check
+    // Set up timeout
+    const timeoutId = setTimeout(() => {
+      observer.disconnect();
+      console.warn(`Element with selector "${selector}" not found within ${timeout}ms.`);
+      resolve(null);
+    }, timeout);
+
+    // Set up mutation observer
+    const observer = new MutationObserver((mutations, obs) => {
+      const element = document.querySelector(selector);
+
+      if (element) {
+        if (options.waitForLoading) {
+          // If waiting for loading, check loading state
+          const isLoading = element.textContent?.toLowerCase().includes("loading");
+          if (isLoading) {
+            return; // Keep observing if still loading
+          }
+        }
+
+        // Element found and not loading (or not checking loading)
+        clearTimeout(timeoutId);
+        obs.disconnect();
+        resolve(element);
+      }
+    });
+
+    // Start observing
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+    });
   });
+};
+
+// Helper function specifically for waiting for broadband data
+const waitForBroadbandData = async (
+  selector: string,
+  maxAttempts = 5,
+  timeout = DEFAULT_WAIT_TIMEOUT
+): Promise<Element | null> => {
+  let lastAttemptTime = 0;
+
+  const attemptToGetData = async (): Promise<Element | null> => {
+    const now = Date.now();
+    // Ensure at least 500ms between attempts
+    if (now - lastAttemptTime < 500) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    lastAttemptTime = Date.now();
+
+    console.log(`[property scrape helpers] Attempting to get broadband data`);
+    return waitForElement(selector, timeout, { waitForLoading: true });
+  };
+
+  // Create an array of attempt promises
+  const attempts = Array.from({ length: maxAttempts }, (_, index) =>
+    attemptToGetData().then((foundElement: Element | null) => {
+      if (foundElement && !foundElement.textContent?.toLowerCase().includes("loading")) {
+        return foundElement;
+      }
+      if (index === maxAttempts - 1) {
+        console.warn("Failed to get broadband data after all attempts");
+      }
+      return null;
+    })
+  );
+
+  // Race the attempts, returning the first successful one
+  const results = await Promise.all(attempts);
+  return results.find((result) => result !== null) ?? null;
 };
 
 /**
@@ -453,13 +514,14 @@ export const getBroadbandData = async (): Promise<string> => {
       return CHECKLIST_NO_VALUE.NOT_MENTIONED;
     }
 
-    broadbandButton.click();
+    // console.log("!!!!!!!!!!!!!!!!!clicking broadband button !!!!!!!!!!!!!!!!!");
+    // broadbandButton.click();
 
-    // Wait for the main broadband widget to appear using its data-testid
-    const broadbandWidget = await waitForElement(BROADBAND_SPEED_VALUE_SELECTOR, 3000);
+    // Wait for the main broadband widget to appear and finish loading
+    const broadbandWidget = await waitForBroadbandData(BROADBAND_SPEED_VALUE_SELECTOR, 5, 5000);
 
     if (!broadbandWidget) {
-      console.warn("Broadband widget did not appear after clicking button.");
+      console.warn("Broadband widget did not appear or remained in loading state.");
       return CHECKLIST_NO_VALUE.NOT_MENTIONED;
     }
 

@@ -538,7 +538,7 @@ export function generatePropertyChecklist(
       label: "Broadband Speed",
       key: CHECKLIST_KEYS.BROADBAND,
       status: broadbandStatus ?? DataStatus.ASK_AGENT,
-      value: broadbandDisplayValue ?? processedPremiumData?.broadbandSpeedLabel ?? CHECKLIST_NO_VALUE.NOT_AVAILABLE,
+      value: broadbandDisplayValue || CHECKLIST_NO_VALUE.NOT_AVAILABLE,
       askAgentMessage: "What is the broadband speed?",
       toolTipExplainer: "Broadband speed impacts internet usage for work, streaming, and gaming.",
       isExpectedInPremiumSearchData: true,

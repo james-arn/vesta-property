@@ -1,3 +1,4 @@
+import { PremiumButton } from "@/components/PremiumButton";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -11,6 +12,7 @@ import { GA_UPGRADE_BUTTON_LOCATIONS } from '@/utils/GoogleAnalytics/googleAnaly
 import { trackGA4UpgradeButtonClicked } from '@/utils/GoogleAnalytics/googleAnalyticsEvents';
 import { navigateToPricingPageWithGaParams } from "@/utils/GoogleAnalytics/googleAnalyticsHelpers";
 import React from 'react';
+import { FaSearchPlus } from "react-icons/fa";
 
 interface UpsellModalProps {
     open: boolean;
@@ -58,8 +60,13 @@ export const UpsellModal: React.FC<UpsellModalProps> = ({
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex flex-col gap-2">
-                    <Button onClick={handleUpgradeClick}>Upgrade Now</Button>
-                    <Button variant="outline" onClick={handleSignInClick}>Sign In</Button>
+                    <PremiumButton
+                        icon={<FaSearchPlus className="h-4 w-4" />}
+                        text="Upgrade Now"
+                        tooltipText="Unlock enhanced property data with Premium Search"
+                        onClick={handleUpgradeClick}
+                    />
+                    <Button onClick={handleSignInClick}>Sign In</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

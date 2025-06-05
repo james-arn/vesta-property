@@ -3,7 +3,6 @@ import {
   MobileServiceCoverageItem,
   ProcessedMobileServiceCoverageWithScoreAndLabel,
   ProcessedPremiumDataStatus,
-  PropertyAttributes,
   RestrictiveCovenant,
 } from "@/types/premiumStreetData";
 import { calculateMobileCoverageScoreValue } from "@/utils/scoreCalculations/helpers/connectivityProcessingHelpers";
@@ -47,35 +46,6 @@ export const processRestrictiveCovenants = (
     return null;
   }
 };
-
-export function getBroadbandSpeedLabelFromAttributes(
-  attributes: PropertyAttributes | undefined
-): string | null {
-  const speedMbps =
-    attributes?.connectivity?.broadband_availability?.find(
-      (type: any) => type.broadband_type === "Overall"
-    )?.maximum_predicted_download_speed ?? null;
-
-  return getBroadbandSpeedLabel(speedMbps);
-}
-
-function getBroadbandSpeedLabel(speedMbps: number | null): string | null {
-  if (!speedMbps) {
-    return null;
-  }
-  if (speedMbps >= 1000) {
-    return `Gigabit ${speedMbps}Mbps`;
-  } else if (speedMbps >= 100) {
-    return `Ultrafast ${speedMbps}Mbps`;
-  } else if (speedMbps >= 30) {
-    return `Superfast ${speedMbps}Mbps`;
-  } else if (speedMbps >= 10) {
-    return `Average ${speedMbps}Mbps`;
-  } else if (speedMbps >= 0) {
-    return `Slow ${speedMbps}Mbps`;
-  }
-  return null;
-}
 
 export function processMobileCoverageForScoreAndLabel(
   mobileCoverageData: MobileServiceCoverageItem[] | null | undefined

@@ -1,6 +1,4 @@
 import { CHECKLIST_NO_VALUE } from "@/constants/checkListConsts";
-import { UK_AVERAGE_BROADBAND_MBPS } from "@/constants/scoreConstants";
-import { extractMbpsFromString } from "@/contentScript/utils/propertyScrapeHelpers";
 import { EpcBandResult } from "@/sidepanel/propertychecklist/Epc/epcImageUtils";
 import { calculateListingHistoryDetails } from "@/sidepanel/propertychecklist/helpers";
 import {
@@ -28,7 +26,6 @@ import {
   determineOverallCoastalRisk,
 } from "@/utils/scoreCalculations/helpers/environmentalProcessingHelpers";
 import { mapGradeToScore } from "@/utils/scoreCalculations/scoreCalculationHelpers";
-import { getStatusFromString } from "@/utils/statusHelpers";
 import { UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
@@ -36,6 +33,7 @@ import {
   getConservationAreaStatus,
   isInConservationArea,
 } from "../sidepanel/propertychecklist/conservationAreaHelpers";
+import { processBroadbandData } from "./helpers/broadbandProcessing";
 import { processPremiumStreetData } from "./helpers/premiumDataProcessing";
 import {
   processMobileCoverageForScoreAndLabel,
@@ -207,46 +205,16 @@ export const usePreprocessedPropertyData = ({
   }, [propertyData?.nearbySchools]);
 
   const { broadbandScoreValue, broadbandDisplayValue, broadbandStatus } = useMemo(() => {
-    const rawBroadbandValue = propertyData?.broadband;
-    const speedMbps = extractMbpsFromString(rawBroadbandValue ?? null);
-    const displayValue = rawBroadbandValue ?? null;
-    let scoreValue: number | null = 0;
-    let status: DataStatus | null = DataStatus.ASK_AGENT;
-
-    if (speedMbps === null) {
-      status = getStatusFromString(rawBroadbandValue ?? null);
-    } else {
-      const percentageOfAverage = (speedMbps / UK_AVERAGE_BROADBAND_MBPS) * 100;
-
-      if (percentageOfAverage < 50) {
-        scoreValue = 20;
-        status = DataStatus.FOUND_NEGATIVE;
-      } else if (percentageOfAverage <= 90) {
-        scoreValue = 40;
-        status = DataStatus.FOUND_POSITIVE;
-      } else if (percentageOfAverage <= 150) {
-        scoreValue = 75;
-        status = DataStatus.FOUND_POSITIVE;
-      } else if (percentageOfAverage <= 500) {
-        scoreValue = 90;
-        status = DataStatus.FOUND_POSITIVE;
-      } else {
-        scoreValue = 100;
-        status = DataStatus.FOUND_POSITIVE;
-      }
-
-      const initialStatus = getStatusFromString(rawBroadbandValue ?? null);
-      if (initialStatus === DataStatus.ASK_AGENT) {
-        status = DataStatus.ASK_AGENT;
-      }
-    }
-
-    return {
-      broadbandScoreValue: scoreValue,
-      broadbandDisplayValue: displayValue,
-      broadbandStatus: status,
-    };
-  }, [propertyData?.broadband]);
+    return processBroadbandData(
+      propertyData?.broadband,
+      processedPremiumDataResult?.broadband,
+      isPremiumDataFetchedAndHasData ?? false
+    );
+  }, [
+    propertyData?.broadband,
+    processedPremiumDataResult?.broadband,
+    isPremiumDataFetchedAndHasData,
+  ]);
 
   // --- Listing History Processing ---
   const {

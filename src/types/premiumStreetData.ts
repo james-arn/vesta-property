@@ -723,7 +723,7 @@ export interface ProcessedPremiumStreetData {
   listedBuildingsOnPlot: ListedBuilding[] | null;
   tenure: string | null;
   propertyType: string | null;
-  broadbandSpeedLabel: string | null;
+  broadband: BroadbandAvailability[] | null | undefined;
   internalAreaInSquareMetres: number | null;
 }
 

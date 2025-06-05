@@ -7,7 +7,6 @@ import {
 } from "@/types/premiumStreetData";
 import { RightOfWayDetails } from "@/types/property";
 import { calculateRemainingLeaseTerm } from "@/utils/dateCalculations";
-import { getBroadbandSpeedLabelFromAttributes } from "./preProcessedDataHelpers";
 
 /**
  * Processes raw premium street data and query status into a structured format.
@@ -106,7 +105,7 @@ export const processPremiumStreetData = (
 
   const tenure = attributes?.tenure?.tenure_type ?? null;
 
-  const broadbandSpeedLabel = getBroadbandSpeedLabelFromAttributes(attributes);
+  const broadband = attributes?.connectivity?.broadband_availability;
   const internalAreaInSquareMetres = attributes?.internal_area_square_metres ?? null;
 
   return {
@@ -144,7 +143,7 @@ export const processPremiumStreetData = (
     listedBuildingsOnPlot,
     tenure,
     propertyType,
-    broadbandSpeedLabel,
+    broadband,
     internalAreaInSquareMetres,
   };
 };
