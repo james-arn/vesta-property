@@ -1,3 +1,9 @@
+_05 May 2025 - UI improvment and bug fixes - Version 2.0.6_
+
+- Fix auth refresh.
+- Consolidated views into 1 view.
+- Improve premium conservation area, planning applications, flood risk, coastal erosion.
+
 _28 May 2025 - Install & uninstall process - Version 2.0.5_
 
 - Created a welcome page on install with embedded explainer video.
