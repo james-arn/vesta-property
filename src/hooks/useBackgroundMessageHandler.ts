@@ -46,7 +46,7 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         isAuthenticated
       );
 
-      const propertyId = (() => {
+      const propertyIdFromMessage = (() => {
         if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
           return extractPropertyIdFromUrl(message.data) ?? null;
         } else if (message.action === ActionEvents.PROPERTY_PAGE_OPENED) {
@@ -55,12 +55,21 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         return null;
       })();
 
-      setCurrentPropertyId(propertyId); // This will trigger re-render if value changes
+      // Update currentPropertyId state if the message provided one
+      // Only update if it's a relevant action for propertyId changes
+      if (
+        message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED ||
+        message.action === ActionEvents.PROPERTY_PAGE_OPENED
+      ) {
+        setCurrentPropertyId(propertyIdFromMessage);
+      }
 
-      if (message.action === ActionEvents.PROPERTY_PAGE_OPENED && propertyId) {
-        console.log(`[Background Handler Hook] Handling PROPERTY_PAGE_OPENED for ${propertyId}`);
+      if (message.action === ActionEvents.PROPERTY_PAGE_OPENED && propertyIdFromMessage) {
         console.log(
-          `[useBackgroundMessageHandler] Inside PROPERTY_PAGE_OPENED block. PropertyId: ${propertyId}, Current loading state: ${isPropertyDataLoading}`
+          `[Background Handler Hook] Handling PROPERTY_PAGE_OPENED for ${propertyIdFromMessage}`
+        );
+        console.log(
+          `[useBackgroundMessageHandler] Inside PROPERTY_PAGE_OPENED block. PropertyId: ${propertyIdFromMessage}, Current loading state: ${isPropertyDataLoading}`
         );
 
         const incomingData = message.data as ExtractedPropertyScrapingData;
@@ -95,7 +104,7 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
 
         const cachedData = queryClient.getQueryData<ExtractedPropertyScrapingData>([
           REACT_QUERY_KEYS.PROPERTY_DATA,
-          propertyId,
+          propertyIdFromMessage,
         ]);
 
         const dataToUpdate: ExtractedPropertyScrapingData = (() => {
@@ -107,7 +116,7 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
           ) {
             console.log(
               "[Background Handler Hook] Preserving user-confirmed address details from cache for propertyId:",
-              propertyId
+              propertyIdFromMessage
             );
             // Merge incoming address with cached, prioritizing confirmed fields from cache
             preservedAddress = {
@@ -132,7 +141,7 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
           if (cachedData?.epc?.confidence === ConfidenceLevels.USER_PROVIDED) {
             console.log(
               "[Background Handler Hook] Preserving user-provided EPC from cache for propertyId:",
-              propertyId
+              propertyIdFromMessage
             );
             preservedEpc = cachedData.epc;
           }
@@ -144,29 +153,37 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
           "[SidePanel Hook] Final EPC being set to cache:",
           JSON.parse(JSON.stringify(dataToUpdate.epc))
         );
-        queryClient.setQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId], dataToUpdate);
+        queryClient.setQueryData(
+          [REACT_QUERY_KEYS.PROPERTY_DATA, propertyIdFromMessage],
+          dataToUpdate
+        );
         console.log(
-          `[useBackgroundMessageHandler] About to call setIsPropertyDataLoading(false). Current propertyId: ${propertyId}`
+          `[useBackgroundMessageHandler] About to call setIsPropertyDataLoading(false). Current propertyId: ${propertyIdFromMessage}`
         );
         setIsPropertyDataLoading(false);
         setNonPropertyPageWarningMessage(null);
         console.log(
           "[Background Handler Hook] RQ Cache updated with final data for propertyId:",
-          propertyId,
+          propertyIdFromMessage,
           dataToUpdate
         );
       } else if (message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED) {
         console.log("[Background Handler Hook] Handling TAB_CHANGED_OR_EXTENSION_OPENED");
-        if (!propertyId) {
+        if (!propertyIdFromMessage) {
           console.log("[Background Handler Hook] No propertyId found in URL. Setting warning.");
           setNonPropertyPageWarningMessage("Please open a property page on rightmove.co.uk.");
           setIsPropertyDataLoading(false);
         } else {
-          console.log(`[Background Handler Hook] PropertyId ${propertyId} found in URL.`);
-          setNonPropertyPageWarningMessage(null);
-          const isCached = !!queryClient.getQueryData([REACT_QUERY_KEYS.PROPERTY_DATA, propertyId]);
           console.log(
-            `[Background Handler Hook] Property data cached locally for ${propertyId}: ${isCached}`
+            `[Background Handler Hook] PropertyId ${propertyIdFromMessage} found in URL.`
+          );
+          setNonPropertyPageWarningMessage(null);
+          const isCached = !!queryClient.getQueryData([
+            REACT_QUERY_KEYS.PROPERTY_DATA,
+            propertyIdFromMessage,
+          ]);
+          console.log(
+            `[Background Handler Hook] Property data cached locally for ${propertyIdFromMessage}: ${isCached}`
           );
           setIsPropertyDataLoading(!isCached);
         }
@@ -178,11 +195,17 @@ export const useBackgroundMessageHandler = (): UseBackgroundMessageHandlerResult
         setIsPropertyDataLoading(false);
       }
 
-      console.log(
-        `[Handler] Calling checkAndTrigger. propertyId: ${propertyId}, pendingIdRef: ${autoTriggerPendingForIdRef.current}, auth: ${isAuthenticated}`
-      );
+      // Determine the effective propertyId for checkAndTrigger
+      // Use propertyId from the message if it's directly relevant (e.g. page opened)
+      // Otherwise, fall back to the currentPropertyId state for other event types (like auth changes)
+      const effectivePropertyId =
+        message.action === ActionEvents.PROPERTY_PAGE_OPENED ||
+        message.action === ActionEvents.TAB_CHANGED_OR_EXTENSION_OPENED
+          ? propertyIdFromMessage
+          : currentPropertyId;
+
       checkAndTriggerPremiumSearchOnPropertyIdMatch({
-        propertyId,
+        propertyId: effectivePropertyId, // Use the more robustly determined propertyId
         isAuthenticated, // Uses current value from hook's scope
         userProfile, // Uses current value from hook's scope
         queryClient,

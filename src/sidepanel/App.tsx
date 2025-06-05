@@ -20,6 +20,7 @@ import {
   PropertyDataListItem
 } from "../types/property";
 
+import DevTools from '@/components/DevTools';
 import { ACCORDION_IDS } from "@/constants/accordionKeys";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { toast } from '@/hooks/use-toast';
@@ -387,6 +388,7 @@ const App: React.FC = () => {
           />
         </Suspense>
       )}
+      {process.env.USE_AUTH_DEV_TOOLS === "true" && <DevTools />}
     </div>
   );
 };

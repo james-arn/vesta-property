@@ -71,14 +71,6 @@ export function processBroadbandData(
   premiumBroadbandData: BroadbandAvailability[] | null | undefined,
   isPremiumDataFetchedAndHasData: boolean
 ): ProcessedBroadbandData {
-  console.warn(
-    "premiumBroadbandData:",
-    premiumBroadbandData,
-    "isPremiumDataFetchedAndHasData:",
-    isPremiumDataFetchedAndHasData,
-    "scrapedBroadbandValue:",
-    scrapedBroadbandValue
-  );
   if (isPremiumDataFetchedAndHasData && premiumBroadbandData) {
     const speedMbps =
       premiumBroadbandData?.find((type) => type.broadband_type === "Overall")
@@ -110,18 +102,6 @@ export function processBroadbandData(
   const initialStatus = getStatusFromString(scrapedBroadbandValue ?? null);
   const finalStatus = initialStatus === DataStatus.ASK_AGENT ? DataStatus.ASK_AGENT : status;
 
-  console.warn(
-    "finalStatus:",
-    finalStatus,
-    "scoreValue:",
-    scoreValue,
-    "status:",
-    status,
-    "displayValue:",
-    displayValue,
-    "speedMbps:",
-    speedMbps
-  );
   return {
     broadbandScoreValue: scoreValue,
     broadbandDisplayValue: displayValue,

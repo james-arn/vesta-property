@@ -1,5 +1,5 @@
 import { lookupAddressFromHousePricesPage } from "@/background/addressLookupHelper";
-import { exchangeCodeForTokens, storeAuthTokens } from "@/background/authHelpers";
+import { exchangeCodeForTokens, refreshTokens, storeAuthTokens } from "@/background/authHelpers";
 import { convertEpcUrlToDataUrlIfHttp } from "./background/epcBackgroundHelpers";
 import { fetchGovEpcCertificatesByPostcode } from "./background/govEpcService/govEpcFetcher";
 import {
@@ -356,6 +356,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ isAuthenticated: !!result[StorageKeys.AUTH_ID_TOKEN] });
     });
     return true; // Async response
+  }
+
+  // Handle REFRESH_TOKENS action from any part of the extension (e.g., side panel)
+  // This is crucial for allowing the UI to request a token refresh.
+  else if (message.action === ActionEvents.REFRESH_TOKENS) {
+    if (!message.refreshToken) {
+      logErrorToSentry("REFRESH_TOKENS action received without refreshToken", "error");
+      sendResponse({ success: false, error: "Missing refreshToken." });
+      return true; // Still an async response, even if it's an error response.
+    }
+
+    console.log("[Background Listener] Attempting to refresh tokens...");
+    refreshTokens(message.refreshToken as string)
+      .then(async (tokenResponse) => {
+        console.log(
+          "[Background Listener] Tokens refreshed successfully by helper, now storing..."
+        );
+        // If refresh is successful, store the new tokens
+        await storeAuthTokens(tokenResponse);
+        console.log("[Background Listener] New tokens stored.");
+        // Send a success response back to the caller (e.g., useSecureAuthentication hook)
+        sendResponse({ success: true });
+        // Also, notify other parts of the extension that auth completed (e.g. to update UI state)
+        // This is similar to what happens after initial login.
+        chrome.runtime.sendMessage(
+          { action: ActionEvents.AUTHENTICATION_COMPLETE, data: { isAuthenticated: true } },
+          (response) => {
+            if (chrome.runtime.lastError)
+              logErrorToSentry(
+                `Error sending AUTHENTICATION_COMPLETE after token refresh: ${chrome.runtime.lastError.message}`,
+                "warning" // Warning because primary refresh succeeded
+              );
+          }
+        );
+      })
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logErrorToSentry(`Token refresh failed: ${errorMessage}`, "error");
+        // Send a failure response back to the caller
+        sendResponse({ success: false, error: errorMessage });
+      });
+    return true; // Indicates that sendResponse will be called asynchronously.
   }
 
   if (message.action === ActionEvents.REQUEST_OPEN_SIDE_PANEL) {

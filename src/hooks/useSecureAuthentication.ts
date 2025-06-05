@@ -3,7 +3,9 @@ import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { StorageKeys } from "@/constants/storage";
 import { toast } from "@/hooks/use-toast";
 import { logErrorToSentry } from "@/utils/sentry";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+let isCheckAuthRunning = false; // Module-level lock
 
 /**
  * Custom hook to securely manage authentication state for Chrome extensions
@@ -21,7 +23,7 @@ export const useSecureAuthentication = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
+  const isRefreshingTokenRef = useRef(false); // Ref for synchronous check
 
   // Helper function to validate and parse JWT token
   const validateAndParseJwtToken = useCallback((token: string) => {
@@ -89,12 +91,10 @@ export const useSecureAuthentication = () => {
 
   // Function to refresh tokens if they're about to expire - depends on signOut
   const refreshTokenIfNeeded = useCallback(async (): Promise<boolean> => {
-    // Prevent multiple simultaneous refresh attempts
-    if (isRefreshingToken) {
+    if (isRefreshingTokenRef.current) {
       return false;
     }
-
-    setIsRefreshingToken(true);
+    isRefreshingTokenRef.current = true;
 
     try {
       // Get the current tokens
@@ -110,7 +110,6 @@ export const useSecureAuthentication = () => {
       });
 
       if (!tokens[StorageKeys.AUTH_ID_TOKEN] || !tokens[StorageKeys.AUTH_REFRESH_TOKEN]) {
-        setIsRefreshingToken(false);
         return false;
       }
 
@@ -120,7 +119,6 @@ export const useSecureAuthentication = () => {
 
       // If token is still valid for more than 5 minutes, no need to refresh
       if (payload.exp && payload.exp - now >= 300) {
-        setIsRefreshingToken(false);
         return true;
       }
 
@@ -130,10 +128,8 @@ export const useSecureAuthentication = () => {
         refreshToken: tokens[StorageKeys.AUTH_REFRESH_TOKEN],
       });
 
-      setIsRefreshingToken(false);
-
       if (response && response.success) {
-        // We'll call checkAuthentication separately
+        // The checkAuthentication triggered by storage change will update the auth state.
         return true;
       }
 
@@ -145,70 +141,85 @@ export const useSecureAuthentication = () => {
       return false;
     } catch (error) {
       logErrorToSentry(error, "error");
-      setIsRefreshingToken(false);
       return false;
+    } finally {
+      isRefreshingTokenRef.current = false;
     }
-  }, [isRefreshingToken, validateAndParseJwtToken, signOut]);
+  }, [validateAndParseJwtToken, signOut]);
 
   // Function to verify token validity - depends on refreshTokenIfNeeded
-  const checkAuthentication = useCallback(() => {
-    // Set a timeout to make sure we don't show the spinner forever
-    let timeoutId = setTimeout(() => {
-      setIsCheckingAuth(false);
-    }, 2000); // Max 2 seconds for auth check
+  const checkAuthentication = useCallback(async () => {
+    if (isCheckAuthRunning) {
+      return;
+    }
+    isCheckAuthRunning = true;
+    setIsCheckingAuth(true); // For UI state
 
-    setIsCheckingAuth(true);
+    let timeoutId: NodeJS.Timeout | null = null;
 
-    // Get all tokens in a single storage call for efficiency
-    chrome.storage.local.get(
-      [StorageKeys.AUTH_ID_TOKEN, StorageKeys.AUTH_ACCESS_TOKEN, StorageKeys.AUTH_REFRESH_TOKEN],
-      (result) => {
-        clearTimeout(timeoutId);
+    try {
+      timeoutId = setTimeout(() => {
+        console.warn("[AuthHook] checkAuthentication timed out after 2s.");
+        // Ensure state is cleaned up if timeout leads to early exit of this try block
+        // though finally should handle it.
+        setIsCheckingAuth(false);
+      }, 2000);
 
-        if (result[StorageKeys.AUTH_ID_TOKEN] && result[StorageKeys.AUTH_ACCESS_TOKEN]) {
-          try {
-            // Parse and validate the token
-            const payload = validateAndParseJwtToken(result[StorageKeys.AUTH_ID_TOKEN]);
-            const now = Math.floor(Date.now() / 1000);
-
-            if (payload.exp && payload.exp > now) {
-              // Token is valid and not expired
-              setIsAuthenticated(true);
-              setUserEmail(payload.email || null);
-
-              // Proactively refresh token if it's about to expire
-              if (payload.exp - now < 300) {
-                // Less than 5 minutes remaining
-                refreshTokenIfNeeded();
-              }
-            } else {
-              // Token is expired, try to refresh if we have a refresh token
-              if (result[StorageKeys.AUTH_REFRESH_TOKEN]) {
-                refreshTokenIfNeeded();
+      await new Promise<void>((resolve, reject) => {
+        chrome.storage.local.get(
+          [
+            StorageKeys.AUTH_ID_TOKEN,
+            StorageKeys.AUTH_ACCESS_TOKEN,
+            StorageKeys.AUTH_REFRESH_TOKEN,
+          ],
+          async (result) => {
+            try {
+              if (result[StorageKeys.AUTH_ID_TOKEN] && result[StorageKeys.AUTH_ACCESS_TOKEN]) {
+                const payload = validateAndParseJwtToken(result[StorageKeys.AUTH_ID_TOKEN]);
+                const now = Math.floor(Date.now() / 1000);
+                if (payload.exp && payload.exp > now) {
+                  setIsAuthenticated(true);
+                  setUserEmail(payload.email || null);
+                  if (payload.exp - now < 300) {
+                    await refreshTokenIfNeeded();
+                  }
+                } else {
+                  if (result[StorageKeys.AUTH_REFRESH_TOKEN]) {
+                    await refreshTokenIfNeeded();
+                  } else {
+                    chrome.storage.local.remove([
+                      StorageKeys.AUTH_ID_TOKEN,
+                      StorageKeys.AUTH_ACCESS_TOKEN,
+                      StorageKeys.AUTH_REFRESH_TOKEN,
+                    ]);
+                    setIsAuthenticated(false);
+                    setUserEmail(null);
+                  }
+                }
               } else {
-                // No refresh token available, clean up
-                chrome.storage.local.remove([
-                  StorageKeys.AUTH_ID_TOKEN,
-                  StorageKeys.AUTH_ACCESS_TOKEN,
-                  StorageKeys.AUTH_REFRESH_TOKEN,
-                ]);
                 setIsAuthenticated(false);
                 setUserEmail(null);
               }
+              resolve();
+            } catch (e) {
+              reject(e);
             }
-          } catch (error) {
-            logErrorToSentry(error, "error");
-            setIsAuthenticated(false);
-            setUserEmail(null);
           }
-        } else {
-          setIsAuthenticated(false);
-          setUserEmail(null);
-        }
-        setIsCheckingAuth(false);
+        );
+      });
+    } catch (error) {
+      logErrorToSentry(error, "error");
+      console.error("[AuthHook] Error during checkAuthentication core logic:", error);
+      setIsAuthenticated(false);
+      setUserEmail(null);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-    );
-  }, [validateAndParseJwtToken, refreshTokenIfNeeded]);
+      setIsCheckingAuth(false); // For UI state
+      isCheckAuthRunning = false;
+    }
+  }, [validateAndParseJwtToken, refreshTokenIfNeeded, signOut]);
 
   // Function to handle storage changes and keep auth state in sync
   const handleStorageChanges = useCallback(
@@ -223,7 +234,9 @@ export const useSecureAuthentication = () => {
   // Check authentication on mount and set up a listener for storage changes
   useEffect(() => {
     // Initial check
-    checkAuthentication();
+    (async () => {
+      await checkAuthentication();
+    })();
 
     // Listen for storage changes
     chrome.storage.onChanged.addListener(handleStorageChanges);
@@ -269,26 +282,28 @@ export const useSecureAuthentication = () => {
 
   // Handle checking authentication status periodically during sign-in flow
   const monitorAuthenticationStatus = useCallback(
-    (checkAuthStatus: NodeJS.Timeout) => {
+    (checkAuthStatusInterval: NodeJS.Timeout) => {
       chrome.storage.local.get(
         [StorageKeys.AUTH_SUCCESS, StorageKeys.AUTH_ERROR, StorageKeys.AUTH_IN_PROGRESS],
         (result) => {
-          if (!result[StorageKeys.AUTH_IN_PROGRESS]) {
-            clearInterval(checkAuthStatus);
-            setIsSigningIn(false);
+          (async () => {
+            if (!result[StorageKeys.AUTH_IN_PROGRESS]) {
+              clearInterval(checkAuthStatusInterval);
+              setIsSigningIn(false);
 
-            if (result[StorageKeys.AUTH_ERROR]) {
-              toast({
-                description: result[StorageKeys.AUTH_ERROR],
-                variant: "destructive",
-              });
-              // Clear the error
-              chrome.storage.local.remove([StorageKeys.AUTH_ERROR]);
-            } else if (result[StorageKeys.AUTH_SUCCESS]) {
-              // Success! Refresh the UI
-              checkAuthentication();
+              if (result[StorageKeys.AUTH_ERROR]) {
+                toast({
+                  description: result[StorageKeys.AUTH_ERROR],
+                  variant: "destructive",
+                });
+                // Clear the error
+                chrome.storage.local.remove([StorageKeys.AUTH_ERROR]);
+              } else if (result[StorageKeys.AUTH_SUCCESS]) {
+                // Success! Refresh the UI
+                await checkAuthentication();
+              }
             }
-          }
+          })();
         }
       );
     },
@@ -296,7 +311,7 @@ export const useSecureAuthentication = () => {
   );
 
   // Function to initiate the sign-in process with PKCE
-  const signInRedirect = useCallback(() => {
+  const signInRedirect = useCallback(async () => {
     // Show loading state
     setIsSigningIn(true);
 
@@ -336,8 +351,8 @@ export const useSecureAuthentication = () => {
               chrome.tabs.create({ url: authUrl.toString() });
 
               // Add a listener to check for authentication status changes
-              const checkAuthStatus = setInterval(() => {
-                monitorAuthenticationStatus(checkAuthStatus);
+              const checkAuthStatusInterval = setInterval(() => {
+                monitorAuthenticationStatus(checkAuthStatusInterval);
               }, 1000);
 
               // Set a timeout to prevent waiting forever
@@ -376,7 +391,7 @@ export const useSecureAuthentication = () => {
     isAuthenticated,
     isCheckingAuth,
     isSigningIn,
-    isRefreshingToken,
+    isRefreshingTokenRef,
     userEmail,
     checkAuthentication,
     signInRedirect,
