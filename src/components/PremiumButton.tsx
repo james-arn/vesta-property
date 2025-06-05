@@ -12,6 +12,7 @@ interface PremiumButtonProps {
     text: string;
     tooltipText?: string;
     onClick: () => void;
+    disabled?: boolean;
 }
 
 const getButtonContent = (icon: ReactNode, text: string) => (
@@ -31,6 +32,7 @@ export const PremiumButton = ({
     text,
     tooltipText,
     onClick,
+    disabled = false,
 }: PremiumButtonProps): React.JSX.Element => {
     const button = (
         <Button
@@ -38,6 +40,7 @@ export const PremiumButton = ({
             variant="default"
             onClick={onClick}
             className="relative flex items-center gap-2 bg-gradient-to-r from-[#B8860B] via-[#DAA520] to-[#B8860B] hover:from-[#986C08] hover:via-[#B8860B] hover:to-[#986C08] transition-all duration-300 border border-[#FFD700]/30 shadow-[0_2px_10px_rgba(255,215,0,0.15)] text-white font-medium py-2 px-4"
+            disabled={disabled}
         >
             {getButtonContent(icon, text)}
         </Button>

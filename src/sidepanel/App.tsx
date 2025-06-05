@@ -52,7 +52,13 @@ const App: React.FC = () => {
   const queryClient = useQueryClient();
 
   const { isPropertyDataLoading, nonPropertyPageWarningMessage, currentPropertyId } = useBackgroundMessageHandler();
-  const { isAuthenticated, signInRedirect } = useSecureAuthentication();
+  const {
+    isAuthenticated,
+    signInRedirect,
+    isCheckingAuth,
+    isSigningIn,
+    signOut,
+  } = useSecureAuthentication();
 
   const {
     data: propertyData,
@@ -306,6 +312,11 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
       <SettingsBar
+        isAuthenticated={isAuthenticated}
+        isCheckingAuth={isCheckingAuth}
+        isAuthenticating={isSigningIn}
+        signInRedirect={signInRedirect}
+        signOut={signOut}
         currentView={currentView}
         setCurrentView={setCurrentView}
         openGroups={openGroups}
@@ -316,6 +327,7 @@ const App: React.FC = () => {
         agentDetails={propertyData.agent}
         onGenerateMessageClick={handleGenerateMessageClick}
         onPremiumSearchClick={initiatePremiumActivationFlow}
+        isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
       />
 
       {propertyData?.address && (

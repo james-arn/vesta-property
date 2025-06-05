@@ -19,6 +19,12 @@ interface SettingsBarProps {
   setCurrentView: (view: typeof VIEWS[keyof typeof VIEWS]) => void;
   onGenerateMessageClick: () => void;
   onPremiumSearchClick: () => void;
+  isAuthenticated: boolean;
+  isCheckingAuth: boolean;
+  isAuthenticating: boolean;
+  signInRedirect: () => Promise<void> | void;
+  signOut: () => void;
+  isPremiumDataFetchedAndHasData: boolean;
 }
 
 const SettingsBar: React.FC<SettingsBarProps> = ({
@@ -32,6 +38,12 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
   setCurrentView,
   onGenerateMessageClick,
   onPremiumSearchClick,
+  isAuthenticated,
+  isCheckingAuth,
+  isAuthenticating,
+  signInRedirect,
+  signOut,
+  isPremiumDataFetchedAndHasData
 }) => {
   return (
     <div className="flex justify-between items-center p-2 bg-gray-100 rounded-md shadow-md space-x-4">
@@ -41,9 +53,10 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
             <TooltipTrigger asChild>
               <PremiumButton
                 icon={<FaSearchPlus className="h-4 w-4" />}
-                text="Premium Search"
+                text={isPremiumDataFetchedAndHasData ? "Premium Enabled" : "Premium Search"}
                 tooltipText="Unlock enhanced property data with Premium Search"
                 onClick={onPremiumSearchClick}
+                disabled={isPremiumDataFetchedAndHasData}
               />
             </TooltipTrigger>
             <TooltipContent sideOffset={5} className="bg-slate-900 text-white">
@@ -76,7 +89,13 @@ const SettingsBar: React.FC<SettingsBarProps> = ({
           setOpenGroups={setOpenGroups}
           propertyChecklistData={propertyChecklistData}
         />
-        <SettingsControls />
+        <SettingsControls
+          isAuthenticated={isAuthenticated}
+          isCheckingAuth={isCheckingAuth}
+          isAuthenticating={isAuthenticating}
+          signInRedirect={signInRedirect}
+          signOut={signOut}
+        />
       </div>
     </div>
   );

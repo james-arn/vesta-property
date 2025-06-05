@@ -41,7 +41,7 @@ export function useFeedbackAutoPrompt(propertyId: string | null) {
       toast({
         description: React.createElement(Feedback),
         variant: "default",
-        duration: 12000000, // 20 minutes
+        duration: 15000, // 15 seconds
       });
       localStorage.setItem(StorageKeys.HAS_FEEDBACK_PROMPT_ALREADY_SHOWN, "true");
       return;
@@ -52,7 +52,7 @@ export function useFeedbackAutoPrompt(propertyId: string | null) {
       toast({
         description: React.createElement(Feedback),
         variant: "default",
-        duration: 12000000, // 20 minutes
+        duration: 15000, // 15 seconds
       });
       localStorage.setItem(StorageKeys.HAS_FEEDBACK_PROMPT_ALREADY_SHOWN, "true");
     }

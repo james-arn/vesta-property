@@ -12,7 +12,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { YOUTUBE_EXPLAINER_VIDEO_URL } from "@/constants/uiConstants";
 import { useToast } from "@/hooks/use-toast";
 import useCreateStripePortalSession from "@/hooks/useCreateStripePortalSession";
-import { useSecureAuthentication } from "@/hooks/useSecureAuthentication";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { formatUnixTimestampToDateString } from "@/utils/dates";
 import { GA_UPGRADE_BUTTON_LOCATIONS } from '@/utils/GoogleAnalytics/googleAnalyticsConsts';
@@ -27,6 +26,14 @@ import { MdManageAccounts } from "react-icons/md";
 import { RiCoinLine } from "react-icons/ri";
 import { VscFeedback } from "react-icons/vsc";
 
+interface SettingsControlsProps {
+    isAuthenticated: boolean;
+    isCheckingAuth: boolean;
+    isAuthenticating: boolean;
+    signInRedirect: () => Promise<void> | void;
+    signOut: () => void;
+}
+
 const SettingsIcon = () => (
     <TooltipProvider>
         <div className="relative">
@@ -37,24 +44,22 @@ const SettingsIcon = () => (
     </TooltipProvider>
 );
 
-const SettingsControls = () => {
+const SettingsControls = ({
+    isAuthenticated,
+    isCheckingAuth,
+    isAuthenticating,
+    signInRedirect,
+    signOut
+}: SettingsControlsProps) => {
     const { toast } = useToast();
     const { createPortalSession, isLoading: isPortalLoading } = useCreateStripePortalSession();
     const { userProfile, isLoadingUserProfile } = useUserProfile();
-
-    const {
-        isAuthenticated,
-        isCheckingAuth,
-        isSigningIn: isAuthenticating,
-        signInRedirect,
-        signOut
-    } = useSecureAuthentication();
 
     const handleFeedback = () => {
         toast({
             description: <Feedback />,
             variant: "default",
-            duration: 12000000, // 20 minutes
+            duration: 15000, // 15 seconds
         });
     };
 

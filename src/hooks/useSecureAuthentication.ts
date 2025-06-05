@@ -5,8 +5,6 @@ import { toast } from "@/hooks/use-toast";
 import { logErrorToSentry } from "@/utils/sentry";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-let isCheckAuthRunning = false; // Module-level lock
-
 /**
  * Custom hook to securely manage authentication state for Chrome extensions
  *
@@ -24,6 +22,7 @@ export const useSecureAuthentication = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const isRefreshingTokenRef = useRef(false); // Ref for synchronous check
+  const isCheckAuthRunningRef = useRef(false); // Ref for checkAuthentication lock
 
   // Helper function to validate and parse JWT token
   const validateAndParseJwtToken = useCallback((token: string) => {
@@ -149,10 +148,10 @@ export const useSecureAuthentication = () => {
 
   // Function to verify token validity - depends on refreshTokenIfNeeded
   const checkAuthentication = useCallback(async () => {
-    if (isCheckAuthRunning) {
+    if (isCheckAuthRunningRef.current) {
       return;
     }
-    isCheckAuthRunning = true;
+    isCheckAuthRunningRef.current = true;
     setIsCheckingAuth(true); // For UI state
 
     let timeoutId: NodeJS.Timeout | null = null;
@@ -217,7 +216,7 @@ export const useSecureAuthentication = () => {
         clearTimeout(timeoutId);
       }
       setIsCheckingAuth(false); // For UI state
-      isCheckAuthRunning = false;
+      isCheckAuthRunningRef.current = false;
     }
   }, [validateAndParseJwtToken, refreshTokenIfNeeded, signOut]);
 
