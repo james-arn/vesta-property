@@ -49,27 +49,17 @@ interface DashboardScoreItemProps {
     onItemValueClick: (item: PropertyDataListItem) => void;
     handleEpcValueChange: (newValue: string) => void;
     onOpenUpsellModal: () => void;
-
-    // Expansion state, queries, and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
-    crimeChartExpanded: boolean;
-    crimeContentRef: React.RefObject<HTMLDivElement | null>;
-    crimeContentHeight: number;
-
-    // Expansion state, queries, and refs for PLANNING PERMISSIONS
     premiumStreetDataQuery: UseQueryResult<
         GetPremiumStreetDataResponse | null,
         Error
     >;
-    planningPermissionCardExpanded: boolean;
-    planningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
-    planningPermissionContentHeight: number;
-    nearbyPlanningPermissionCardExpanded: boolean;
-    nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
-    nearbyPlanningPermissionContentHeight: number;
     mobileCoverageAccordion?: ReturnType<typeof useAccordion>;
     coastalErosionAccordion?: ReturnType<typeof useAccordion>;
     floodRiskAccordion?: ReturnType<typeof useAccordion>;
+    crimeAccordion?: ReturnType<typeof useAccordion>;
+    planningPermissionAccordion?: ReturnType<typeof useAccordion>;
+    nearbyPlanningPermissionAccordion?: ReturnType<typeof useAccordion>;
 }
 
 export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
@@ -89,18 +79,12 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
     onOpenUpsellModal,
     crimeQuery,
     premiumStreetDataQuery,
-    crimeChartExpanded,
-    crimeContentRef,
-    crimeContentHeight,
-    planningPermissionCardExpanded,
-    planningPermissionContentRef,
-    planningPermissionContentHeight,
-    nearbyPlanningPermissionCardExpanded,
-    nearbyPlanningPermissionContentRef,
-    nearbyPlanningPermissionContentHeight,
     mobileCoverageAccordion,
     coastalErosionAccordion,
-    floodRiskAccordion
+    floodRiskAccordion,
+    crimeAccordion,
+    planningPermissionAccordion,
+    nearbyPlanningPermissionAccordion
 }) => {
     if (!categoryScoreData) {
         return (
@@ -183,11 +167,11 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         onEpcChange={handleEpcValueChange}
                                         onOpenUpsellModal={onOpenUpsellModal}
                                     />
-                                    {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeChartExpanded && crimeQuery.data && (
+                                    {item.key === CHECKLIST_KEYS.CRIME_SCORE && crimeAccordion?.isExpanded && crimeQuery.data && (
                                         <div
-                                            ref={crimeContentRef}
+                                            ref={crimeAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                            style={{ maxHeight: crimeChartExpanded ? `${crimeContentHeight}px` : "0px" }}
+                                            style={{ maxHeight: crimeAccordion?.isExpanded && crimeAccordion?.contentHeight ? `${crimeAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyCrimePieChart
@@ -198,11 +182,11 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                             </Suspense>
                                         </div>
                                     )}
-                                    {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningPermissionCardExpanded && planningApplications && (
+                                    {item.key === CHECKLIST_KEYS.PLANNING_PERMISSIONS && planningPermissionAccordion?.isExpanded && planningApplications && (
                                         <div
-                                            ref={planningPermissionContentRef}
+                                            ref={planningPermissionAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                            style={{ maxHeight: planningPermissionCardExpanded ? `${planningPermissionContentHeight}px` : "0px" }}
+                                            style={{ maxHeight: planningPermissionAccordion?.isExpanded && planningPermissionAccordion?.contentHeight ? `${planningPermissionAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyPlanningPermissionCard
@@ -213,11 +197,11 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                             </Suspense>
                                         </div>
                                     )}
-                                    {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningPermissionCardExpanded && nearbyPlanningApplications && (
+                                    {item.key === CHECKLIST_KEYS.NEARBY_PLANNING_PERMISSIONS && nearbyPlanningPermissionAccordion?.isExpanded && nearbyPlanningApplications && (
                                         <div
-                                            ref={nearbyPlanningPermissionContentRef}
+                                            ref={nearbyPlanningPermissionAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                            style={{ maxHeight: nearbyPlanningPermissionCardExpanded ? `${nearbyPlanningPermissionContentHeight}px` : "0px" }}
+                                            style={{ maxHeight: nearbyPlanningPermissionAccordion?.isExpanded && nearbyPlanningPermissionAccordion?.contentHeight ? `${nearbyPlanningPermissionAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyPlanningPermissionCard
@@ -232,7 +216,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         <div
                                             ref={coastalErosionAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                            style={{ maxHeight: coastalErosionAccordion?.contentHeight ? `${coastalErosionAccordion.contentHeight}px` : "0px" }}
+                                            style={{ maxHeight: coastalErosionAccordion?.isExpanded && coastalErosionAccordion?.contentHeight ? `${coastalErosionAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyCoastalErosionDisplay coastalErosionDetails={item.coastalErosionDetails} />
@@ -243,7 +227,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         <div
                                             ref={mobileCoverageAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2 mt-1 border-t border-slate-200"
-                                            style={{ maxHeight: mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
+                                            style={{ maxHeight: mobileCoverageAccordion?.isExpanded && mobileCoverageAccordion?.contentHeight ? `${mobileCoverageAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyMobileCoverageDisplay mobileCoverage={item.mobileCoverage} />
@@ -254,7 +238,7 @@ export const DashboardScoreItem: React.FC<DashboardScoreItemProps> = ({
                                         <div
                                             ref={floodRiskAccordion?.contentRef}
                                             className="overflow-hidden transition-all duration-300 ease-in-out pt-2"
-                                            style={{ maxHeight: floodRiskAccordion?.contentHeight ? `${floodRiskAccordion.contentHeight}px` : "0px" }}
+                                            style={{ maxHeight: floodRiskAccordion?.isExpanded && floodRiskAccordion?.contentHeight ? `${floodRiskAccordion.contentHeight}px` : "0px" }}
                                         >
                                             <Suspense fallback={<LoadingSpinner />}>
                                                 <LazyFloodRiskDisplay completeFloodRiskAssessment={item.completeFloodRiskAssessment} />

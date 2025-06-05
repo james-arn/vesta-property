@@ -1,6 +1,7 @@
+import { AccordionId } from "@/constants/accordionKeys";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const useAccordion = (accordionKey: string, initialExpanded = false) => {
+export const useAccordion = (accordionKey: AccordionId, initialExpanded = false) => {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState(0);

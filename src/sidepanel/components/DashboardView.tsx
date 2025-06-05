@@ -1,4 +1,5 @@
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { ACCORDION_IDS, AccordionId } from "@/constants/accordionKeys";
 import { DashboardScoreCategory } from '@/constants/dashboardScoreCategoryConsts';
 import { ENV_CONFIG } from "@/constants/environmentConfig";
 import { useAccordion } from '@/hooks/useAccordion';
@@ -35,26 +36,13 @@ interface DashboardViewProps {
     epcDebugCanvasRef: React.RefObject<HTMLCanvasElement | null>;
     isEpcDebugModeOn: boolean;
     handleEpcValueChange: (newValue: string) => void;
-
-    // Expansion state and refs
     crimeQuery: UseQueryResult<CrimeScoreData, Error>;
     premiumStreetDataQuery: UseQueryResult<
         GetPremiumStreetDataResponse | null,
         Error
     >;
-    crimeChartExpanded: boolean;
-    crimeContentRef: React.RefObject<HTMLDivElement | null>;
-    crimeContentHeight: number;
-    planningPermissionCardExpanded: boolean;
-    planningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
-    planningPermissionContentHeight: number;
-    nearbyPlanningPermissionCardExpanded: boolean;
-    nearbyPlanningPermissionContentRef: React.RefObject<HTMLDivElement | null>;
-    nearbyPlanningPermissionContentHeight: number;
     onTriggerPremiumFlow: () => void;
-    mobileCoverageAccordion: ReturnType<typeof useAccordion>;
-    coastalErosionAccordion: ReturnType<typeof useAccordion>;
-    floodRiskAccordion: ReturnType<typeof useAccordion>;
+    accordions: Record<AccordionId, ReturnType<typeof useAccordion>>;
 }
 
 const categoryIcons: { [key in DashboardScoreCategory]?: React.ElementType } = {
@@ -76,29 +64,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     onItemValueClick,
     crimeQuery,
     premiumStreetDataQuery,
-    crimeChartExpanded,
-    crimeContentRef,
-    crimeContentHeight,
-    planningPermissionCardExpanded,
-    planningPermissionContentRef,
-    planningPermissionContentHeight,
-    nearbyPlanningPermissionCardExpanded,
-    nearbyPlanningPermissionContentRef,
-    nearbyPlanningPermissionContentHeight,
     onTriggerPremiumFlow,
     isPremiumDataFetchedAndHasData,
     epcBandData,
     epcDebugCanvasRef,
     isEpcDebugModeOn,
     handleEpcValueChange,
-    mobileCoverageAccordion,
-    coastalErosionAccordion,
-    floodRiskAccordion
+    accordions
 }) => {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
     const handleToggleExpand = (category: string) => {
         const isClosing = expandedCategory === category;
+
+        if (!isClosing) {
+            Object.values(accordions).forEach(accordion => {
+                accordion.setIsExpanded(false);
+            });
+        }
+
         const nextCategory = isClosing ? null : category;
         setExpandedCategory(nextCategory);
     };
@@ -178,24 +162,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 upgradeUrl={upgradeUrl}
                                 crimeQuery={crimeQuery}
                                 premiumStreetDataQuery={premiumStreetDataQuery}
-                                crimeChartExpanded={crimeChartExpanded}
-                                crimeContentRef={crimeContentRef}
-                                crimeContentHeight={crimeContentHeight}
-                                planningPermissionCardExpanded={planningPermissionCardExpanded}
-                                planningPermissionContentRef={planningPermissionContentRef}
-                                planningPermissionContentHeight={planningPermissionContentHeight}
-                                nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionCardExpanded}
-                                nearbyPlanningPermissionContentRef={nearbyPlanningPermissionContentRef}
-                                nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionContentHeight}
+                                crimeAccordion={accordions[ACCORDION_IDS.CRIME]}
+                                planningPermissionAccordion={accordions[ACCORDION_IDS.PLANNING_PERMISSION]}
+                                nearbyPlanningPermissionAccordion={accordions[ACCORDION_IDS.NEARBY_PLANNING_PERMISSION]}
                                 onOpenUpsellModal={onTriggerPremiumFlow}
                                 handleEpcValueChange={handleEpcValueChange}
                                 epcBandData={epcBandData}
                                 epcDebugCanvasRef={epcDebugCanvasRef}
                                 isEpcDebugModeOn={isEpcDebugModeOn}
                                 invertColorScale={false}
-                                mobileCoverageAccordion={mobileCoverageAccordion}
-                                coastalErosionAccordion={coastalErosionAccordion}
-                                floodRiskAccordion={floodRiskAccordion}
+                                mobileCoverageAccordion={accordions[ACCORDION_IDS.MOBILE_COVERAGE]}
+                                coastalErosionAccordion={accordions[ACCORDION_IDS.COASTAL_EROSION]}
+                                floodRiskAccordion={accordions[ACCORDION_IDS.FLOOD_RISK]}
                             />
                         </Suspense>
                     );

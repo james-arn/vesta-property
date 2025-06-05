@@ -20,6 +20,7 @@ import {
   PropertyDataListItem
 } from "../types/property";
 
+import { ACCORDION_IDS } from "@/constants/accordionKeys";
 import REACT_QUERY_KEYS from '@/constants/ReactQueryKeys';
 import { toast } from '@/hooks/use-toast';
 import { useAccordion } from '@/hooks/useAccordion';
@@ -76,12 +77,21 @@ const App: React.FC = () => {
   );
   const [isAgentMessageModalOpen, setIsAgentMessageModalOpen] = useState(false);
   const [agentMessage, setAgentMessage] = useState("");
-  const crimeAccordion = useAccordion("crimeAccordion");
-  const planningPermissionAccordion = useAccordion("planningPermissionAccordion");
-  const nearbyPlanningPermissionAccordion = useAccordion("nearbyPlanningPermissionAccordion");
-  const mobileCoverageAccordion = useAccordion("mobileCoverageAccordion");
-  const coastalErosionAccordion = useAccordion("coastalErosionAccordion");
-  const floodRiskAccordion = useAccordion("floodRiskAccordion");
+  const crimeAccordion = useAccordion(ACCORDION_IDS.CRIME);
+  const planningPermissionAccordion = useAccordion(ACCORDION_IDS.PLANNING_PERMISSION);
+  const nearbyPlanningPermissionAccordion = useAccordion(ACCORDION_IDS.NEARBY_PLANNING_PERMISSION);
+  const mobileCoverageAccordion = useAccordion(ACCORDION_IDS.MOBILE_COVERAGE);
+  const coastalErosionAccordion = useAccordion(ACCORDION_IDS.COASTAL_EROSION);
+  const floodRiskAccordion = useAccordion(ACCORDION_IDS.FLOOD_RISK);
+
+  const allAccordions = {
+    [ACCORDION_IDS.CRIME]: crimeAccordion,
+    [ACCORDION_IDS.PLANNING_PERMISSION]: planningPermissionAccordion,
+    [ACCORDION_IDS.NEARBY_PLANNING_PERMISSION]: nearbyPlanningPermissionAccordion,
+    [ACCORDION_IDS.MOBILE_COVERAGE]: mobileCoverageAccordion,
+    [ACCORDION_IDS.COASTAL_EROSION]: coastalErosionAccordion,
+    [ACCORDION_IDS.FLOOD_RISK]: floodRiskAccordion,
+  };
 
   const handleSelectGovEpcSuggestion = useCallback((suggestion: GovEpcValidationMatch) => {
     if (!currentPropertyId) {
@@ -324,15 +334,6 @@ const App: React.FC = () => {
           onItemValueClick={handleChecklistItemValueClick}
           dataCoverageScoreData={dataCoverageScoreData}
           crimeQuery={crimeQuery}
-          crimeChartExpanded={crimeAccordion.isExpanded}
-          crimeContentRef={crimeAccordion.contentRef}
-          crimeContentHeight={crimeAccordion.contentHeight}
-          planningPermissionCardExpanded={planningPermissionAccordion.isExpanded}
-          planningPermissionContentRef={planningPermissionAccordion.contentRef}
-          planningPermissionContentHeight={planningPermissionAccordion.contentHeight}
-          nearbyPlanningPermissionCardExpanded={nearbyPlanningPermissionAccordion.isExpanded}
-          nearbyPlanningPermissionContentRef={nearbyPlanningPermissionAccordion.contentRef}
-          nearbyPlanningPermissionContentHeight={nearbyPlanningPermissionAccordion.contentHeight}
           onTriggerPremiumFlow={initiatePremiumActivationFlow}
           isPremiumDataFetchedAndHasData={isPremiumDataFetchedAndHasData}
           epcBandData={preprocessedData.finalEpcBandData}
@@ -342,9 +343,7 @@ const App: React.FC = () => {
           isLoading={isLoadingQueryPropertyData || premiumDataQuery.isLoading}
           premiumStreetDataQuery={premiumDataQuery}
           openNewTab={openNewTab}
-          mobileCoverageAccordion={mobileCoverageAccordion}
-          coastalErosionAccordion={coastalErosionAccordion}
-          floodRiskAccordion={floodRiskAccordion}
+          accordions={allAccordions}
         />
       </main>
 
